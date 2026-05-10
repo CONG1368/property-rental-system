@@ -1,0 +1,6 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"E:\\物业租赁综合管理系统\\.claude\\statusline-command.sh\""
+  }
+}
