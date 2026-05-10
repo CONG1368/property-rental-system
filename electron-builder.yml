@@ -1,0 +1,19 @@
+appId: com.property-rental.system
+productName: 物业租赁综合管理系统
+directories:
+  output: release
+files:
+  - dist/**/*
+  - runtime/**/*
+  - frontend/dist/**/*
+  - backend/dist/**/*
+extraResources:
+  - from: runtime/
+    to: runtime/
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+win:
+  target: nsis
+  icon: frontend/public/icon.ico
