@@ -1,43 +1,47 @@
 @echo off
-chcp 65001 >nul
-title 物业租赁综合管理系统 - 开发模式
+setlocal enabledelayedexpansion
+cd /d "%~dp0"
 
-echo.
-echo ╔══════════════════════════════════════════════════╗
-echo ║     物业租赁综合管理系统 - 开发模式启动中...       ║
-echo ╚══════════════════════════════════════════════════╝
+echo ============================================================
+echo   Property Rental System - Development Mode
+echo ============================================================
 echo.
 
-:: 检查 .env 配置
+:: Check .env
 if not exist .env (
-    echo [警告] 未找到 .env 文件，正在从模板创建...
-    copy .env.example .env >nul
+    echo [WARN] .env file not found, creating from template...
+    copy .env.example .env >nul 2>nul
 )
 
-:: 检查 MySQL
-echo [检查] MySQL 数据库连接...
-node -e "const m=require('mysql2/promise');m.createConnection({host:'127.0.0.1',port:3306,user:'root',password:''}).then(c=>{console.log('  [OK] MySQL 连接成功');c.end()}).catch(()=>console.log('  [警告] MySQL 连接失败，请检查MySQL服务'))" 2>nul
+:: Check MySQL with proper path
+echo [Check] Testing MySQL connection...
+set "NODE_PATH=%~dp0backend\node_modules;%NODE_PATH%"
+node -e "var m;try{m=require('mysql2/promise')}catch(e){console.log('  MySQL2 not installed yet, skipping check');process.exit(0)};m.createConnection({host:'127.0.0.1',port:3306,user:'root',password:''}).then(c=>{console.log('  OK: MySQL connected');c.end()}).catch(e=>console.log('  WARN: MySQL not reachable - please start MySQL service'))" 2>nul
 
-:: 检查 Redis
-echo [检查] Redis 连接...
-node -e "const r=new (require('ioredis'))({host:'127.0.0.1',port:6379,maxRetriesPerRequest:1,retryStrategy:()=>null});r.on('connect',()=>{console.log('  [OK] Redis 连接成功');r.quit()});r.on('error',()=>console.log('  [警告] Redis 连接失败，请检查Redis服务'))" 2>nul
+:: Check Redis
+echo [Check] Testing Redis connection...
+node -e "try{var r=new (require('ioredis'))({host:'127.0.0.1',port:6379,maxRetriesPerRequest:1,lazyConnect:true,retryStrategy:()=>null});r.connect().then(()=>{console.log('  OK: Redis connected');r.quit()}).catch(()=>console.log('  WARN: Redis not reachable - please start redis-server.exe'))}catch(e){console.log('  Redis module not installed yet, skipping')}" 2>nul
 
-:: 创建上传目录
-if not exist uploads mkdir uploads
+:: Create uploads dir
+if not exist uploads mkdir uploads 2>nul
 
 echo.
-echo [启动] 后端服务 (端口 3001)...
-start "物业租赁-后端" cmd /c "cd backend && npx tsx src/index.ts"
+echo [Start] Launching backend server on port 3001...
+start "Backend-API" cmd /c "cd /d \"%~dp0backend\" && title Backend API Server && npx tsx src/index.ts"
 
-:: 等待后端启动
-echo [等待] 等待后端服务就绪...
-timeout /t 3 /nobreak >nul
+:: Wait for backend
+echo [Wait] Waiting for backend to be ready...
+timeout /t 4 /nobreak >nul
 
-echo [启动] 前端开发服务器 (端口 5173)...
-cd frontend
+echo [Start] Launching frontend dev server on port 5173...
+echo.
+echo ============================================================
+echo   Backend API:  http://localhost:3001
+echo   Frontend App: http://localhost:5173
+echo   Login:        admin / admin123
+echo   Press Ctrl+C to stop
+echo ============================================================
+echo.
+
+cd /d "%~dp0frontend"
 npx vite --host
-cd ..
-
-echo.
-echo 系统已停止
-pause

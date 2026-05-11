@@ -1,74 +1,58 @@
 @echo off
-chcp 65001 >nul
-title 物业租赁综合管理系统
+setlocal enabledelayedexpansion
+cd /d "%~dp0"
 
-echo.
-echo ╔══════════════════════════════════════════════════╗
-echo ║         物业租赁综合管理系统 v1.0.0               ║
-echo ║   Property Rental Comprehensive Management       ║
-echo ╚══════════════════════════════════════════════════╝
+echo ============================================================
+echo   Property Rental System v1.0.0
+echo ============================================================
 echo.
 
-:: 检查 .env 配置
+:: Check .env
 if not exist .env (
-    echo [警告] 未找到 .env 文件，使用默认配置
+    echo [WARN] .env file not found, creating from template...
     copy .env.example .env >nul 2>nul
 )
 
-:: 检查 MySQL
-echo [1/5] 检查 MySQL 数据库...
-node -e "const m=require('mysql2/promise');m.createConnection({host:'127.0.0.1',port:3306,user:'root',password:''}).then(c=>{console.log('  [OK] MySQL 连接成功');c.end()}).catch(e=>{console.log('  [错误] MySQL 未运行');process.exit(1)})" 2>nul
+:: Check MySQL
+echo [1/4] Checking MySQL...
+set "NODE_PATH=%~dp0backend\node_modules;%NODE_PATH%"
+node -e "try{var m=require('mysql2/promise');m.createConnection({host:'127.0.0.1',port:3306,user:'root',password:''}).then(c=>{console.log('  OK: MySQL connected');c.end()}).catch(e=>{console.log('  ERROR: MySQL not running');process.exit(1)})}catch(e){console.log('  ERROR: mysql2 not installed, run setup.bat first');process.exit(1)}" 2>nul
 if %errorlevel% neq 0 (
-    echo   [错误] 请先启动 MySQL 8.0 数据库服务
-    echo   启动命令: net start MySQL80  或  net start MySQL
+    echo   Please start MySQL service first: net start MySQL80
+    echo   Or run setup.bat to install dependencies
     pause
     exit /b 1
 )
 
-:: 检查 Redis
-echo [2/5] 检查 Redis...
-node -e "const r=new (require('ioredis'))({host:'127.0.0.1',port:6379,maxRetriesPerRequest:1,retryStrategy:()=>null});setTimeout(()=>{try{r.quit()}catch{}},500);r.on('connect',()=>{console.log('  [OK] Redis 连接成功')});r.on('error',()=>{console.log('  [错误] Redis 未运行');process.exit(1)})" 2>nul
+:: Check Redis
+echo [2/4] Checking Redis...
+node -e "try{var r=new (require('ioredis'))({host:'127.0.0.1',port:6379,maxRetriesPerRequest:1,lazyConnect:true,retryStrategy:()=>null});r.connect().then(()=>{console.log('  OK: Redis connected');r.quit()}).catch(e=>{console.log('  ERROR: Redis not running');process.exit(1)})}catch(e){console.log('  ERROR: ioredis not installed, run setup.bat first');process.exit(1)}" 2>nul
 if %errorlevel% neq 0 (
-    echo   [错误] 请先启动 Redis 服务
-    echo   启动命令: redis-server.exe
+    echo   Please start Redis first: redis-server.exe
     pause
     exit /b 1
 )
 
-:: 构建前端
-echo [3/5] 构建前端资源...
-cd frontend
-call npx vite build --logLevel error
-cd ..
-echo   [OK] 前端构建完成
+:: Build frontend
+echo [3/4] Building frontend...
+cd /d "%~dp0frontend"
+call npx vite build --logLevel error 2>nul
+cd /d "%~dp0"
+echo   OK: Frontend build complete
 
-:: 编译后端
-echo [4/5] 编译后端代码...
-cd backend
-if not exist dist mkdir dist
-call npx tsc --skipLibCheck 2>nul
-cd ..
-echo   [OK] 后端编译完成
-
-:: 启动服务
-echo [5/5] 启动应用服务...
+:: Start services
+echo [4/4] Starting services...
 echo.
-echo ╔══════════════════════════════════════════════════╗
-echo ║  后端服务:    http://localhost:3001               ║
-echo ║  前端页面:    http://localhost:5173               ║
-echo ║  默认账号:    admin / admin123                    ║
-echo ║  按 Ctrl+C 停止所有服务                           ║
-echo ╚══════════════════════════════════════════════════╝
+echo ============================================================
+echo   Backend API:  http://localhost:3001
+echo   Frontend App: http://localhost:5173
+echo   Login:        admin / admin123
+echo ============================================================
 echo.
 
-:: 启动后端
-start "物业租赁-后端" cmd /c "cd backend && node dist/index.js"
+start "Backend-API" cmd /c "cd /d \"%~dp0backend\" && title Backend API Server && node -e \"require('./dist/index.js')\" 2>nul || npx tsx src/index.ts"
 
-:: 启动前端（使用 vite preview 提供生产构建）
-cd frontend
+:: Wait, then start frontend
+timeout /t 3 /nobreak >nul
+cd /d "%~dp0frontend"
 npx vite preview --host --port 5173
-cd ..
-
-echo.
-echo 系统已停止
-pause
