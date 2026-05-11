@@ -10,10 +10,6 @@ interface FixedAssetAttributes {
 }
 type FACreation = Optional<FixedAssetAttributes, 'id'|'createdAt'|'updatedAt'>;
 class FixedAsset extends Model<FixedAssetAttributes, FACreation> implements FixedAssetAttributes {
-  public id!: number; public bookId!: number; public name!: string;
-  public category!: string; public originalValue!: number; public residualValue!: number;
-  public usefulMonths!: number; public monthlyDepreciation!: number;
-  public accumulatedDepreciation!: number; public startDate!: Date; public status!: string;
 }
 FixedAsset.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

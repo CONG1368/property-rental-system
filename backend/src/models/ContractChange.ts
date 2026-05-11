@@ -9,10 +9,6 @@ interface ContractChangeAttributes {
 }
 type CHCreation = Optional<ContractChangeAttributes, 'id'|'createdAt'|'updatedAt'>;
 class ContractChange extends Model<ContractChangeAttributes, CHCreation> implements ContractChangeAttributes {
-  public id!: number; public contractId!: number;
-  public changeType!: '租金调整'|'租期变更'|'提前退租'|'条款补充';
-  public beforeData!: object; public afterData!: object; public reason!: string;
-  public status!: '审批中'|'已通过'|'已驳回'; public createdBy!: number; public approvedBy!: number;
 }
 ContractChange.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

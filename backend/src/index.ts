@@ -1,21 +1,38 @@
 import app from './app';
-import { config } from './config';
-import { sequelize, connectDatabase, initAdminUser } from './config/database';
-import { setupWebSocket } from './websocket';
-import './models';
+import { config } from './config/index.js';
+import { sequelize, connectDatabase, initAdminUser } from './config/database.js';
+import { connectRedis } from './config/redis.js';
+import { setupWebSocket } from './websocket/index.js';
+import './models/index.js';
 import http from 'http';
 
 async function start() {
+  // 1. 连接数据库（SQLite 零配置，MySQL 自动建库重试）
   await connectDatabase();
+
+  // 2. 同步表结构
   await sequelize.sync({ alter: true });
+  console.log('[DB] Tables synced');
+
+  // 3. 初始化管理员
   await initAdminUser();
 
+  // 4. Redis（可选，不可用时自动退化）
+  await connectRedis();
+
+  // 5. 启动 HTTP + WebSocket
   const server = http.createServer(app);
   setupWebSocket(server);
 
   server.listen(config.port, () => {
-    console.log('Server running on port ' + config.port);
-    console.log('Default login: admin / admin123');
+    console.log('');
+    console.log('  ========================================');
+    console.log(`   Server running on http://localhost:${config.port}`);
+    console.log(`   Database: ${config.db.dialect === 'sqlite' ? 'SQLite (file)' : 'MySQL'}`);
+    console.log(`   Redis:    ${config.redis.enabled ? 'enabled' : 'disabled'}`);
+    console.log('   Login:    admin / admin123');
+    console.log('  ========================================');
+    console.log('');
   });
 }
 
@@ -24,15 +41,11 @@ start().catch((err) => {
   console.error('========================================');
   console.error('  Server failed to start');
   console.error('========================================');
-  if (err.code === 'ECONNREFUSED') {
+  const code = (err as any).code;
+  if (code === 'ECONNREFUSED') {
     console.error('  MySQL is not running.');
-    console.error('  Start it with: net start MySQL80');
-    console.error('');
-    console.error('  Or if using portable MySQL:');
-    console.error('  runtime\\mysql\\bin\\mysqld.exe --standalone');
-  } else if (err.code === 'ECONNREFUSED' && err.port === 6379) {
-    console.error('  Redis is not running.');
-    console.error('  Start it with: redis-server.exe');
+    console.error('  Start: net start MySQL80');
+    console.error('  Or set DB_DIALECT=sqlite in .env for local dev');
   } else {
     console.error('  ' + err.message);
   }

@@ -9,10 +9,6 @@ interface ExpenseAttributes {
 }
 type ECreation = Optional<ExpenseAttributes, 'id'|'createdAt'|'updatedAt'>;
 class Expense extends Model<ExpenseAttributes, ECreation> implements ExpenseAttributes {
-  public id!: number; public bookId!: number;
-  public category!: '维修'|'保洁'|'安保'|'绿化'|'办公'|'折旧'|'其他';
-  public amount!: number; public allocationRule!: object;
-  public status!: '待审批'|'已批准'|'已付款'; public notes!: string; public createdBy!: number;
 }
 Expense.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

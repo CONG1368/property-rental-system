@@ -8,9 +8,6 @@ interface NotificationAttributes {
 }
 type NCreation = Optional<NotificationAttributes, 'id'|'createdAt'|'updatedAt'>;
 class Notification extends Model<NotificationAttributes, NCreation> implements NotificationAttributes {
-  public id!: number; public recipientId!: number; public recipientType!: 'user'|'tenant';
-  public channel!: string; public title!: string; public content!: string;
-  public isRead!: boolean; public readAt!: Date;
 }
 Notification.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

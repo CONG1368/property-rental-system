@@ -12,11 +12,6 @@ interface TenantAttributes {
 type TenantCreationAttributes = Optional<TenantAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
 class Tenant extends Model<TenantAttributes, TenantCreationAttributes> implements TenantAttributes {
-  public id!: number; public name!: string; public idType!: '身份证'|'营业执照'|'护照';
-  public idNumber!: string; public phone!: string; public email!: string;
-  public wechat!: string; public contactPerson!: string;
-  public creditScore!: number; public creditGrade!: 'A'|'B'|'C'|'D';
-  public status!: '待入住'|'在租中'|'已退租'; public attachments!: object; public notes!: string;
 }
 
 Tenant.init({

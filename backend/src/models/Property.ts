@@ -12,12 +12,6 @@ interface PropertyAttributes {
 type PropertyCreationAttributes = Optional<PropertyAttributes, 'id' | 'deletedAt' | 'createdAt' | 'updatedAt'>;
 
 class Property extends Model<PropertyAttributes, PropertyCreationAttributes> implements PropertyAttributes {
-  public id!: number; public name!: string; public type!: '公寓'|'厂房'|'商铺';
-  public subType!: string; public area!: number; public address!: string;
-  public floor!: string; public unit!: string;
-  public status!: '空置'|'已预订'|'已出租'|'维修中'|'退租中';
-  public amenities!: object; public owner!: string; public notes!: string;
-  public deletedAt!: Date | null;
 }
 
 Property.init({

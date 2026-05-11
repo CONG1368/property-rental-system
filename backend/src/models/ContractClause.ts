@@ -8,9 +8,6 @@ interface ContractClauseAttributes {
 }
 type CCCreation = Optional<ContractClauseAttributes, 'id'|'createdAt'|'updatedAt'>;
 class ContractClause extends Model<ContractClauseAttributes, CCCreation> implements ContractClauseAttributes {
-  public id!: number; public templateId!: number; public title!: string;
-  public content!: string; public type!: '标准'|'可选'|'风险';
-  public sortOrder!: number; public isRequired!: boolean;
 }
 ContractClause.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

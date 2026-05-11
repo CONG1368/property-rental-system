@@ -2,7 +2,6 @@ import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../config/database';
 
 class DictType extends Model {
-  public id!: number; public code!: string; public name!: string;
 }
 DictType.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

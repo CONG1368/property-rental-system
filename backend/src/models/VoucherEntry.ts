@@ -8,9 +8,6 @@ interface VoucherEntryAttributes {
 }
 type VECreation = Optional<VoucherEntryAttributes, 'id'|'createdAt'>;
 class VoucherEntry extends Model<VoucherEntryAttributes, VECreation> implements VoucherEntryAttributes {
-  public id!: number; public voucherId!: number; public accountId!: number;
-  public summary!: string; public debitAmount!: number; public creditAmount!: number;
-  public contractId!: number; public billId!: number;
 }
 VoucherEntry.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

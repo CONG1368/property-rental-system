@@ -15,14 +15,6 @@ interface ContractAttributes {
 type ContractCreationAttributes = Optional<ContractAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
 class Contract extends Model<ContractAttributes, ContractCreationAttributes> implements ContractAttributes {
-  public id!: number; public contractNo!: string; public propertyId!: number;
-  public tenantId!: number; public templateId!: number;
-  public startDate!: Date; public endDate!: Date;
-  public rentAmount!: number; public depositAmount!: number;
-  public paymentCycle!: '月'|'季'|'年'; public billingMode!: '固定'|'阶梯'|'抽成';
-  public billingConfig!: object;
-  public status!: '起草中'|'审批中'|'已驳回'|'已签订'|'执行中'|'到期提醒'|'已到期'|'已终止';
-  public signedAt!: Date; public createdBy!: number;
 }
 
 Contract.init({

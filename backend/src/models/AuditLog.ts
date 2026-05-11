@@ -8,9 +8,6 @@ interface AuditLogAttributes {
 }
 type ALCreation = Optional<AuditLogAttributes, 'id'|'createdAt'>;
 class AuditLog extends Model<AuditLogAttributes, ALCreation> implements AuditLogAttributes {
-  public id!: number; public userId!: number; public action!: string;
-  public module!: string; public targetType!: string; public targetId!: string;
-  public detail!: string; public ip!: string;
 }
 AuditLog.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

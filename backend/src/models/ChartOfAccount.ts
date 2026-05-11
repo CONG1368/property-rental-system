@@ -9,9 +9,6 @@ interface ChartOfAccountAttributes {
 }
 type COACreation = Optional<ChartOfAccountAttributes, 'id'|'createdAt'|'updatedAt'>;
 class ChartOfAccount extends Model<ChartOfAccountAttributes, COACreation> implements ChartOfAccountAttributes {
-  public id!: number; public bookId!: number; public code!: string; public name!: string;
-  public parentId!: number; public type!: '资产'|'负债'|'所有者权益'|'收入'|'费用';
-  public level!: number; public direction!: '借'|'贷'; public isEnabled!: boolean;
 }
 ChartOfAccount.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

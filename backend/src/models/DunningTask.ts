@@ -9,10 +9,6 @@ interface DunningTaskAttributes {
 }
 type DTCreation = Optional<DunningTaskAttributes, 'id'|'createdAt'|'updatedAt'>;
 class DunningTask extends Model<DunningTaskAttributes, DTCreation> implements DunningTaskAttributes {
-  public id!: number; public billId!: number; public level!: number;
-  public channel!: '站内信'|'短信'|'微信'|'邮件'|'电话'|'书面';
-  public title!: string; public content!: string; public sentAt!: Date;
-  public status!: '待发送'|'已发送'|'失败'; public response!: string;
 }
 DunningTask.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

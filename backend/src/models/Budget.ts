@@ -9,10 +9,6 @@ interface BudgetAttributes {
 }
 type BCreation = Optional<BudgetAttributes, 'id'|'createdAt'|'updatedAt'>;
 class Budget extends Model<BudgetAttributes, BCreation> implements BudgetAttributes {
-  public id!: number; public bookId!: number; public accountId!: number;
-  public year!: number; public month!: number; public budgetAmount!: number;
-  public actualAmount!: number; public status!: '编制中'|'待审核'|'已批准';
-  public createdBy!: number;
 }
 Budget.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

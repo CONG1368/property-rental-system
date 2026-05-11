@@ -7,9 +7,6 @@ interface ContractLogAttributes {
 }
 type CLCreation = Optional<ContractLogAttributes, 'id'|'createdAt'>;
 class ContractLog extends Model<ContractLogAttributes, CLCreation> implements ContractLogAttributes {
-  public id!: number; public contractId!: number; public action!: string;
-  public oldStatus!: string; public newStatus!: string; public operatorId!: number;
-  public notes!: string;
 }
 ContractLog.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

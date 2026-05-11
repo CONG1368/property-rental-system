@@ -8,9 +8,6 @@ interface AccountBookAttributes {
 }
 type ABCreation = Optional<AccountBookAttributes, 'id'|'createdAt'|'updatedAt'>;
 class AccountBook extends Model<AccountBookAttributes, ABCreation> implements AccountBookAttributes {
-  public id!: number; public name!: string; public companyName!: string;
-  public startDate!: Date; public endDate!: Date; public currency!: string;
-  public isActive!: boolean; public settings!: object;
 }
 AccountBook.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

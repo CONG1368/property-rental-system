@@ -8,9 +8,6 @@ interface ApprovalAttributes {
 }
 type ACreation = Optional<ApprovalAttributes, 'id'|'createdAt'|'updatedAt'>;
 class Approval extends Model<ApprovalAttributes, ACreation> implements ApprovalAttributes {
-  public id!: number; public contractId!: number; public nodeName!: string;
-  public approverId!: number; public status!: '待审批'|'已通过'|'已驳回'|'已转审';
-  public opinion!: string; public approvedAt!: Date;
 }
 Approval.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

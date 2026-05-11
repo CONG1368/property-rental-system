@@ -12,7 +12,21 @@
       "Bash(npx tsx *)",
       "Bash(curl -s http://localhost:3001/api/dashboard/rent)",
       "Bash(kill %1)",
-      "Bash(wait)"
+      "Bash(wait)",
+      "Bash(sc query *)",
+      "Bash(where mysql *)",
+      "Bash(where redis-server *)",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H \"Content-Type: application/json\" -d '{\"username\":\"admin\",\"password\":\"admin123\"}')",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(taskkill /F /IM tsx.exe)",
+      "Bash(tasklist)",
+      "Bash(cmd /c \"del /F /Q E:\\\\物业租赁综合管理系统\\\\backend\\\\data\\\\database.sqlite\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(taskkill /F /PID 2204)",
+      "Bash(taskkill /F /PID 10444)",
+      "Bash(taskkill /F /PID 15196)",
+      "Bash(cmd.exe /c \"del /F E:\\\\物业租赁综合管理系统\\\\backend\\\\data\\\\database.sqlite\")",
+      "Bash(node -e ' *)"
     ]
   }
 }

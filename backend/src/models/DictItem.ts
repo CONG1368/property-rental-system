@@ -2,9 +2,6 @@ import { DataTypes, Model } from 'sequelize';
 import { sequelize } from '../config/database';
 
 class DictItem extends Model {
-  public id!: number; public typeCode!: string; public code!: string;
-  public name!: string; public sortOrder!: number; public isEnabled!: boolean;
-  public extra!: object;
 }
 DictItem.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

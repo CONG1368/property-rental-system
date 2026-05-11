@@ -8,9 +8,6 @@ interface PaymentRecordAttributes {
 }
 type PCreation = Optional<PaymentRecordAttributes, 'id'|'createdAt'|'updatedAt'>;
 class PaymentRecord extends Model<PaymentRecordAttributes, PCreation> implements PaymentRecordAttributes {
-  public id!: number; public billId!: number; public amount!: number;
-  public channel!: string; public transactionNo!: string; public paidAt!: Date;
-  public notes!: string; public createdBy!: number;
 }
 PaymentRecord.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

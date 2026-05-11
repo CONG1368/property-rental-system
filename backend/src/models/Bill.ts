@@ -10,11 +10,6 @@ interface BillAttributes {
 }
 type BCreation = Optional<BillAttributes, 'id'|'createdAt'|'updatedAt'>;
 class Bill extends Model<BillAttributes, BCreation> implements BillAttributes {
-  public id!: number; public contractId!: number; public billNo!: string;
-  public period!: string; public rentAmount!: number; public utilityAmount!: number;
-  public otherAmount!: number; public totalAmount!: number; public dueDate!: Date;
-  public paidDate!: Date | null; public status!: '未缴'|'部分缴'|'已缴'|'逾期';
-  public paymentChannel!: string | null;
 }
 Bill.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

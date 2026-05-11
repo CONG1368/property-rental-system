@@ -8,8 +8,6 @@ interface ContractTemplateAttributes {
 }
 type CTCreation = Optional<ContractTemplateAttributes, 'id'|'createdAt'|'updatedAt'>;
 class ContractTemplate extends Model<ContractTemplateAttributes, CTCreation> implements ContractTemplateAttributes {
-  public id!: number; public name!: string; public type!: '住房'|'厂房'|'商铺';
-  public content!: object; public isDefault!: boolean; public terms!: object;
 }
 ContractTemplate.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

@@ -1,22 +1,23 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
+import { sequelize } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 
 interface UserAttributes {
   id: number; username: string; passwordHash: string; displayName: string;
   role: string; permissions: object; lastLogin: Date | null; status: string;
-  createdAt?: Date; updatedAt?: Date;
+  createdAt: Date; updatedAt: Date;
 }
 
 type UserCreationAttributes = Optional<UserAttributes, 'id' | 'lastLogin' | 'createdAt' | 'updatedAt'>;
 
-class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
-  public id!: number; public username!: string; public passwordHash!: string;
-  public displayName!: string; public role!: string; public permissions!: object;
-  public lastLogin!: Date | null; public status!: string;
+class User extends Model<UserAttributes, UserCreationAttributes> {
+  // 使用 get() 访问 Sequelize 属性，避免 declare 字段遮蔽
+  getPasswordHash(): string { return this.get('passwordHash') as string; }
 
   async validatePassword(password: string): Promise<boolean> {
-    return bcrypt.compare(password, this.passwordHash);
+    const hash = this.getPasswordHash();
+    if (!hash) return false;
+    return bcrypt.compare(password, hash);
   }
 
   static async hashPassword(password: string): Promise<string> {
@@ -25,11 +26,11 @@ class User extends Model<UserAttributes, UserCreationAttributes> implements User
 }
 
 User.init({
-  id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   username: { type: DataTypes.STRING(50), allowNull: false, unique: true },
   passwordHash: { type: DataTypes.STRING(255), allowNull: false },
   displayName: { type: DataTypes.STRING(50), allowNull: false },
-  role: { type: DataTypes.ENUM('管理员','收租主管','收租员','财务主管','会计','出纳','合同主管','法务','总经理'), allowNull: false },
+  role: { type: DataTypes.STRING(50), allowNull: false, defaultValue: '收租员' },
   permissions: { type: DataTypes.JSON, defaultValue: {} },
   lastLogin: { type: DataTypes.DATE, allowNull: true },
   status: { type: DataTypes.STRING(20), defaultValue: '正常' },

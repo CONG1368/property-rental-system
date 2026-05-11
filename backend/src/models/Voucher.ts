@@ -10,10 +10,6 @@ interface VoucherAttributes {
 }
 type VCreation = Optional<VoucherAttributes, 'id'|'createdAt'|'updatedAt'>;
 class Voucher extends Model<VoucherAttributes, VCreation> implements VoucherAttributes {
-  public id!: number; public bookId!: number; public voucherNo!: string;
-  public date!: Date; public period!: string; public type!: '收'|'付'|'转';
-  public summary!: string; public status!: '草稿'|'待复核'|'待审核'|'已过账'|'已作废';
-  public createdBy!: number; public reviewedBy!: number; public approvedBy!: number;
 }
 Voucher.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
