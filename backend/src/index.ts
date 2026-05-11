@@ -11,11 +11,13 @@ async function start() {
   await connectDatabase();
 
   // 2. 同步表结构
-  await sequelize.sync({ alter: true });
+  await sequelize.sync();  // 自动建表（如已存在则跳过）
   console.log('[DB] Tables synced');
 
-  // 3. 初始化管理员
+  // 3. 初始化管理员 + 种子数据
   await initAdminUser();
+  const { seedChartOfAccounts } = await import('./services/seed-data.js');
+  await seedChartOfAccounts();
 
   // 4. Redis（可选，不可用时自动退化）
   await connectRedis();
