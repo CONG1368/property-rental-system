@@ -4,7 +4,9 @@
       "Bash(python create_phase1.py)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(python create_phase2_routes.py)"
+      "Bash(python create_phase2_routes.py)",
+      "Bash(python create_phase1_views.py)",
+      "Bash(python create_phase23_views.py)"
     ]
   }
 }
