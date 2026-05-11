@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Op } from 'sequelize';
 import DunningTask from '../models/DunningTask';
 import Bill from '../models/Bill';
 import { AuthRequest } from '../middleware/auth';
@@ -58,7 +59,7 @@ router.get('/aging', async (req: AuthRequest, res) => {
   try {
     const now = new Date();
     const overdueBills = await Bill.findAll({
-      where: { status: { [require('sequelize').Op.in]: ['逾期', '部分缴'] } },
+      where: { status: { [Op.in]: ['逾期', '部分缴'] } },
       attributes: ['id', 'dueDate', 'totalAmount', 'status'],
       raw: true,
     });

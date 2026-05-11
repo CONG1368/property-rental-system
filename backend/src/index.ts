@@ -20,6 +20,22 @@ async function start() {
 }
 
 start().catch((err) => {
-  console.error('Failed to start server:', err);
+  console.error('');
+  console.error('========================================');
+  console.error('  Server failed to start');
+  console.error('========================================');
+  if (err.code === 'ECONNREFUSED') {
+    console.error('  MySQL is not running.');
+    console.error('  Start it with: net start MySQL80');
+    console.error('');
+    console.error('  Or if using portable MySQL:');
+    console.error('  runtime\\mysql\\bin\\mysqld.exe --standalone');
+  } else if (err.code === 'ECONNREFUSED' && err.port === 6379) {
+    console.error('  Redis is not running.');
+    console.error('  Start it with: redis-server.exe');
+  } else {
+    console.error('  ' + err.message);
+  }
+  console.error('========================================');
   process.exit(1);
 });
