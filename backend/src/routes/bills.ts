@@ -4,6 +4,7 @@ import Contract from '../models/Contract';
 import PaymentRecord from '../models/PaymentRecord';
 import { AuthRequest } from '../middleware/auth';
 import { Op } from 'sequelize';
+import { reconcilePayment } from '../services/payment-reconciler.js';
 
 const router = Router();
 
@@ -29,9 +30,16 @@ router.get('/', async (req: AuthRequest, res) => {
   }
 });
 
+import { generateBills } from '../services/bill-generator.js';
+
 // POST /api/bills/generate — 手动生成账单
 router.post('/generate', async (req: AuthRequest, res) => {
-  res.json({ code: 200, message: '账单生成已触发', data: { generated: 0 } });
+  try {
+    const count = await generateBills();
+    res.json({ code: 200, message: `成功生成${count}条账单`, data: { generated: count } });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
 });
 
 // GET /api/bills/calendar — 收租日历数据
@@ -80,30 +88,23 @@ router.put('/:id', async (req: AuthRequest, res) => {
   }
 });
 
-// POST /api/bills/:id/pay — 记录收款
+// POST /api/bills/:id/pay — 记录收款（对接对账引擎）
 router.post('/:id/pay', async (req: AuthRequest, res) => {
   try {
     const bill = await Bill.findByPk(req.params.id);
     if (!bill) return res.status(404).json({ code: 404, message: '账单不存在' });
 
     const { amount, channel, transactionNo } = req.body;
-    const paidAmount = Number(amount);
+    await reconcilePayment(
+      bill.id,
+      Number(amount),
+      channel || '银行转账',
+      transactionNo || '',
+      req.userId || 1
+    );
 
-    // 创建收款记录
-    await PaymentRecord.create({
-      billId: bill.id,
-      amount: paidAmount,
-      channel: channel || '银行转账',
-      transactionNo: transactionNo || '',
-      paidAt: new Date(),
-      createdBy: req.userId,
-    });
-
-    // 更新账单状态
-    const newStatus = paidAmount >= Number(bill.totalAmount) ? '已缴' : '部分缴';
-    await bill.update({ status: newStatus, paidDate: new Date(), paymentChannel: channel });
-
-    res.json({ code: 200, data: bill, message: '收款记录成功' });
+    const updated = await Bill.findByPk(bill.id);
+    res.json({ code: 200, data: updated, message: '收款成功，凭证已自动生成' });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });
   }
