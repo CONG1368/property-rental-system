@@ -50,7 +50,7 @@ async function handleImport() {
   importing.value = true;
   try {
     const res = await importProperties(file.value);
-    ElMessage.success(res.message);
+    ElMessage.success((res as any).message || '导入成功');
     router.push('/rent/properties');
   } catch {} finally { importing.value = false; }
 }
