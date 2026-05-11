@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python create_phase1.py)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
