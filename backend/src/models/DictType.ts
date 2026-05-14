@@ -1,7 +1,8 @@
-import { DataTypes, Model } from 'sequelize';
+import { DataTypes } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
-class DictType extends Model {
+class DictType extends BaseModel {
 }
 DictType.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

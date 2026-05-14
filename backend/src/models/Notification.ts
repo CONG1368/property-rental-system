@@ -1,13 +1,16 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface NotificationAttributes {
   id: number; recipientId: number; recipientType: 'user'|'tenant';
   channel: string; title: string; content: string;
-  isRead: boolean; readAt: Date | null; createdAt?: Date; updatedAt?: Date;
+  isRead: boolean; readAt: Date | null;
+  linkType: string | null; linkId: number | null;
+  createdAt?: Date; updatedAt?: Date;
 }
 type NCreation = Optional<NotificationAttributes, 'id'|'createdAt'|'updatedAt'>;
-class Notification extends Model<NotificationAttributes, NCreation> implements NotificationAttributes {
+class Notification extends BaseModel<NotificationAttributes, NCreation> {
 }
 Notification.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
@@ -18,5 +21,7 @@ Notification.init({
   content: { type: DataTypes.TEXT, defaultValue: '' },
   isRead: { type: DataTypes.BOOLEAN, defaultValue: false },
   readAt: { type: DataTypes.DATE, allowNull: true },
-}, { sequelize, tableName: 'notifications', indexes: [{fields:['recipientId']},{fields:['isRead']}] });
+  linkType: { type: DataTypes.STRING(50), allowNull: true },
+  linkId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
+}, { sequelize, tableName: 'notifications', indexes: [{fields:['recipientId']},{fields:['isRead']},{fields:['linkType','linkId']}] });
 export default Notification;

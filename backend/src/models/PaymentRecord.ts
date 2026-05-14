@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface PaymentRecordAttributes {
@@ -7,7 +8,7 @@ interface PaymentRecordAttributes {
   createdAt?: Date; updatedAt?: Date;
 }
 type PCreation = Optional<PaymentRecordAttributes, 'id'|'createdAt'|'updatedAt'>;
-class PaymentRecord extends Model<PaymentRecordAttributes, PCreation> implements PaymentRecordAttributes {
+class PaymentRecord extends BaseModel<PaymentRecordAttributes, PCreation> {
 }
 PaymentRecord.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

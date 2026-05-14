@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface ContractLogAttributes {
@@ -6,7 +7,7 @@ interface ContractLogAttributes {
   newStatus: string; operatorId: number; notes: string; createdAt?: Date;
 }
 type CLCreation = Optional<ContractLogAttributes, 'id'|'createdAt'>;
-class ContractLog extends Model<ContractLogAttributes, CLCreation> implements ContractLogAttributes {
+class ContractLog extends BaseModel<ContractLogAttributes, CLCreation> {
 }
 ContractLog.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

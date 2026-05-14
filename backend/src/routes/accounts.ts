@@ -1,15 +1,32 @@
 import { Router } from 'express';
-import ChartOfAccount from '../models/ChartOfAccount';
+import { Op } from 'sequelize';
+import ChartOfAccount from '../models/ChartOfAccount.js';
 import { AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
 router.get('/', async (req: AuthRequest, res) => {
   try {
-    const { bookId } = req.query;
+    const { bookId, keyword, ids, pageSize } = req.query;
     const where: any = {};
     if (bookId) where.bookId = Number(bookId);
-    const accounts = await ChartOfAccount.findAll({ where, order: [['code', 'ASC']] });
+
+    // 按ID列表查询（逗号分隔）
+    if (ids) {
+      const idList = (ids as string).split(',').map(Number).filter(n => !isNaN(n));
+      if (idList.length > 0) where.id = { [Op.in]: idList };
+    }
+
+    // 关键字搜索（科目编码或名称）
+    if (keyword) {
+      where[Op.or] = [
+        { code: { [Op.like]: `%${keyword}%` } },
+        { name: { [Op.like]: `%${keyword}%` } },
+      ];
+    }
+
+    const limit = pageSize ? Number(pageSize) : 200;
+    const accounts = await ChartOfAccount.findAll({ where, order: [['code', 'ASC']], limit });
     res.json({ code: 200, data: { list: accounts } });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });

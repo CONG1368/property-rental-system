@@ -120,6 +120,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '预算管理', icon: 'TrendCharts' },
       },
       {
+        path: 'finance/budgets/edit/:id?',
+        name: 'BudgetEdit',
+        component: () => import('@/views/finance/BudgetEdit.vue'),
+        meta: { title: '预算编辑', hidden: true },
+      },
+      {
         path: 'finance/reports',
         name: 'ReportCenter',
         component: () => import('@/views/finance/ReportCenter.vue'),
@@ -214,15 +220,47 @@ const router = createRouter({
   routes,
 });
 
+// 路由路径 → 允许访问的角色
+const routeRoleMap: Record<string, string[]> = {
+  'rent': ['管理员', '总经理', '收租主管', '收租员'],
+  'finance': ['管理员', '总经理', '财务主管', '会计', '出纳'],
+  'contract': ['管理员', '总经理', '合同主管', '法务'],
+  'system': ['管理员'],
+};
+
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('accessToken');
   if (to.meta.requiresAuth !== false && !token) {
     next('/login');
-  } else if (to.path === '/login' && token) {
-    next('/dashboard');
-  } else {
-    next();
+    return;
   }
+  if (to.path === '/login' && token) {
+    next('/dashboard');
+    return;
+  }
+  // 角色权限检查（从 localStorage 读取角色，避免 atob 中文编码问题）
+  if (token && to.path !== '/login' && to.path !== '/dashboard' && to.path !== '/') {
+    const moduleKey = to.path.startsWith('/rent') ? 'rent' :
+      to.path.startsWith('/finance') ? 'finance' :
+      to.path.startsWith('/contract') ? 'contract' :
+      to.path.startsWith('/system') ? 'system' : '';
+    if (moduleKey && routeRoleMap[moduleKey]) {
+      // 优先从 localStorage 读取角色（登录时存储）
+      let userRole = localStorage.getItem('userRole') || '';
+      // 降级：从 JWT 解析
+      if (!userRole) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          userRole = payload.role || '';
+        } catch { /* ignore */ }
+      }
+      if (userRole && !routeRoleMap[moduleKey].includes(userRole)) {
+        next('/dashboard');
+        return;
+      }
+    }
+  }
+  next();
 });
 
 export default router;

@@ -119,7 +119,10 @@ router.post('/import', upload.single('file'), async (req: AuthRequest, res) => {
         unit: row['单元'] || row['unit'] || '',
         subType: row['子类型'] || row['subType'] || '',
         owner: row['业主'] || row['owner'] || '',
-      });
+        status: '空置',
+        amenities: {},
+        notes: '',
+      } as any);
       imported++;
     }
 

@@ -25,7 +25,8 @@ export async function reconcilePayment(
     transactionNo,
     paidAt: new Date(),
     createdBy: userId,
-  });
+    notes: '',
+  } as any);
 
   // 更新账单状态
   const totalPaid = await PaymentRecord.sum('amount', { where: { billId } });
@@ -39,7 +40,7 @@ export async function reconcilePayment(
   } else {
     status = '未缴';
   }
-  await bill.update({ status, paymentChannel: channel });
+  await bill.update({ status, paymentChannel: channel } as any);
 
   // 如果全额付清，自动生成财务凭证
   if (status === '已缴') {

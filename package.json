@@ -5,7 +5,8 @@
   "description": "物业租赁综合管理系统",
   "main": "dist/electron/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev": "npm run dev:clean && concurrently --kill-others --prefix-colors \"cyan,green\" \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:clean": "powershell -ExecutionPolicy Bypass -File scripts/kill-dev.ps1",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
     "build": "npm run build:frontend && npm run build:backend && npm run build:electron",
@@ -18,6 +19,10 @@
     "concurrently": "^8.2.2",
     "electron": "^28.2.0",
     "electron-builder": "^24.9.1",
+    "playwright": "^1.60.0",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "tesseract.js": "^7.0.0"
   }
 }

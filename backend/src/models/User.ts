@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database.js';
 import bcrypt from 'bcryptjs';
 
@@ -10,7 +11,7 @@ interface UserAttributes {
 
 type UserCreationAttributes = Optional<UserAttributes, 'id' | 'lastLogin' | 'createdAt' | 'updatedAt'>;
 
-class User extends Model<UserAttributes, UserCreationAttributes> {
+class User extends BaseModel<UserAttributes, UserCreationAttributes> {
   // 使用 get() 访问 Sequelize 属性，避免 declare 字段遮蔽
   getPasswordHash(): string { return this.get('passwordHash') as string; }
 
@@ -34,6 +35,8 @@ User.init({
   permissions: { type: DataTypes.JSON, defaultValue: {} },
   lastLogin: { type: DataTypes.DATE, allowNull: true },
   status: { type: DataTypes.STRING(20), defaultValue: '正常' },
+  createdAt: { type: DataTypes.DATE },
+  updatedAt: { type: DataTypes.DATE },
 }, { sequelize, tableName: 'users' });
 
 export default User;

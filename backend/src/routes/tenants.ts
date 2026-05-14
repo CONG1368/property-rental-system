@@ -78,6 +78,24 @@ router.post('/:id/check-in', async (req: AuthRequest, res) => {
   }
 });
 
+// DELETE /api/tenants/:id — 删除租客
+router.delete('/:id', async (req: AuthRequest, res) => {
+  try {
+    const tenant = await Tenant.findByPk(req.params.id);
+    if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });
+
+    const contractCount = await Contract.count({ where: { tenantId: req.params.id } });
+    if (contractCount > 0) {
+      return res.status(400).json({ code: 400, message: `该租客存在 ${contractCount} 份关联合同，请先删除合同后再删除租客` });
+    }
+
+    await tenant.destroy();
+    res.json({ code: 200, message: '租客已删除' });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
 // POST /api/tenants/:id/check-out — 退租办理
 router.post('/:id/check-out', async (req: AuthRequest, res) => {
   try {

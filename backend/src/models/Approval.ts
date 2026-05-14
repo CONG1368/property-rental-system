@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface ApprovalAttributes {
@@ -7,7 +8,7 @@ interface ApprovalAttributes {
   approvedAt: Date | null; createdAt?: Date; updatedAt?: Date;
 }
 type ACreation = Optional<ApprovalAttributes, 'id'|'createdAt'|'updatedAt'>;
-class Approval extends Model<ApprovalAttributes, ACreation> implements ApprovalAttributes {
+class Approval extends BaseModel<ApprovalAttributes, ACreation> {
 }
 Approval.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

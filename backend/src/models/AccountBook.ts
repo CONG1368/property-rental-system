@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface AccountBookAttributes {
@@ -7,7 +8,7 @@ interface AccountBookAttributes {
   createdAt?: Date; updatedAt?: Date;
 }
 type ABCreation = Optional<AccountBookAttributes, 'id'|'createdAt'|'updatedAt'>;
-class AccountBook extends Model<AccountBookAttributes, ABCreation> implements AccountBookAttributes {
+class AccountBook extends BaseModel<AccountBookAttributes, ABCreation> {
 }
 AccountBook.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

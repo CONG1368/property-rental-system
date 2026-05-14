@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface ExpenseAttributes {
@@ -8,7 +9,7 @@ interface ExpenseAttributes {
   createdAt?: Date; updatedAt?: Date;
 }
 type ECreation = Optional<ExpenseAttributes, 'id'|'createdAt'|'updatedAt'>;
-class Expense extends Model<ExpenseAttributes, ECreation> implements ExpenseAttributes {
+class Expense extends BaseModel<ExpenseAttributes, ECreation> {
 }
 Expense.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

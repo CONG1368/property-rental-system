@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface AuditLogAttributes {
@@ -7,7 +8,7 @@ interface AuditLogAttributes {
   createdAt?: Date;
 }
 type ALCreation = Optional<AuditLogAttributes, 'id'|'createdAt'>;
-class AuditLog extends Model<AuditLogAttributes, ALCreation> implements AuditLogAttributes {
+class AuditLog extends BaseModel<AuditLogAttributes, ALCreation> {
 }
 AuditLog.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

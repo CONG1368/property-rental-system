@@ -2,9 +2,44 @@ import { Router } from 'express';
 import { Op } from 'sequelize';
 import DunningTask from '../models/DunningTask';
 import Bill from '../models/Bill';
+import Contract from '../models/Contract';
+import Tenant from '../models/Tenant';
+import Property from '../models/Property';
 import { AuthRequest } from '../middleware/auth';
+import { broadcastNotification } from '../services/notification.js';
+import { broadcast } from '../websocket/index.js';
 
 const router = Router();
+
+// 催缴任务列表的公共 include（Bill → Contract → Tenant + Property）
+const taskInclude = [
+  { model: Bill, as: 'bill', attributes: ['id', 'billNo', 'period', 'rentAmount', 'waterFee', 'electricFee', 'propertyFee', 'otherAmount', 'totalAmount', 'dueDate', 'status'],
+    include: [
+      { model: Contract, as: 'contract', attributes: ['id', 'contractNo'],
+        include: [
+          { model: Tenant, as: 'tenant', attributes: ['id', 'name', 'phone'] },
+          { model: Property, as: 'property', attributes: ['id', 'name'] },
+        ] },
+    ] },
+];
+
+// GET /api/dunning — 催缴任务列表（简化路由）
+router.get('/', async (req: AuthRequest, res) => {
+  try {
+    const { page = 1, pageSize = 20, level, status } = req.query;
+    const where: any = {};
+    if (level) where.level = Number(level);
+    if (status) where.status = status;
+    const { count, rows } = await DunningTask.findAndCountAll({
+      where,
+      include: taskInclude,
+      limit: Number(pageSize),
+      offset: (Number(page) - 1) * Number(pageSize),
+      order: [['createdAt', 'DESC']],
+    });
+    res.json({ code: 200, data: { total: count, list: rows, page: Number(page), pageSize: Number(pageSize) } });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
 
 // GET /api/dunning/tasks — 催缴任务列表
 router.get('/tasks', async (req: AuthRequest, res) => {
@@ -16,7 +51,7 @@ router.get('/tasks', async (req: AuthRequest, res) => {
 
     const { count, rows } = await DunningTask.findAndCountAll({
       where,
-      include: [{ model: Bill, as: 'bill', attributes: ['id', 'billNo', 'totalAmount', 'dueDate', 'status'] }],
+      include: taskInclude,
       limit: Number(pageSize),
       offset: (Number(page) - 1) * Number(pageSize),
       order: [['createdAt', 'DESC']],
@@ -31,6 +66,9 @@ router.get('/tasks', async (req: AuthRequest, res) => {
 router.post('/dispatch', async (req: AuthRequest, res) => {
   try {
     const { billId, level, channel, title, content } = req.body;
+    if (!billId || !Number(billId)) {
+      return res.status(400).json({ code: 400, message: '账单ID不能为空' });
+    }
     const task = await DunningTask.create({
       billId, level: level || 1,
       channel: channel || '站内信',
@@ -38,7 +76,43 @@ router.post('/dispatch', async (req: AuthRequest, res) => {
       content: content || '',
       status: '已发送',
       sentAt: new Date(),
+      response: '',
+    } as any);
+
+    // 查询关联的租户信息并发送通知
+    const bill = await Bill.findByPk(billId);
+    const contract = bill ? await Contract.findByPk((bill as any).contractId, { include: [{ model: Tenant, as: 'tenant' }] }) : null;
+    const tenant = (contract as any)?.tenant;
+    const tenantId = tenant?.id || null;
+    const tenantName = tenant?.name || '未知租户';
+
+    // 发送系统广播通知（所有用户可见，点击可跳转租户详情）
+    await broadcastNotification(
+      title || '催缴通知',
+      content || '',
+      'tenant',
+      tenantId || null,
+    );
+
+    // WebSocket 广播
+    broadcast('dunning:new', {
+      taskId: (task as any).id,
+      billId,
+      level: level || 1,
+      title: title || '催缴通知',
+      tenantId,
+      tenantName,
+      content: content || '',
     });
+
+    broadcast('notification:new', {
+      title: title || '催缴通知',
+      content: content || '',
+      linkType: 'tenant',
+      linkId: tenantId,
+      tenantId,
+    });
+
     res.json({ code: 200, data: task, message: '催缴已发送' });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });

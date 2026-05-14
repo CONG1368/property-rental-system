@@ -1,15 +1,17 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface BillAttributes {
   id: number; contractId: number; billNo: string; period: string;
-  rentAmount: number; utilityAmount: number; otherAmount: number;
+  rentAmount: number; waterFee: number; electricFee: number; utilityAmount: number;
+  propertyFee: number; otherAmount: number; lateFee: number;
   totalAmount: number; dueDate: Date; paidDate: Date | null;
   status: '未缴'|'部分缴'|'已缴'|'逾期'; paymentChannel: string | null;
   createdAt?: Date; updatedAt?: Date;
 }
 type BCreation = Optional<BillAttributes, 'id'|'createdAt'|'updatedAt'>;
-class Bill extends Model<BillAttributes, BCreation> implements BillAttributes {
+class Bill extends BaseModel<BillAttributes, BCreation> {
 }
 Bill.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
@@ -17,8 +19,12 @@ Bill.init({
   billNo: { type: DataTypes.STRING(50), allowNull: false },
   period: { type: DataTypes.STRING(7), allowNull: false },
   rentAmount: { type: DataTypes.DECIMAL(12,2), defaultValue: 0 },
+  waterFee: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
+  electricFee: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
   utilityAmount: { type: DataTypes.DECIMAL(12,2), defaultValue: 0 },
+  propertyFee: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
   otherAmount: { type: DataTypes.DECIMAL(12,2), defaultValue: 0 },
+  lateFee: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
   totalAmount: { type: DataTypes.DECIMAL(12,2), defaultValue: 0 },
   dueDate: { type: DataTypes.DATEONLY, allowNull: false },
   paidDate: { type: DataTypes.DATEONLY, allowNull: true },

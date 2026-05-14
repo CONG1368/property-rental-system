@@ -23,7 +23,15 @@
       </div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading" @row-click="(row: any) => $router.push(`/rent/properties/${row.id}`)" style="cursor:pointer">
+    <!-- 批量操作栏 -->
+    <div class="batch-bar" v-if="selectedIds.length > 0">
+      <span class="batch-info">已选 {{ selectedIds.length }} 项</span>
+      <el-button size="small" type="danger" @click="batchDelete">批量删除</el-button>
+      <el-button size="small" @click="clearSelection">取消选择</el-button>
+    </div>
+
+    <el-table :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
+      <el-table-column type="selection" width="45" />
       <el-table-column prop="name" label="房源名称" width="180" />
       <el-table-column prop="type" label="业态" width="80">
         <template #default="{ row }">
@@ -90,10 +98,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { getProperties, createProperty, updateProperty, deleteProperty } from '@/api/properties';
+
+const router = useRouter();
 
 const loading = ref(false);
 const tableData = ref<any[]>([]);
@@ -183,7 +194,35 @@ async function handleDelete(id: number) {
     await deleteProperty(id);
     ElMessage.success('房源已删除');
     fetchData();
-  } catch { /* handled */ }
+  } catch (err: any) { ElMessage.error('删除失败: ' + (err?.response?.data?.message || '未知错误')); }
+}
+
+// ---- 批量操作 ----
+const tableRef = ref();
+const selectedRows = ref<any[]>([]);
+const selectedIds = computed(() => selectedRows.value.map(r => r.id));
+
+function onRowClick(row: any, _col: any, event: Event) {
+  const t = event.target as HTMLElement;
+  if (t?.closest('.el-checkbox') || t?.closest('.el-button') || t?.closest('.el-popconfirm')) return;
+  router.push(`/rent/properties/${row.id}`);
+}
+function clearSelection() { tableRef.value?.clearSelection(); }
+
+async function batchDelete() {
+  const total = selectedIds.value.length;
+  try { await ElMessageBox.confirm(`确定批量删除 ${total} 个房源? 此操作不可恢复!`, '批量删除', { type: 'warning' }); } catch { return; }
+  let done = 0; const skipped: string[] = [];
+  for (const row of selectedRows.value) {
+    try { await deleteProperty(row.id); done++; } catch { skipped.push(`${row.name}: 删除失败`); }
+  }
+  if (skipped.length > 0) {
+    ElMessage.warning(`成功删除 ${done} 个，跳过 ${skipped.length} 个\n${skipped.slice(0, 5).join('；')}`);
+  } else {
+    ElMessage.success(`已删除 ${done} 个房源`);
+  }
+  clearSelection();
+  fetchData();
 }
 
 onMounted(() => fetchData());
@@ -196,4 +235,10 @@ onMounted(() => fetchData());
 }
 .search-group { display: flex; gap: 10px; align-items: center; }
 .action-group { display: flex; gap: 10px; }
+.batch-bar {
+  display: flex; gap: 10px; align-items: center;
+  padding: 8px 16px; margin-bottom: 12px;
+  background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff;
+}
+.batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }
 </style>

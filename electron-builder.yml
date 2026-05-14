@@ -1,19 +1,32 @@
 appId: com.property-rental.system
 productName: 物业租赁综合管理系统
+artifactName: ${productName}-${version}-${arch}.${ext}
 directories:
   output: release
 files:
   - dist/**/*
-  - runtime/**/*
   - frontend/dist/**/*
   - backend/dist/**/*
+  - package.json
 extraResources:
   - from: runtime/
     to: runtime/
+    filter:
+      - "**/*"
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+  shortcutName: 物业租赁综合管理系统
+  installerIcon: frontend/public/icon.ico
+  uninstallerIcon: frontend/public/icon.ico
 win:
-  target: nsis
+  target:
+    - target: nsis
+      arch:
+        - x64
   icon: frontend/public/icon.ico
+asar: true
+asarUnpack:
+  - runtime/**
+compression: maximum

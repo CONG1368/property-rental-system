@@ -27,6 +27,8 @@ import Breadcrumb from './Breadcrumb.vue';
 .app-layout {
   height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .top-nav {
   background: #0A3D62;
@@ -34,18 +36,26 @@ import Breadcrumb from './Breadcrumb.vue';
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 .sidebar {
   background: #fff;
   border-right: 1px solid #e8e8e8;
   overflow-y: auto;
+  height: 100%;
 }
 .main-content {
   background: #f5f7fa;
   padding: 16px;
   overflow-y: auto;
+  height: 100%;
+}
+.app-layout > .el-container {
+  flex: 1;
+  overflow: hidden;
 }
 .content-area {
   margin-top: 12px;
+  min-height: calc(100vh - 140px);
 }
 </style>

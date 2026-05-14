@@ -24,7 +24,7 @@ router.post('/login', async (req, res) => {
     }
 
     const accessToken = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
+            { userId: user.id, username: user.username, role: user.role, displayName: user.displayName },
       config.jwt.secret,
       { expiresIn: config.jwt.accessExpiry }
     );
@@ -71,7 +71,7 @@ router.post('/refresh', async (req, res) => {
     }
 
     const accessToken = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
+            { userId: user.id, username: user.username, role: user.role, displayName: user.displayName },
       config.jwt.secret,
       { expiresIn: config.jwt.accessExpiry }
     );

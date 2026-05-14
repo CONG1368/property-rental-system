@@ -19,8 +19,8 @@
       <el-form :model="form" ref="formRef" label-width="100px">
         <el-form-item label="账套名称"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="公司名称"><el-input v-model="form.companyName" /></el-form-item>
-        <el-form-item label="开始日期"><el-date-picker v-model="form.startDate" type="date" style="width:100%" /></el-form-item>
-        <el-form-item label="结束日期"><el-date-picker v-model="form.endDate" type="date" style="width:100%" /></el-form-item>
+        <el-form-item label="开始日期"><el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
+        <el-form-item label="结束日期"><el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" @click="handleSubmit">确定</el-button></template>
     </el-dialog>

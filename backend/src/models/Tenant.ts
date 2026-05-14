@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface TenantAttributes {
@@ -11,7 +12,7 @@ interface TenantAttributes {
 
 type TenantCreationAttributes = Optional<TenantAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
-class Tenant extends Model<TenantAttributes, TenantCreationAttributes> implements TenantAttributes {
+class Tenant extends BaseModel<TenantAttributes, TenantCreationAttributes> {
 }
 
 Tenant.init({

@@ -13,7 +13,7 @@
       <span>首页概览</span>
     </el-menu-item>
 
-    <el-sub-menu index="rent">
+    <el-sub-menu index="rent" v-if="canAccessRent">
       <template #title>
         <el-icon><Money /></el-icon>
         <span>收租管理</span>
@@ -26,7 +26,7 @@
       <el-menu-item index="/rent/dashboard">收租看板</el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu index="finance">
+    <el-sub-menu index="finance" v-if="canAccessFinance">
       <template #title>
         <el-icon><Notebook /></el-icon>
         <span>财务报表</span>
@@ -41,7 +41,7 @@
       <el-menu-item index="/finance/dashboard">财务看板</el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu index="contract">
+    <el-sub-menu index="contract" v-if="canAccessContract">
       <template #title>
         <el-icon><DocumentChecked /></el-icon>
         <span>合同管理</span>
@@ -55,7 +55,7 @@
       <el-menu-item index="/contract/compliance">合规管理</el-menu-item>
     </el-sub-menu>
 
-    <el-sub-menu index="system">
+    <el-sub-menu index="system" v-if="canAccessSystem">
       <template #title>
         <el-icon><Setting /></el-icon>
         <span>系统设置</span>
@@ -71,9 +71,24 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { HomeFilled, Money, Notebook, DocumentChecked, Setting } from '@element-plus/icons-vue';
+import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
 const activeMenu = computed(() => route.path);
+const auth = useAuthStore();
+
+const role = computed(() => auth.user?.role || '');
+
+const canAccessRent = computed(() =>
+  ['管理员', '总经理', '收租主管', '收租员'].includes(role.value)
+);
+const canAccessFinance = computed(() =>
+  ['管理员', '总经理', '财务主管', '会计', '出纳'].includes(role.value)
+);
+const canAccessContract = computed(() =>
+  ['管理员', '总经理', '合同主管', '法务'].includes(role.value)
+);
+const canAccessSystem = computed(() => role.value === '管理员');
 </script>
 
 <style lang="scss" scoped>

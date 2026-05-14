@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface VoucherEntryAttributes {
@@ -7,7 +8,7 @@ interface VoucherEntryAttributes {
   billId: number | null; createdAt?: Date;
 }
 type VECreation = Optional<VoucherEntryAttributes, 'id'|'createdAt'>;
-class VoucherEntry extends Model<VoucherEntryAttributes, VECreation> implements VoucherEntryAttributes {
+class VoucherEntry extends BaseModel<VoucherEntryAttributes, VECreation> {
 }
 VoucherEntry.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

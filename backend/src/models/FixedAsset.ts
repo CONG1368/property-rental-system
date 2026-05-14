@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface FixedAssetAttributes {
@@ -9,7 +10,7 @@ interface FixedAssetAttributes {
   createdAt?: Date; updatedAt?: Date;
 }
 type FACreation = Optional<FixedAssetAttributes, 'id'|'createdAt'|'updatedAt'>;
-class FixedAsset extends Model<FixedAssetAttributes, FACreation> implements FixedAssetAttributes {
+class FixedAsset extends BaseModel<FixedAssetAttributes, FACreation> {
 }
 FixedAsset.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

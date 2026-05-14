@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface ChartOfAccountAttributes {
@@ -8,7 +9,7 @@ interface ChartOfAccountAttributes {
   createdAt?: Date; updatedAt?: Date;
 }
 type COACreation = Optional<ChartOfAccountAttributes, 'id'|'createdAt'|'updatedAt'>;
-class ChartOfAccount extends Model<ChartOfAccountAttributes, COACreation> implements ChartOfAccountAttributes {
+class ChartOfAccount extends BaseModel<ChartOfAccountAttributes, COACreation> {
 }
 ChartOfAccount.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },

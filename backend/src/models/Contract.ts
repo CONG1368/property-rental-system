@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface ContractAttributes {
@@ -14,7 +15,7 @@ interface ContractAttributes {
 
 type ContractCreationAttributes = Optional<ContractAttributes, 'id' | 'createdAt' | 'updatedAt'>;
 
-class Contract extends Model<ContractAttributes, ContractCreationAttributes> implements ContractAttributes {
+class Contract extends BaseModel<ContractAttributes, ContractCreationAttributes> {
 }
 
 Contract.init({

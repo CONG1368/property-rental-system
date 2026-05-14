@@ -6,3 +6,26 @@ runtime/
 frontend/dist/
 backend/dist/
 backend/data/
+backend/logs/
+backend/uploads/
+
+# Claude Code
+.claude/
+skills/
+
+# 测试/临时文件
+.test_screenshots/
+test_resp.json
+tok.json
+tok.txt
+bash.exe.stackdump
+*.traineddata
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+test-browser.mjs

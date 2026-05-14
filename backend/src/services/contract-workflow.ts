@@ -5,7 +5,7 @@ import Approval from '../models/Approval.js';
 const VALID_TRANSITIONS: Record<string, string[]> = {
   '起草中': ['审批中'],
   '审批中': ['已驳回', '已签订'],
-  '已驳回': ['起草中'],
+  '已驳回': ['起草中', '审批中'],
   '已签订': ['执行中'],
   '执行中': ['到期提醒', '已终止'],
   '到期提醒': ['执行中', '已到期'],
@@ -27,7 +27,7 @@ export async function transitionContract(
   }
 
   const oldStatus = contract.status;
-  await contract.update({ status: newStatus });
+  await contract.update({ status: newStatus } as any);
 
   await ContractLog.create({
     contractId,

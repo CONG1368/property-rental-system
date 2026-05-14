@@ -1,4 +1,5 @@
-import { DataTypes, Model, Optional } from 'sequelize';
+import { DataTypes, Optional } from 'sequelize';
+import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database';
 
 interface DunningTaskAttributes {
@@ -8,7 +9,7 @@ interface DunningTaskAttributes {
   createdAt?: Date; updatedAt?: Date;
 }
 type DTCreation = Optional<DunningTaskAttributes, 'id'|'createdAt'|'updatedAt'>;
-class DunningTask extends Model<DunningTaskAttributes, DTCreation> implements DunningTaskAttributes {
+class DunningTask extends BaseModel<DunningTaskAttributes, DTCreation> {
 }
 DunningTask.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
