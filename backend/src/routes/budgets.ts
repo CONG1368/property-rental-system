@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import Budget from '../models/Budget';
-import AccountBook from '../models/AccountBook';
-import ChartOfAccount from '../models/ChartOfAccount';
-import { AuthRequest } from '../middleware/auth';
+import Budget from '../models/Budget.js';
+import AccountBook from '../models/AccountBook.js';
+import ChartOfAccount from '../models/ChartOfAccount.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 

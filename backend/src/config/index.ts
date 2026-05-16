@@ -23,7 +23,7 @@ export const config = {
     logging: false,
   } : {
     dialect: 'sqlite' as const,
-    storage: path.join(__dirname, '../../data/database.sqlite'),
+    storage: process.env.DB_STORAGE || path.join(__dirname, '../../data/database.sqlite'),
     logging: false,
   },
 
@@ -41,7 +41,7 @@ export const config = {
   },
 
   upload: {
-    dir: path.join(__dirname, '../../uploads'),
+    dir: process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'),
     maxSize: 10 * 1024 * 1024,
     allowedTypes: [
       'image/jpeg', 'image/png', 'application/pdf',

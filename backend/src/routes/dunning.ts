@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { Op } from 'sequelize';
-import DunningTask from '../models/DunningTask';
-import Bill from '../models/Bill';
-import Contract from '../models/Contract';
-import Tenant from '../models/Tenant';
-import Property from '../models/Property';
-import { AuthRequest } from '../middleware/auth';
+import DunningTask from '../models/DunningTask.js';
+import Bill from '../models/Bill.js';
+import Contract from '../models/Contract.js';
+import Tenant from '../models/Tenant.js';
+import Property from '../models/Property.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { broadcastNotification } from '../services/notification.js';
 import { broadcast } from '../websocket/index.js';
 

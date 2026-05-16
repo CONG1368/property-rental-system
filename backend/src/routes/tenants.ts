@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import Tenant from '../models/Tenant';
-import Contract from '../models/Contract';
-import { AuthRequest } from '../middleware/auth';
+import Tenant from '../models/Tenant.js';
+import Contract from '../models/Contract.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { Op } from 'sequelize';
 
 const router = Router();

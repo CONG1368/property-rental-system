@@ -34,8 +34,22 @@ export function expandPeriods(period: string, periodType: string): string[] {
   }
 }
 
-export async function generateBalanceSheet(bookId: number, period: string, periodType = 'month') {
-  const periods = expandPeriods(period, periodType);
+/** 将起止月份展开为 YYYY-MM 列表（含首尾） */
+export function expandDateRange(startDate: string, endDate: string): string[] {
+  const [sy, sm] = startDate.split('-').map(Number);
+  const [ey, em] = endDate.split('-').map(Number);
+  const months: string[] = [];
+  let y = sy, m = sm;
+  while (y < ey || (y === ey && m <= em)) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return months;
+}
+
+export async function generateBalanceSheet(bookId: number, period: string, periodType = 'month', startDate?: string, endDate?: string) {
+  const periods = startDate && endDate ? expandDateRange(startDate, endDate) : expandPeriods(period, periodType);
   const accounts = await ChartOfAccount.findAll({
     where: { bookId, type: { [Op.in]: ['资产', '负债', '所有者权益'] } },
   });
@@ -65,8 +79,8 @@ export async function generateBalanceSheet(bookId: number, period: string, perio
   return { assets, liabilities, equity };
 }
 
-export async function generateIncomeStatement(bookId: number, period: string, periodType = 'month') {
-  const periods = expandPeriods(period, periodType);
+export async function generateIncomeStatement(bookId: number, period: string, periodType = 'month', startDate?: string, endDate?: string) {
+  const periods = startDate && endDate ? expandDateRange(startDate, endDate) : expandPeriods(period, periodType);
   const accounts = await ChartOfAccount.findAll({
     where: { bookId, type: { [Op.in]: ['收入', '费用'] } },
   });
@@ -95,8 +109,8 @@ export async function generateIncomeStatement(bookId: number, period: string, pe
   return { revenue, costs, totalRevenue, totalCost, netProfit };
 }
 
-export async function generateCashFlow(bookId: number, period: string, periodType = 'month') {
-  const periods = expandPeriods(period, periodType);
+export async function generateCashFlow(bookId: number, period: string, periodType = 'month', startDate?: string, endDate?: string) {
+  const periods = startDate && endDate ? expandDateRange(startDate, endDate) : expandPeriods(period, periodType);
   const { sequelize } = await import('../config/database.js');
 
   // 经营活动流入：已缴账单汇总

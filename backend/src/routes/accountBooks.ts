@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import AccountBook from '../models/AccountBook';
-import { AuthRequest } from '../middleware/auth';
+import AccountBook from '../models/AccountBook.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 

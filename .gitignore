@@ -15,6 +15,9 @@ skills/
 
 # 测试/临时文件
 .test_screenshots/
+.test_tmp/
+.mcp.json
+.playwright-mcp/
 test_resp.json
 tok.json
 tok.txt
@@ -29,3 +32,15 @@ bash.exe.stackdump
 .DS_Store
 Thumbs.db
 test-browser.mjs
+
+# Electron 构建产物
+release/
+dist/
+
+# 便携 Node.js（不入仓库，构建时下载）
+runtime/node/
+runtime/node-tmp/
+runtime/*.zip
+
+# 图标源文件（build/icon.* 入仓库）
+build/icon.png

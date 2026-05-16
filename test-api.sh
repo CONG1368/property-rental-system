@@ -7,14 +7,15 @@ TMPDIR="./.test_tmp"
 PASS=0; FAIL=0; SKIP=0
 mkdir -p "$TMPDIR"
 
-# 测试函数
+# 测试函数 — 使用临时文件传递 JSON 数据，避免 Windows bash 环境下 curl -d 直传中文字符编码损坏
 test_api() {
   local label="$1"; local method="$2"; local url="$3"; local data="$4"
   local http_code
   if [ -z "$data" ]; then
     http_code=$(curl -s -o "$TMPDIR/resp.json" -w "%{http_code}" -X "$method" "$url" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" 2>/dev/null)
   else
-    http_code=$(curl -s -o "$TMPDIR/resp.json" -w "%{http_code}" -X "$method" "$url" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$data" 2>/dev/null)
+    echo -n "$data" > "$TMPDIR/req_body.json"
+    http_code=$(curl -s -o "$TMPDIR/resp.json" -w "%{http_code}" -X "$method" "$url" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary "@$TMPDIR/req_body.json" 2>/dev/null)
   fi
   local body_code=$(node -e "try{var d=JSON.parse(require('fs').readFileSync('$TMPDIR/resp.json','utf8'));process.stdout.write(String(d.code||''))}catch(e){process.stdout.write('?')}" 2>/dev/null)
   cp "$TMPDIR/resp.json" "$TMPDIR/last_resp.json" 2>/dev/null
@@ -36,7 +37,8 @@ test_code() {
   if [ -z "$data" ]; then
     http_code=$(curl -s -o "$TMPDIR/resp.json" -w "%{http_code}" -X "$method" "$url" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" 2>/dev/null)
   else
-    http_code=$(curl -s -o "$TMPDIR/resp.json" -w "%{http_code}" -X "$method" "$url" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d "$data" 2>/dev/null)
+    echo -n "$data" > "$TMPDIR/req_body.json"
+    http_code=$(curl -s -o "$TMPDIR/resp.json" -w "%{http_code}" -X "$method" "$url" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary "@$TMPDIR/req_body.json" 2>/dev/null)
   fi
   local body_code=$(node -e "try{var d=JSON.parse(require('fs').readFileSync('$TMPDIR/resp.json','utf8'));process.stdout.write(String(d.code||''))}catch(e){process.stdout.write('?')}" 2>/dev/null)
   if [ "$body_code" = "$expected" ]; then
@@ -118,8 +120,8 @@ echo ""
 # ============================================================
 echo "========== 4. Contracts =========="
 # 创建测试房源和租客
-curl -s -X POST "$BASE/properties" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"CT-Prop","address":"CT-Addr","area":80,"type":"写字楼","status":"空置"}' -o "$TMPDIR/last_resp.json" 2>/dev/null
-CT_PROP_ID=$(get_field 'v=v.id')
+	echo -n '{"name":"CT-Prop","address":"CT-Addr","area":80,"type":"写字楼","status":"空置"}' > "$TMPDIR/req_body.json"
+	curl -s -X POST "$BASE/properties" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary "@$TMPDIR/req_body.json" -o "$TMPDIR/last_resp.json" 2>/dev/null
 curl -s -X POST "$BASE/tenants" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"CT-Tenant","idType":"营业执照","idNumber":"91110000T","phone":"13600136000","status":"待入住"}' -o "$TMPDIR/last_resp.json" 2>/dev/null
 CT_TENANT_ID=$(get_field 'v=v.id')
 CT_NO="CT-$(date +%s)"

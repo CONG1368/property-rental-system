@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import Contract from '../models/Contract';
-import Tenant from '../models/Tenant';
-import Property from '../models/Property';
-import Approval from '../models/Approval';
-import { AuthRequest } from '../middleware/auth';
-import { transitionContract } from '../services/contract-workflow';
+import Contract from '../models/Contract.js';
+import Tenant from '../models/Tenant.js';
+import Property from '../models/Property.js';
+import Approval from '../models/Approval.js';
+import { AuthRequest } from '../middleware/auth.js';
+import { transitionContract } from '../services/contract-workflow.js';
 import { Op } from 'sequelize';
 import dayjs from 'dayjs';
 import multer from 'multer';

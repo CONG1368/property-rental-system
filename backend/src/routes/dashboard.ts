@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth.js';
 import Property from '../models/Property.js';
 import Tenant from '../models/Tenant.js';
 import Contract from '../models/Contract.js';

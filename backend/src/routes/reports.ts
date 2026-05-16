@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { generateBalanceSheet, generateIncomeStatement, generateCashFlow } from '../services/report-engine.js';
+import { generateBalanceSheet, generateIncomeStatement, generateCashFlow, expandDateRange } from '../services/report-engine.js';
 import AccountBook from '../models/AccountBook.js';
 import Bill from '../models/Bill.js';
 import Tenant from '../models/Tenant.js';
@@ -15,14 +15,22 @@ async function getDefaultBookId(): Promise<number> {
   return (book?.id || 1) as number;
 }
 
+/** 解析请求中的日期范围或周期参数 */
+function parsePeriodParams(req: Request) {
+  const startDate = req.query.startDate as string | undefined;
+  const endDate = req.query.endDate as string | undefined;
+  const period = (req.query.period as string) || new Date().toISOString().slice(0, 7);
+  const periodType = (req.query.periodType as string) || 'month';
+  return { startDate, endDate, period, periodType };
+}
+
 // GET /reports/balance-sheet
 router.get('/balance-sheet', async (_req: Request, res: Response) => {
   try {
     const bookId = await getDefaultBookId();
-    const period = (_req.query.period as string) || new Date().toISOString().slice(0, 7);
-    const periodType = (_req.query.periodType as string) || 'month';
-    const data = await generateBalanceSheet(bookId, period, periodType);
-    res.json({ code: 200, data: { ...data, period, periodType } });
+    const { startDate, endDate, period, periodType } = parsePeriodParams(_req);
+    const data = await generateBalanceSheet(bookId, period, periodType, startDate, endDate);
+    res.json({ code: 200, data: { ...data, period, periodType, startDate, endDate } });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message || '生成资产负债表失败' });
   }
@@ -32,10 +40,9 @@ router.get('/balance-sheet', async (_req: Request, res: Response) => {
 router.get('/income-statement', async (_req: Request, res: Response) => {
   try {
     const bookId = await getDefaultBookId();
-    const period = (_req.query.period as string) || new Date().toISOString().slice(0, 7);
-    const periodType = (_req.query.periodType as string) || 'month';
-    const data = await generateIncomeStatement(bookId, period, periodType);
-    res.json({ code: 200, data: { ...data, period, periodType } });
+    const { startDate, endDate, period, periodType } = parsePeriodParams(_req);
+    const data = await generateIncomeStatement(bookId, period, periodType, startDate, endDate);
+    res.json({ code: 200, data: { ...data, period, periodType, startDate, endDate } });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message || '生成利润表失败' });
   }
@@ -45,10 +52,9 @@ router.get('/income-statement', async (_req: Request, res: Response) => {
 router.get('/cash-flow', async (_req: Request, res: Response) => {
   try {
     const bookId = await getDefaultBookId();
-    const period = (_req.query.period as string) || new Date().toISOString().slice(0, 7);
-    const periodType = (_req.query.periodType as string) || 'month';
-    const data = await generateCashFlow(bookId, period, periodType);
-    res.json({ code: 200, data: { ...data, period, periodType } });
+    const { startDate, endDate, period, periodType } = parsePeriodParams(_req);
+    const data = await generateCashFlow(bookId, period, periodType, startDate, endDate);
+    res.json({ code: 200, data: { ...data, period, periodType, startDate, endDate } });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message || '生成现金流量表失败' });
   }
@@ -99,17 +105,22 @@ router.get('/aging-report', async (_req: Request, res: Response) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '生成账龄分析失败' }); }
 });
 
-// GET /reports/custom — 支持多种自定义报表
+// GET /reports/custom — 支持多种自定义报表，支持自定义日期范围
 router.get('/custom', async (req: Request, res: Response) => {
   try {
     const type = req.query.type as string || 'rent-summary';
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
     const period = (req.query.period as string) || new Date().toISOString().slice(0, 7);
+
+    // 计算查询所用的月份列表
+    const periods = startDate && endDate ? expandDateRange(startDate, endDate) : [period];
 
     switch (type) {
       case 'rent-summary': {
-        // 收租汇总表
+        // 收租汇总表 — 支持日期范围或单月
         const bills = await Bill.findAll({
-          where: { period },
+          where: { period: { [Op.in]: periods } },
           include: [
             { model: Contract, as: 'contract', include: [{ model: Property, as: 'property', attributes: ['name', 'type'] }] },
           ],
@@ -132,13 +143,17 @@ router.get('/custom', async (req: Request, res: Response) => {
           '收缴率': v.due > 0 ? Math.round((v.collected / v.due) * 10000) / 100 : 0,
           '户数': v.count,
         }));
-        res.json({ code: 200, data: { rows, columns } });
+        res.json({ code: 200, data: { rows, columns, period, startDate, endDate } });
         break;
       }
       case 'arrears-detail': {
-        // 欠费明细表
+        // 欠费明细表 — 支持日期范围过滤 overdue bills 的 dueDate
+        const where: any = { status: { [Op.in]: ['逾期', '部分缴'] } };
+        if (startDate && endDate) {
+          where.dueDate = { [Op.between]: [startDate + '-01', endDate + '-31'] };
+        }
         const overdueBills = await Bill.findAll({
-          where: { status: { [Op.in]: ['逾期', '部分缴'] } },
+          where,
           include: [
             { model: Contract, as: 'contract', include: [{ model: Tenant, as: 'tenant', attributes: ['name', 'phone'] }, { model: Property, as: 'property', attributes: ['name'] }] },
           ],
@@ -155,14 +170,22 @@ router.get('/custom', async (req: Request, res: Response) => {
           '到期日': b.dueDate,
           '逾期天数': Math.floor((Date.now() - new Date(b.dueDate).getTime()) / 86400000),
         }));
-        res.json({ code: 200, data: { rows, columns } });
+        res.json({ code: 200, data: { rows, columns, period, startDate, endDate } });
         break;
       }
       case 'cost-analysis': {
-        // 成本分析表 — period 为 YYYY-MM 格式，取年份
-        const year = period.slice(0, 4);
+        // 成本分析表 — 支持日期范围或按月/年
+        let start: string, end: string;
+        if (startDate && endDate) {
+          start = startDate + '-01';
+          end = endDate + '-31';
+        } else {
+          const year = period.slice(0, 4);
+          start = `${year}-01-01`;
+          end = `${year}-12-31`;
+        }
         const expenses = await Expense.findAll({
-          where: { createdAt: { [Op.between]: [`${year}-01-01`, `${year}-12-31`] } as any },
+          where: { createdAt: { [Op.between]: [start, end] } as any },
           attributes: ['category', 'amount', 'status'],
           raw: true,
         });
@@ -178,7 +201,7 @@ router.get('/custom', async (req: Request, res: Response) => {
           '金额': amount,
           '占比': totalCost > 0 ? Math.round((amount / totalCost) * 10000) / 100 : 0,
         }));
-        res.json({ code: 200, data: { rows, columns } });
+        res.json({ code: 200, data: { rows, columns, period, startDate, endDate } });
         break;
       }
       default:

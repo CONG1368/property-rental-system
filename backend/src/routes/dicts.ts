@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import DictType from '../models/DictType.js';
 import DictItem from '../models/DictItem.js';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 

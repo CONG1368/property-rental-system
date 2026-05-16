@@ -1,6 +1,6 @@
 import { DataTypes, Optional } from 'sequelize';
 import { BaseModel } from './BaseModel.js';
-import { sequelize } from '../config/database';
+import { sequelize } from '../config/database.js';
 
 interface NotificationAttributes {
   id: number; recipientId: number; recipientType: 'user'|'tenant';

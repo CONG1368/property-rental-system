@@ -1,6 +1,6 @@
 import { DataTypes, Optional } from 'sequelize';
 import { BaseModel } from './BaseModel.js';
-import { sequelize } from '../config/database';
+import { sequelize } from '../config/database.js';
 
 interface ExpenseAttributes {
   id: number; bookId: number; category: '维修'|'保洁'|'安保'|'绿化'|'办公'|'折旧'|'其他';

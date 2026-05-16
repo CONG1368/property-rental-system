@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import Bill from '../models/Bill';
-import Contract from '../models/Contract';
-import Tenant from '../models/Tenant';
-import Property from '../models/Property';
-import PaymentRecord from '../models/PaymentRecord';
-import { AuthRequest } from '../middleware/auth';
+import Bill from '../models/Bill.js';
+import Contract from '../models/Contract.js';
+import Tenant from '../models/Tenant.js';
+import Property from '../models/Property.js';
+import PaymentRecord from '../models/PaymentRecord.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { Op } from 'sequelize';
 import { reconcilePayment } from '../services/payment-reconciler.js';
 

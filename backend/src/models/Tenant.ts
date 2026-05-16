@@ -1,6 +1,6 @@
 import { DataTypes, Optional } from 'sequelize';
 import { BaseModel } from './BaseModel.js';
-import { sequelize } from '../config/database';
+import { sequelize } from '../config/database.js';
 
 interface TenantAttributes {
   id: number; name: string; idType: '身份证'|'营业执照'|'护照'; idNumber: string;

@@ -5,4 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBackendStatus: () => ipcRenderer.invoke('get-backend-status'),
   openFileDialog: (options: any) => ipcRenderer.invoke('open-file-dialog', options),
   saveFileDialog: (options: any) => ipcRenderer.invoke('save-file-dialog', options),
+  onMenuNavigate: (callback: (path: string) => void) => {
+    ipcRenderer.on('navigate', (_event, path: string) => callback(path));
+  },
 });

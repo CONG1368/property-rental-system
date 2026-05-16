@@ -1,6 +1,6 @@
 import { DataTypes, Optional } from 'sequelize';
 import { BaseModel } from './BaseModel.js';
-import { sequelize } from '../config/database';
+import { sequelize } from '../config/database.js';
 
 interface FixedAssetAttributes {
   id: number; bookId: number; name: string; category: string;

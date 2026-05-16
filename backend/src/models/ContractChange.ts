@@ -1,6 +1,6 @@
 import { DataTypes, Optional } from 'sequelize';
 import { BaseModel } from './BaseModel.js';
-import { sequelize } from '../config/database';
+import { sequelize } from '../config/database.js';
 
 interface ContractChangeAttributes {
   id: number; contractId: number; changeType: '租金调整'|'租期变更'|'提前退租'|'条款补充';
