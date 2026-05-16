@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import Voucher from '../models/Voucher';
-import VoucherEntry from '../models/VoucherEntry';
-import { AuthRequest } from '../middleware/auth';
+import Voucher from '../models/Voucher.js';
+import VoucherEntry from '../models/VoucherEntry.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import ContractTemplate from '../models/ContractTemplate';
-import ContractClause from '../models/ContractClause';
-import { AuthRequest } from '../middleware/auth';
+import ContractTemplate from '../models/ContractTemplate.js';
+import ContractClause from '../models/ContractClause.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 

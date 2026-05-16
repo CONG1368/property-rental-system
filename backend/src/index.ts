@@ -1,4 +1,4 @@
-import app from './app';
+import app from './app.js';
 import { config } from './config/index.js';
 import { sequelize, connectDatabase, initAdminUser } from './config/database.js';
 import { connectRedis } from './config/redis.js';

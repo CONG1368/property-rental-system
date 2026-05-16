@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import User from '../models/User';
-import { AuthRequest } from '../middleware/auth';
+import User from '../models/User.js';
+import { AuthRequest } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';

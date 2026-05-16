@@ -104,7 +104,7 @@
           <el-divider style="margin:10px 0">或上传图片</el-divider>
           <div style="display:flex;align-items:center;gap:10px">
             <el-upload
-              :action="'/api/users/' + authStore.user?.id + '/avatar'"
+              :action="apiBaseURL + '/users/' + authStore.user?.id + '/avatar'"
               :headers="uploadHeaders"
               :show-file-list="false"
               :on-success="onAvatarUploaded"
@@ -139,7 +139,7 @@ import { Search, Bell } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { getRoleAvatar, presetAvatars } from '@/utils/avatars';
-import request from '@/api/request';
+import request, { apiBaseURL } from '@/api/request';
 import { useWebSocket } from '@/composables/useWebSocket';
 
 const router = useRouter();

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import Notification from '../models/Notification.js';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth.js';
 import { getUnreadCount, markAsRead } from '../services/notification.js';
 import { Op } from 'sequelize';
 

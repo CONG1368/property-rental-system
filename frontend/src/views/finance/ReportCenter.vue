@@ -11,36 +11,53 @@
       </el-col>
     </el-row>
 
-    <el-dialog :title="currentReport?.title" v-model="reportVisible" width="900px" top="5vh">
+    <el-dialog :title="currentReport?.title" v-model="reportVisible" width="960px" top="3vh">
       <!-- 报表工具栏 -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
         <span style="font-size:13px;color:#606266">周期:</span>
         <el-radio-group v-model="reportPeriodType" size="small" @change="onPeriodTypeChange">
           <el-radio-button value="month">月度</el-radio-button>
           <el-radio-button value="quarter">季度</el-radio-button>
           <el-radio-button value="half-year">半年</el-radio-button>
           <el-radio-button value="year">年度</el-radio-button>
+          <el-radio-button value="custom">自定义</el-radio-button>
         </el-radio-group>
-        <!-- 月度/年度：日期选择器 -->
+        <!-- 月度：月份选择器 -->
         <el-date-picker
           v-if="reportPeriodType === 'month'"
           v-model="reportPeriod" type="month" placeholder="选择月份" format="YYYY-MM" value-format="YYYY-MM" size="small" style="width:160px" @change="refreshReport"
         />
+        <!-- 年度：年份选择器 -->
         <el-date-picker
           v-if="reportPeriodType === 'year'"
           v-model="reportPeriod" type="year" placeholder="选择年份" format="YYYY" value-format="YYYY" size="small" style="width:140px" @change="refreshReport"
         />
-        <!-- 季度：下拉选择 -->
-        <el-select v-if="reportPeriodType === 'quarter'" v-model="reportPeriod" size="small" style="width:140px" @change="refreshReport">
+        <!-- 季度：下拉 -->
+        <el-select v-if="reportPeriodType === 'quarter'" v-model="reportPeriod" size="small" style="width:160px" @change="refreshReport">
           <el-option v-for="q in quarters" :key="q.value" :label="q.label" :value="q.value" />
         </el-select>
-        <!-- 半年：下拉选择 -->
-        <el-select v-if="reportPeriodType === 'half-year'" v-model="reportPeriod" size="small" style="width:140px" @change="refreshReport">
+        <!-- 半年：下拉 -->
+        <el-select v-if="reportPeriodType === 'half-year'" v-model="reportPeriod" size="small" style="width:160px" @change="refreshReport">
           <el-option v-for="h in halfYears" :key="h.value" :label="h.label" :value="h.value" />
         </el-select>
+        <!-- 自定义：起止月份范围 -->
+        <el-date-picker
+          v-if="reportPeriodType === 'custom'"
+          v-model="customDateRange"
+          type="monthrange"
+          range-separator="→"
+          start-placeholder="起始月"
+          end-placeholder="截止月"
+          format="YYYY-MM"
+          value-format="YYYY-MM"
+          size="small"
+          style="width:240px"
+          @change="refreshReport"
+        />
         <el-button size="small" @click="refreshReport" :loading="reportLoading">刷新</el-button>
       </div>
-      <!-- 资产负债表：分组表格 -->
+
+      <!-- 资产负债表 -->
       <template v-if="reportType === 'balance'">
         <h4>资产</h4>
         <el-table :data="reportState.assets || []" stripe size="small" style="margin-bottom:16px" show-summary :summary-method="sumAssets">
@@ -62,7 +79,7 @@
         </el-table>
       </template>
 
-      <!-- 利润表：分组表格 + 汇总 -->
+      <!-- 利润表 -->
       <template v-else-if="reportType === 'income'">
         <h4>收入</h4>
         <el-table :data="reportState.revenue || []" stripe size="small" style="margin-bottom:16px" show-summary :summary-method="sumRevenue">
@@ -124,8 +141,10 @@
           </el-table-column>
         </el-table>
       </template>
+
       <template #footer>
         <el-button @click="reportVisible = false">关闭</el-button>
+        <el-button type="success" @click="handleExportPDF" :loading="pdfLoading">导出PDF</el-button>
         <el-button type="primary" @click="handleExport">导出Excel</el-button>
       </template>
     </el-dialog>
@@ -138,10 +157,12 @@ import { Document } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 // ---- 周期选项 ----
 const currentYear = new Date().getFullYear();
-const yearRange = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i); // 前后2年
+const yearRange = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 const quarters = computed(() =>
   yearRange.flatMap(y => [
     { label: `${y}年 Q1 (1-3月)`, value: `${y}-1` },
@@ -173,6 +194,8 @@ const reportState = reactive<any>({});
 const reportPeriod = ref(new Date().toISOString().slice(0, 7));
 const reportPeriodType = ref('month');
 const reportLoading = ref(false);
+const pdfLoading = ref(false);
+const customDateRange = ref<[string, string] | null>(null);
 
 function getDefaultPeriod(type: string): string {
   const now = new Date();
@@ -187,39 +210,43 @@ function getDefaultPeriod(type: string): string {
 }
 
 function onPeriodTypeChange(type: string) {
+  if (type === 'custom') {
+    customDateRange.value = null;
+    reportState.length = 0;
+    return;
+  }
+  customDateRange.value = null;
   reportPeriod.value = getDefaultPeriod(type);
   refreshReport();
 }
 
-function sumAssets(param: any) {
-  const { data } = param;
-  return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.balance || 0), 0).toFixed(2)];
-}
-function sumLiabilities(param: any) {
-  const { data } = param;
-  return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.balance || 0), 0).toFixed(2)];
-}
-function sumEquity(param: any) {
-  const { data } = param;
-  return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.balance || 0), 0).toFixed(2)];
-}
-function sumRevenue(param: any) {
-  const { data } = param;
-  return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.amount || 0), 0).toFixed(2)];
-}
-function sumCosts(param: any) {
-  const { data } = param;
-  return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.amount || 0), 0).toFixed(2)];
+function sumAssets(param: any) { const { data } = param; return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.balance || 0), 0).toFixed(2)]; }
+function sumLiabilities(param: any) { const { data } = param; return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.balance || 0), 0).toFixed(2)]; }
+function sumEquity(param: any) { const { data } = param; return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.balance || 0), 0).toFixed(2)]; }
+function sumRevenue(param: any) { const { data } = param; return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.amount || 0), 0).toFixed(2)]; }
+function sumCosts(param: any) { const { data } = param; return ['合计', '', '¥' + data.reduce((s: number, r: any) => s + (r.amount || 0), 0).toFixed(2)]; }
+
+function buildParams(r: any): any {
+  const params: any = { ...(r.params || {}) };
+  if (reportPeriodType.value === 'custom' && customDateRange.value) {
+    params.startDate = customDateRange.value[0];
+    params.endDate = customDateRange.value[1];
+  } else {
+    params.period = reportPeriod.value;
+    params.periodType = reportPeriodType.value;
+  }
+  return params;
 }
 
 async function loadReportData(r: any) {
-  const params: any = { ...(r.params || {}), period: reportPeriod.value, periodType: reportPeriodType.value };
+  const params = buildParams(r);
   const res = await request.get(r.endpoint, { params });
   Object.assign(reportState, res.data);
 }
 
 async function refreshReport() {
   if (!currentReport.value) return;
+  if (reportPeriodType.value === 'custom' && !customDateRange.value) return;
   reportLoading.value = true;
   Object.keys(reportState).forEach(k => delete reportState[k]);
   try {
@@ -236,6 +263,7 @@ async function openReport(r: any) {
   reportType.value = r.type;
   reportPeriod.value = new Date().toISOString().slice(0, 7);
   reportPeriodType.value = 'month';
+  customDateRange.value = null;
   Object.keys(reportState).forEach(k => delete reportState[k]);
   reportLoading.value = true;
   try {
@@ -248,6 +276,7 @@ async function openReport(r: any) {
   reportVisible.value = true;
 }
 
+// ---- Excel 导出 ----
 function handleExport() {
   const wb = XLSX.utils.book_new();
   const title = currentReport.value?.title || '报表';
@@ -270,7 +299,154 @@ function handleExport() {
 
   if (!wb.SheetNames.length) { ElMessage.warning('没有可导出的数据'); return; }
   XLSX.writeFile(wb, `${title}_${now}.xlsx`);
-  ElMessage.success('导出成功');
+  ElMessage.success('Excel导出成功');
+}
+
+// ---- PDF 导出（html2canvas 截图方案，利用浏览器原生中文渲染） ----
+async function handleExportPDF() {
+  const title = currentReport.value?.title || '报表';
+  const now = new Date().toISOString().slice(0, 10);
+  pdfLoading.value = true;
+
+  try {
+    const rangeLabel = reportPeriodType.value === 'custom' && customDateRange.value
+      ? `周期：${customDateRange.value[0]} ~ ${customDateRange.value[1]}`
+      : `周期：${reportPeriod.value} (${({ month: '月度', quarter: '季度', 'half-year': '半年', year: '年度' } as any)[reportPeriodType.value]})`;
+
+    const html = buildReportHTML(title, rangeLabel, now);
+
+    // 创建离屏渲染容器
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:760px;font-family:"Microsoft YaHei","SimHei","PingFang SC",sans-serif;font-size:12px;color:#333;background:#fff;padding:16px;z-index:-1;';
+    document.body.appendChild(container);
+
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    document.body.removeChild(container);
+
+    // 生成 PDF
+    const imgData = canvas.toDataURL('image/png');
+    const pageW = 297; // A4 横向 mm
+    const pageH = 210;
+    const margin = 8;
+    const usableW = pageW - margin * 2;
+    const usableH = pageH - margin * 2;
+    const imgW = usableW;
+    const imgH = (canvas.height * usableW) / canvas.width;
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+    let heightLeft = imgH;
+    let position = margin;
+    let pageNum = 0;
+
+    // 首页
+    doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+    heightLeft -= usableH;
+    pageNum++;
+
+    // 后续页面
+    while (heightLeft > 0) {
+      doc.addPage();
+      position = -(usableH * pageNum) + margin;
+      doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+      heightLeft -= usableH;
+      pageNum++;
+    }
+
+    doc.save(`${title}_${now}.pdf`);
+    ElMessage.success('PDF导出成功');
+  } catch (e) {
+    ElMessage.error('PDF导出失败');
+    console.error(e);
+  } finally {
+    pdfLoading.value = false;
+  }
+}
+
+// 构建报表 HTML（浏览器原生渲染中文）
+function buildReportHTML(title: string, rangeLabel: string, now: string): string {
+  let html = `<div style="text-align:center;margin-bottom:10px">
+    <h2 style="margin:0 0 4px;font-size:18px;color:#0A3D62">${title}</h2>
+    <div style="font-size:11px;color:#666">${rangeLabel}　导出日期：${now}</div>
+  </div>`;
+
+  if (reportType.value === 'balance') {
+    html += buildTableHTML('资产', reportState.assets || [], ['code', 'name', 'balance'], ['科目编码', '科目名称', '余额'], true);
+    html += buildTableHTML('负债', reportState.liabilities || [], ['code', 'name', 'balance'], ['科目编码', '科目名称', '余额'], true);
+    html += buildTableHTML('所有者权益', reportState.equity || [], ['code', 'name', 'balance'], ['科目编码', '科目名称', '余额'], true);
+  } else if (reportType.value === 'income') {
+    html += buildTableHTML('收入', reportState.revenue || [], ['code', 'name', 'amount'], ['科目编码', '科目名称', '金额'], true);
+    html += buildTableHTML('成本费用', reportState.costs || [], ['code', 'name', 'amount'], ['科目编码', '科目名称', '金额'], true);
+    html += `<div style="font-size:13px;margin-top:6px;padding:8px;background:#f5f7fa;border-radius:4px">
+      <strong>总收入：</strong>¥${(reportState.totalRevenue || 0).toFixed(2)}
+      <strong>总成本：</strong>¥${(reportState.totalCost || 0).toFixed(2)}
+      <strong style="color:#00B894">净利润：¥${(reportState.netProfit || 0).toFixed(2)}</strong>
+    </div>`;
+  } else if (reportType.value === 'cashflow') {
+    html += buildTableHTML('经营活动', reportState.operating || [], ['code', 'name', 'amount'], ['编码', '项目', '金额'], false);
+    html += buildTableHTML('投资活动', reportState.investing || [], ['code', 'name', 'amount'], ['编码', '项目', '金额'], false);
+    html += buildTableHTML('筹资活动', reportState.financing || [], ['code', 'name', 'amount'], ['编码', '项目', '金额'], false);
+    html += `<div style="font-size:13px;margin-top:6px;padding:8px;background:#f5f7fa;border-radius:4px">
+      <strong>现金净增加额：</strong>¥${(reportState.netCashFlow || 0).toFixed(2)}
+    </div>`;
+  } else {
+    const rows = reportState.rows || [];
+    const cols = reportState.columns || [];
+    if (rows.length && cols.length) {
+      html += buildCustomTableHTML(cols, rows);
+    }
+  }
+
+  return html;
+}
+
+function formatCellValue(v: any, col: string): string {
+  if (typeof v === 'number') {
+    if (col.includes('率') || col.includes('比')) return v + '%';
+    if (col === '逾期天数') return v + '天';
+    if (col === '户数') return String(v);
+    return v.toFixed(2);
+  }
+  return v != null ? String(v) : '';
+}
+
+function buildTableHTML(sectionTitle: string, data: any[], keys: string[], headers: string[], isCurrency: boolean): string {
+  if (!data.length) return `<h4 style="margin:10px 0 4px;color:#0A3D62">${sectionTitle}</h4><p style="color:#999;font-size:11px">暂无数据</p>`;
+  const sum = data.reduce((s, r) => s + (Number(r[keys[keys.length - 1]]) || 0), 0);
+  return `<h4 style="margin:12px 0 4px;color:#0A3D62">${sectionTitle}</h4>
+    <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
+      <tr style="background:#0A3D62;color:#fff">
+        ${headers.map(h => `<th style="padding:6px 10px;text-align:${h === headers[headers.length - 1] && isCurrency ? 'right' : 'left'};border:1px solid #ddd">${h}</th>`).join('')}
+      </tr>
+      ${data.map(r => `<tr>
+        ${keys.map((k, i) => {
+          const v = r[k] || 0;
+          const val = (i === keys.length - 1 && isCurrency) ? (Number(v)).toFixed(2) : String(v);
+          const align = (i === keys.length - 1 && isCurrency) ? 'right' : 'left';
+          return `<td style="padding:5px 10px;text-align:${align};border:1px solid #eee">${val}</td>`;
+        }).join('')}
+      </tr>`).join('')}
+      <tr style="background:#f0f4f8;font-weight:700">
+        <td style="padding:6px 10px;border:1px solid #ddd" colspan="${keys.length - 1}">合计</td>
+        <td style="padding:6px 10px;text-align:right;border:1px solid #ddd">¥${sum.toFixed(2)}</td>
+      </tr>
+    </table>`;
+}
+
+function buildCustomTableHTML(cols: string[], rows: any[]): string {
+  return `<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <tr style="background:#0A3D62;color:#fff">
+      ${cols.map(c => `<th style="padding:6px 10px;text-align:left;border:1px solid #ddd">${c}</th>`).join('')}
+    </tr>
+    ${rows.map(r => `<tr>
+      ${cols.map(c => {
+        const v = r[c];
+        const val = formatCellValue(v, c);
+        return `<td style="padding:5px 10px;text-align:left;border:1px solid #eee">${val}</td>`;
+      }).join('')}
+    </tr>`).join('')}
+  </table>`;
 }
 </script>
 

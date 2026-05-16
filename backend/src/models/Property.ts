@@ -1,6 +1,6 @@
 import { DataTypes, Optional } from 'sequelize';
 import { BaseModel } from './BaseModel.js';
-import { sequelize } from '../config/database';
+import { sequelize } from '../config/database.js';
 
 interface PropertyAttributes {
   id: number; name: string; type: '公寓'|'厂房'|'商铺'; subType: string;

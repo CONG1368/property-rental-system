@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import Expense from '../models/Expense';
-import { AuthRequest } from '../middleware/auth';
+import Expense from '../models/Expense.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 

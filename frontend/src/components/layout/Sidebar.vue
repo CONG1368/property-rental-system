@@ -77,7 +77,32 @@ const route = useRoute();
 const activeMenu = computed(() => route.path);
 const auth = useAuthStore();
 
-const role = computed(() => auth.user?.role || '');
+const token = localStorage.getItem('accessToken') || '';
+const lsRole = localStorage.getItem('userRole') || '';
+
+// base64url → UTF-8 字符串
+function base64urlDecode(str: string): string {
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+// 三层 fallback 获取角色：auth.user → localStorage(userRole) → JWT payload
+function resolveRole(): string {
+  if (auth.user?.role) return auth.user.role;
+  if (lsRole) return lsRole;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return '';
+    const payload = JSON.parse(base64urlDecode(parts[1]));
+    return payload.role || '';
+  } catch { return ''; }
+}
+const role = computed(() => resolveRole());
 
 const canAccessRent = computed(() =>
   ['管理员', '总经理', '收租主管', '收租员'].includes(role.value)

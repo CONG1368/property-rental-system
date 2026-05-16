@@ -6,6 +6,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 import { resolve } from 'path';
 
 export default defineConfig({
+  base: './',
   plugins: [
     vue(),
     AutoImport({ resolvers: [ElementPlusResolver()] }),
@@ -31,5 +32,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    chunkSizeWarningLimit: 8000,
   },
 });

@@ -6,27 +6,37 @@ directories:
 files:
   - dist/**/*
   - frontend/dist/**/*
-  - backend/dist/**/*
   - package.json
 extraResources:
-  - from: runtime/
-    to: runtime/
+  - from: backend/
+    to: backend/
+    filter:
+      - dist/**/*
+      - node_modules/**/*
+      - package.json
+  - from: runtime/node/
+    to: runtime/node/
     filter:
       - "**/*"
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
+  createStartMenuShortcut: true
   shortcutName: 物业租赁综合管理系统
-  installerIcon: frontend/public/icon.ico
-  uninstallerIcon: frontend/public/icon.ico
+  # 安装/卸载时写入注册表，新版本自动读取旧安装路径实现覆盖升级
+  installerHeaderIcon: build/icon.ico
+  # 卸载时先关闭应用
+  uninstallDisplayName: 物业租赁综合管理系统
 win:
   target:
     - target: nsis
       arch:
         - x64
-  icon: frontend/public/icon.ico
+    - target: zip
+      arch:
+        - x64
+  sign: null
+  signAndEditExecutable: false
 asar: true
-asarUnpack:
-  - runtime/**
 compression: maximum

@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { AuthRequest } from './auth';
+import { AuthRequest } from './auth.js';
 
 type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'export';
 

@@ -14,5 +14,6 @@ interface Window {
     getBackendStatus: () => Promise<boolean>;
     openFileDialog: (options: any) => Promise<any>;
     saveFileDialog: (options: any) => Promise<any>;
+    onMenuNavigate: (callback: (path: string) => void) => void;
   };
 }

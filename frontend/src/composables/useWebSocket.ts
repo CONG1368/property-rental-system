@@ -8,9 +8,11 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 const isConnected = ref(false);
 
 function getWsUrl(): string {
+  // 生产模式（Electron file:// 协议）下 hostname 为空，回退到 localhost
+  const isProd = import.meta.env.PROD;
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.hostname;
-  const port = import.meta.env.VITE_API_PORT || '3001';
+  const host = isProd ? 'localhost' : window.location.hostname;
+  const port = isProd ? '3001' : (import.meta.env.VITE_API_PORT || '3001');
   return `${protocol}//${host}:${port}/ws`;
 }
 

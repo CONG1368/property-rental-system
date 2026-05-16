@@ -1,35 +1,74 @@
 <template>
   <div class="login-page">
     <div class="login-card">
+      <!-- 系统图标 -->
+      <div class="login-logo">
+        <el-icon :size="64" color="#0A3D62"><OfficeBuilding /></el-icon>
+      </div>
       <h1 class="login-title">物业租赁综合管理系统</h1>
       <p class="login-subtitle">Property Rental Comprehensive Management System</p>
-      <el-form ref="formRef" :model="form" :rules="rules" size="large" class="login-form">
+
+      <!-- 上次登录角色提示 -->
+      <div class="login-role-hint" v-if="lastLoginRole">
+        <el-tag size="small" effect="plain" type="info">
+          上次登录角色：{{ lastLoginRole }}
+        </el-tag>
+      </div>
+
+      <!-- 错误提示 -->
+      <el-alert
+        v-if="errorMessage"
+        :title="errorMessage"
+        type="error"
+        show-icon
+        :closable="true"
+        class="login-alert"
+        @close="errorMessage = ''"
+      />
+
+      <el-form ref="formRef" :model="form" :rules="rules" size="large" class="login-form" @submit.prevent="handleLogin">
         <el-form-item prop="username">
-          <el-input v-model="form.username" placeholder="请输入用户名" :prefix-icon="User" />
+          <el-input v-model="form.username" placeholder="请输入用户名" :prefix-icon="User" clearable />
         </el-form-item>
         <el-form-item prop="password">
-          <el-input v-model="form.password" type="password" placeholder="请输入密码" :prefix-icon="Lock" show-password @keyup.enter="handleLogin" />
+          <el-input v-model="form.password" type="password" placeholder="请输入密码" :prefix-icon="Lock" show-password clearable @keyup.enter="handleLogin" />
         </el-form-item>
+
+        <!-- 记住密码 -->
+        <el-form-item class="login-options">
+          <el-checkbox v-model="rememberPassword">记住密码</el-checkbox>
+        </el-form-item>
+
         <el-form-item>
-          <el-button type="primary" :loading="loading" class="login-btn" @click="handleLogin">登 录</el-button>
+          <el-button type="primary" :loading="loading" class="login-btn" @click="handleLogin">
+            {{ loading ? '登录中...' : '登 录' }}
+          </el-button>
         </el-form-item>
       </el-form>
+
+      <!-- 版本信息 -->
+      <p class="login-version">v{{ appVersion }}</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { User, Lock } from '@element-plus/icons-vue';
+import { User, Lock, OfficeBuilding } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
+import { saveCredentials, loadCredentials, clearCredentials } from '@/utils/credentialStorage';
 import type { FormInstance, FormRules } from 'element-plus';
 
 const router = useRouter();
 const authStore = useAuthStore();
 const formRef = ref<FormInstance>();
 const loading = ref(false);
+const errorMessage = ref('');
+const rememberPassword = ref(false);
+const lastLoginRole = ref(localStorage.getItem('userRole') || '');
+const appVersion = ref('1.0.2');
 
 const form = reactive({ username: '', password: '' });
 const rules: FormRules = {
@@ -37,16 +76,62 @@ const rules: FormRules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 };
 
+// 按角色跳转到最相关页面
+function redirectByRole() {
+  const role = authStore.user?.role || '';
+  const rolePageMap: Record<string, string> = {
+    '管理员': '/dashboard',
+    '总经理': '/dashboard',
+    '收租主管': '/rent/bills',
+    '收租员': '/rent/bills',
+    '财务主管': '/finance/dashboard',
+    '会计': '/finance/vouchers',
+    '出纳': '/finance/vouchers',
+    '合同主管': '/contract/list',
+    '法务': '/contract/approval',
+  };
+  const target = rolePageMap[role] || '/dashboard';
+  router.push(target);
+}
+
+// 启动时预填已保存的密码（不自动提交）
+onMounted(() => {
+  const creds = loadCredentials();
+  if (creds) {
+    form.username = creds.username;
+    form.password = creds.password;
+    rememberPassword.value = true;
+  }
+});
+
 async function handleLogin() {
+  errorMessage.value = '';
   const valid = await formRef.value?.validate();
   if (!valid) return;
+
   loading.value = true;
   try {
     await authStore.login(form.username, form.password);
+
+    // 记住密码：混淆存储凭证供下次预填
+    if (rememberPassword.value) {
+      saveCredentials(form.username, form.password);
+    } else {
+      clearCredentials();
+    }
+
     ElMessage.success('登录成功');
-    router.push('/dashboard');
+    redirectByRole();
   } catch (err: any) {
-    ElMessage.error(err.response?.data?.message || '登录失败');
+    const status = err.response?.status;
+    const code = err.response?.data?.code;
+    if (code === 403) {
+      errorMessage.value = '账户已被禁用，请联系管理员';
+    } else if (status === 401) {
+      errorMessage.value = '用户名或密码错误';
+    } else {
+      errorMessage.value = err.response?.data?.message || '登录失败，请检查网络连接';
+    }
   } finally {
     loading.value = false;
   }
@@ -68,6 +153,10 @@ async function handleLogin() {
   border-radius: 8px;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
 }
+.login-logo {
+  text-align: center;
+  margin-bottom: 16px;
+}
 .login-title {
   font-size: 22px;
   text-align: center;
@@ -78,12 +167,29 @@ async function handleLogin() {
   text-align: center;
   color: #7F8C8D;
   font-size: 12px;
-  margin-bottom: 32px;
+  margin-bottom: 16px;
+}
+.login-role-hint {
+  text-align: center;
+  margin-bottom: 16px;
+}
+.login-alert {
+  margin-bottom: 16px;
 }
 .login-form {
-  margin-top: 16px;
+  margin-top: 8px;
+}
+.login-options {
+  margin-bottom: 8px;
 }
 .login-btn {
   width: 100%;
+}
+.login-version {
+  text-align: center;
+  color: #B0BEC5;
+  font-size: 11px;
+  margin-top: 24px;
+  margin-bottom: 0;
 }
 </style>

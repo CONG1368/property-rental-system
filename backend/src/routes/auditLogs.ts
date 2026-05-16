@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import AuditLog from '../models/AuditLog';
-import { AuthRequest } from '../middleware/auth';
+import AuditLog from '../models/AuditLog.js';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 

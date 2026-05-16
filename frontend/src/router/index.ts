@@ -228,8 +228,34 @@ const routeRoleMap: Record<string, string[]> = {
   'system': ['管理员'],
 };
 
+// 检查 JWT 是否过期（仅解析 exp 字段，不做完整验证）
+function isTokenExpired(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const payload = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+    if (!payload.exp) return true; // 无 exp 字段视为已过期
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true; // 解析失败视为过期
+  }
+}
+
 router.beforeEach((to, _from, next) => {
-  const token = localStorage.getItem('accessToken');
+  const rawToken = localStorage.getItem('accessToken');
+  const token = rawToken && !isTokenExpired(rawToken) ? rawToken : null;
+
+  // 过期 token 清理
+  if (!token && rawToken) {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userRole');
+  }
+
   if (to.meta.requiresAuth !== false && !token) {
     next('/login');
     return;
@@ -238,22 +264,26 @@ router.beforeEach((to, _from, next) => {
     next('/dashboard');
     return;
   }
-  // 角色权限检查（从 localStorage 读取角色，避免 atob 中文编码问题）
+  // 角色权限检查：始终从 JWT 解析（localStorage 可能有编码问题）
   if (token && to.path !== '/login' && to.path !== '/dashboard' && to.path !== '/') {
     const moduleKey = to.path.startsWith('/rent') ? 'rent' :
       to.path.startsWith('/finance') ? 'finance' :
       to.path.startsWith('/contract') ? 'contract' :
       to.path.startsWith('/system') ? 'system' : '';
     if (moduleKey && routeRoleMap[moduleKey]) {
-      // 优先从 localStorage 读取角色（登录时存储）
-      let userRole = localStorage.getItem('userRole') || '';
-      // 降级：从 JWT 解析
-      if (!userRole) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
+      // 从 JWT 解析角色（正确处理 UTF-8）
+      let userRole = '';
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const binary = atob(base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          const payload = JSON.parse(new TextDecoder('utf-8').decode(bytes));
           userRole = payload.role || '';
-        } catch { /* ignore */ }
-      }
+        }
+      } catch { /* ignore */ }
       if (userRole && !routeRoleMap[moduleKey].includes(userRole)) {
         next('/dashboard');
         return;

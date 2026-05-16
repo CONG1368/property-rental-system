@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { AuthRequest } from './auth';
+import { AuthRequest } from './auth.js';
 
 /**
  * 角色权限中间件 — 仅允许指定角色访问

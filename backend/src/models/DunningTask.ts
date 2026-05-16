@@ -1,6 +1,6 @@
 import { DataTypes, Optional } from 'sequelize';
 import { BaseModel } from './BaseModel.js';
-import { sequelize } from '../config/database';
+import { sequelize } from '../config/database.js';
 
 interface DunningTaskAttributes {
   id: number; billId: number; level: number; channel: '站内信'|'短信'|'微信'|'邮件'|'电话'|'书面';

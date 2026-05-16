@@ -88,7 +88,7 @@
       <template #header>
         <span>合同附件</span>
         <el-upload
-          :action="'/api/contracts/' + contract.id + '/upload'"
+          :action="apiBaseURL + '/contracts/' + contract.id + '/upload'"
           :headers="uploadHeaders"
           multiple
           :show-file-list="false"
@@ -124,7 +124,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import request from '@/api/request';
+import request, { apiBaseURL } from '@/api/request';
 
 const route = useRoute();
 const router = useRouter();

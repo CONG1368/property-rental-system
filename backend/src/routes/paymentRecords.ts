@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Op } from 'sequelize';
 import PaymentRecord from '../models/PaymentRecord.js';
 import Bill from '../models/Bill.js';
-import { AuthRequest } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 

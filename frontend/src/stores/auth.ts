@@ -8,9 +8,23 @@ interface UserInfo {
 }
 
 /** 从 JWT Token 解码用户信息（无需 API 调用，Token 中已包含） */
+// base64url → UTF-8 字符串（处理中文等非 ASCII 字符）
+function base64urlDecode(str: string): string {
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
 function parseUserFromToken(token: string): UserInfo | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(base64urlDecode(parts[1]));
+    if (import.meta.env.DEV) console.log('[AuthStore] parseUserFromToken payload:', JSON.stringify(payload));
     if (payload.userId && payload.role) {
       return {
         id: payload.userId,
@@ -20,7 +34,8 @@ function parseUserFromToken(token: string): UserInfo | null {
         permissions: payload.permissions || {},
       };
     }
-  } catch { /* token 解析失败 */ }
+    if (import.meta.env.DEV) console.warn('[AuthStore] parseUserFromToken: missing userId or role in payload', payload);
+  } catch (e) { console.error('[AuthStore] parseUserFromToken error:', import.meta.env.DEV ? e : (e instanceof Error ? e.message : 'unknown')); }
   return null;
 }
 
@@ -29,9 +44,31 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserInfo | null>(null);
 
   // 启动时从 localStorage 恢复用户信息
-  if (token.value && !user.value) {
+  // parseUserFromToken 可能因 JWT 格式不匹配而失败，回退到直接解析 role
+  if (token.value) {
     const restored = parseUserFromToken(token.value);
-    if (restored) user.value = restored;
+    if (restored) {
+      user.value = restored;
+      localStorage.setItem('userRole', restored.role);
+    } else {
+      // fallback: 直接从 JWT 提取 role，构造最小用户对象
+      try {
+        const parts = token.value.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(base64urlDecode(parts[1]));
+          if (payload.role) {
+            user.value = {
+              id: payload.userId || 0,
+              username: payload.username || '',
+              displayName: payload.displayName || payload.username || '',
+              role: payload.role,
+              permissions: payload.permissions || {},
+            };
+            localStorage.setItem('userRole', payload.role);
+          }
+        }
+      } catch { /* ignore */ }
+    }
   }
 
   function setToken(accessToken: string, refreshToken: string) {

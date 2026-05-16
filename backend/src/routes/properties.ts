@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import Property from '../models/Property';
-import { AuthRequest } from '../middleware/auth';
+import Property from '../models/Property.js';
+import { AuthRequest } from '../middleware/auth.js';
 import { Op } from 'sequelize';
 import multer from 'multer';
 import * as XLSX from 'xlsx';

@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import Approval from '../models/Approval.js';
 import Contract from '../models/Contract.js';
-import { AuthRequest } from '../middleware/auth';
-import { transitionContract } from '../services/contract-workflow';
+import { AuthRequest } from '../middleware/auth.js';
+import { transitionContract } from '../services/contract-workflow.js';
 
 const router = Router();
 
