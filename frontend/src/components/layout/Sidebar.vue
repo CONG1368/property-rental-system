@@ -23,6 +23,7 @@
       <el-menu-item index="/rent/bills">收租管理</el-menu-item>
       <el-menu-item index="/rent/bills/calendar">收租日历</el-menu-item>
       <el-menu-item index="/rent/dunning">智能催缴</el-menu-item>
+      <el-menu-item index="/rent/locks">门锁管理</el-menu-item>
       <el-menu-item index="/rent/dashboard">收租看板</el-menu-item>
     </el-sub-menu>
 
@@ -63,6 +64,7 @@
       <el-menu-item index="/system/users">用户管理</el-menu-item>
       <el-menu-item index="/system/dicts">数据字典</el-menu-item>
       <el-menu-item index="/system/audit-logs">审计日志</el-menu-item>
+      <el-menu-item index="/system/print-settings">打印设置</el-menu-item>
     </el-sub-menu>
   </el-menu>
 </template>
@@ -70,7 +72,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { HomeFilled, Money, Notebook, DocumentChecked, Setting } from '@element-plus/icons-vue';
+import { HomeFilled, Money, Notebook, DocumentChecked, Setting, Lock } from '@element-plus/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();

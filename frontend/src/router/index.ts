@@ -76,6 +76,18 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/rent/RentDashboard.vue'),
         meta: { title: '收租看板', icon: 'DataAnalysis' },
       },
+      {
+        path: 'rent/locks',
+        name: 'DoorLockList',
+        component: () => import('@/views/rent/DoorLockList.vue'),
+        meta: { title: '门锁管理', icon: 'Lock' },
+      },
+      {
+        path: 'rent/locks/:id',
+        name: 'DoorLockDetail',
+        component: () => import('@/views/rent/DoorLockDetail.vue'),
+        meta: { title: '门锁详情', hidden: true },
+      },
       // ====== 财务报表 ======
       {
         path: 'finance/books',
@@ -210,6 +222,12 @@ const routes: RouteRecordRaw[] = [
         name: 'AuditLog',
         component: () => import('@/views/system/AuditLog.vue'),
         meta: { title: '审计日志', icon: 'Monitor' },
+      },
+      {
+        path: 'system/print-settings',
+        name: 'PrintSettings',
+        component: () => import('@/views/system/PrintSettings.vue'),
+        meta: { title: '打印设置', icon: 'Printer' },
       },
     ],
   },

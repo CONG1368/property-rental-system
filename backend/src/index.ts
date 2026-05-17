@@ -16,9 +16,10 @@ async function start() {
 
   // 3. 初始化管理员 + 种子数据（科目表 + 3年演示经营数据）
   await initAdminUser();
-  const { seedChartOfAccounts, seedAllDemoData } = await import('./services/seed-data.js');
+  const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks } = await import('./services/seed-data.js');
   await seedChartOfAccounts();
   await seedAllDemoData();
+  await seedDoorLocks();
 
   // 4. Redis（可选，不可用时自动退化）
   await connectRedis();

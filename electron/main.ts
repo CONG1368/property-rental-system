@@ -143,6 +143,39 @@ function createWindow() {
 ipcMain.handle('get-app-version', () => app.getVersion());
 ipcMain.handle('get-backend-status', () => true);
 
+// 文件保存对话框
+ipcMain.handle('save-file-dialog', async (_event, options: any) => {
+  const result = await dialog.showSaveDialog(mainWindow!, options);
+  return result;
+});
+
+// 文件打开对话框
+ipcMain.handle('open-file-dialog', async (_event, options: any) => {
+  const result = await dialog.showOpenDialog(mainWindow!, options);
+  return result;
+});
+
+// HTML 原生打印（开隐藏窗口渲染 → 弹出系统打印对话框）
+ipcMain.handle('print-html', async (_event, html: string, title: string) => {
+  return new Promise((resolve) => {
+    const printWin = new BrowserWindow({
+      width: 800, height: 600, show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+    const encoded = encodeURIComponent(html);
+    printWin.loadURL(`data:text/html;charset=utf-8,${encoded}`);
+    printWin.webContents.on('did-finish-load', () => {
+      printWin.webContents.print({
+        silent: false,
+        printBackground: true,
+      }, (success, failureReason) => {
+        printWin.close();
+        resolve({ success, failureReason });
+      });
+    });
+  });
+});
+
 app.whenReady().then(async () => {
   buildMenu();
   try {

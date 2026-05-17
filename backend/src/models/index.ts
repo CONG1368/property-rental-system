@@ -19,6 +19,10 @@ import Approval from './Approval.js';
 import DunningTask from './DunningTask.js';
 import Notification from './Notification.js';
 import AuditLog from './AuditLog.js';
+import DoorLock from './DoorLock.js';
+import DoorLockPassword from './DoorLockPassword.js';
+import DoorLockKey from './DoorLockKey.js';
+import DoorLockLog from './DoorLockLog.js';
 
 // ====== 房源 <-> 合同 ======
 Property.hasMany(Contract, { foreignKey: 'propertyId', as: 'contracts' });
@@ -100,10 +104,36 @@ Expense.belongsTo(AccountBook, { foreignKey: 'bookId', as: 'book' });
 AccountBook.hasMany(FixedAsset, { foreignKey: 'bookId', as: 'fixedAssets' });
 FixedAsset.belongsTo(AccountBook, { foreignKey: 'bookId', as: 'book' });
 
+// ====== 房源 <-> 门锁 ======
+Property.hasMany(DoorLock, { foreignKey: 'propertyId', as: 'doorLocks' });
+DoorLock.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+
+// ====== 门锁 <-> 密码 ======
+DoorLock.hasMany(DoorLockPassword, { foreignKey: 'lockId', as: 'passwords' });
+DoorLockPassword.belongsTo(DoorLock, { foreignKey: 'lockId', as: 'lock' });
+
+// ====== 门锁 <-> 钥匙 ======
+DoorLock.hasMany(DoorLockKey, { foreignKey: 'lockId', as: 'keys' });
+DoorLockKey.belongsTo(DoorLock, { foreignKey: 'lockId', as: 'lock' });
+
+// ====== 门锁 <-> 日志 ======
+DoorLock.hasMany(DoorLockLog, { foreignKey: 'lockId', as: 'logs' });
+DoorLockLog.belongsTo(DoorLock, { foreignKey: 'lockId', as: 'lock' });
+
+// ====== 租客 <-> 门锁密码 ======
+Tenant.hasMany(DoorLockPassword, { foreignKey: 'tenantId', as: 'lockPasswords' });
+DoorLockPassword.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+
+// ====== 用户 <-> 门锁密码/钥匙/日志 ======
+User.hasMany(DoorLockPassword, { foreignKey: 'createdBy', as: 'createdLockPasswords' });
+User.hasMany(DoorLockKey, { foreignKey: 'createdBy', as: 'managedKeys' });
+User.hasMany(DoorLockLog, { foreignKey: 'operatorId', as: 'lockLogs' });
+
 export {
   User, Property, Tenant, Contract, Bill, PaymentRecord,
   Voucher, VoucherEntry, AccountBook, ChartOfAccount,
   Budget, Expense, FixedAsset, ContractTemplate, ContractClause,
   ContractChange, ContractLog, Approval, DunningTask,
-  Notification, AuditLog,
+  Notification, AuditLog, DoorLock, DoorLockPassword,
+  DoorLockKey, DoorLockLog,
 };

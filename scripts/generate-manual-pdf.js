@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 
 const mdFile = './docs/使用说明书.md';
-const pdfFile = './docs/物业租赁综合管理系统-使用说明书-v1.0.0.pdf';
+const pdfFile = './docs/物业租赁综合管理系统-使用说明书-v1.0.2.pdf';
 
 // 简易 Markdown → HTML 转换
 function mdToHtml(md) {
@@ -147,7 +147,7 @@ async function main() {
 </head>
 <body>
 <h1>物业租赁综合管理系统 — 使用说明书</h1>
-<p class="header-info">版本：v1.0.0 | 2026年5月 | 仅供内部使用</p>
+<p class="header-info">版本：v1.0.2 | 2026年5月17日 | 仅供内部使用</p>
 ${bodyHtml}
 </body>
 </html>`;
@@ -181,7 +181,7 @@ ${bodyHtml}
     margin: { top: '2cm', bottom: '2cm', left: '2.2cm', right: '2.2cm' },
     printBackground: true,
     displayHeaderFooter: true,
-    headerTemplate: '<span style="font-size:8pt;color:#999;margin-left:2cm;">物业租赁综合管理系统 — 使用说明书 v1.0.0</span>',
+    headerTemplate: '<span style="font-size:8pt;color:#999;margin-left:2cm;">物业租赁综合管理系统 — 使用说明书 v1.0.2</span>',
     footerTemplate: '<span style="font-size:8pt;color:#999;margin:0 auto;">第 <span class="pageNumber"></span> 页 / 共 <span class="totalPages"></span> 页</span>',
   });
 

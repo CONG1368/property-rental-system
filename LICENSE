@@ -1,21 +1,19 @@
-MIT License
-
 Copyright (c) 2026 物业租赁综合管理系统
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+版权所有 (c) 2026 物业租赁综合管理系统
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+本软件及其相关文档（以下简称"本软件"）的著作权归版权人所有。
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+未经版权人明确书面授权，任何个人或组织不得将本软件用于任何商业用途。
+"商业用途"包括但不限于：
+  - 将本软件作为商业产品或服务的一部分进行销售、许可或出租
+  - 将本软件用于营利性物业管理或租赁管理业务
+  - 基于本软件提供收费的咨询、实施、托管或 SaaS 服务
+  - 将本软件集成到商业产品中进行分发
+
+本软件目前仅授权用于个人学习、研究、教育等非商业目的。
+
+如需商业授权，请联系版权人获取书面许可。
+
+本软件按"现状"提供，不提供任何形式的明示或暗示担保。版权人不对因使用
+本软件而产生的任何直接或间接损失承担责任。

@@ -1,6 +1,20 @@
 <template>
   <div class="contract-detail">
-    <el-page-header @back="$router.back()" :title="'合同详情 - ' + contract?.contractNo" />
+    <el-page-header @back="$router.back()" :title="'合同详情 - ' + contract?.contractNo">
+      <template #content>
+        <el-dropdown @command="handlePrint" v-if="contract && ['执行中','已签订','已到期'].includes(contract.status)" style="margin-left:16px">
+          <el-button type="primary" plain size="small">
+            <el-icon><Printer /></el-icon> 打印 <el-icon><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="native"><el-icon><Printer /></el-icon> 直接打印</el-dropdown-item>
+              <el-dropdown-item command="pdf"><el-icon><Download /></el-icon> 导出PDF</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </template>
+    </el-page-header>
     <el-card style="margin-top:16px" v-if="contract">
       <template #header>
         <span>合同信息</span>
@@ -124,7 +138,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { Printer, ArrowDown, Download } from '@element-plus/icons-vue';
 import request, { apiBaseURL } from '@/api/request';
+import { printDocument, isElectron, formatDate } from '@/utils/print-service';
+import { buildContractHTML } from '@/components/print/ContractPrint';
 
 const route = useRoute();
 const router = useRouter();
@@ -170,6 +187,51 @@ function statusTagType(status: string) {
 
 async function fetchContract() {
   try { const res = await request.get('/contracts/' + route.params.id); contract.value = res.data; } catch { ElMessage.error('加载合同详情失败'); }
+}
+
+async function getCompanyInfo() {
+  let companyName = '物业租赁管理公司';
+  let companyLogo = ''; let companySeal = '';
+  try {
+    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo,company_seal' } });
+    const map: Record<string, string> = {};
+    (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
+    if (map['company_name_for_print']) companyName = map['company_name_for_print'];
+    if (map['company_logo']) companyLogo = map['company_logo'];
+    if (map['company_seal']) companySeal = map['company_seal'];
+  } catch { /* use defaults */ }
+  return { companyName, companyLogo, companySeal };
+}
+
+async function handlePrint(mode: string) {
+  if (!contract.value) return;
+  const info = await getCompanyInfo();
+  const config = contract.value.billingConfig || {};
+  const html = buildContractHTML({
+    contractNo: contract.value.contractNo,
+    propertyName: contract.value.property?.name || '-',
+    propertyAddress: contract.value.property?.address || '',
+    propertyArea: contract.value.property?.area || 0,
+    tenantName: contract.value.tenant?.name || '-',
+    tenantIdType: contract.value.tenant?.idType || '',
+    tenantIdNumber: contract.value.tenant?.idNumber || '',
+    tenantPhone: contract.value.tenant?.phone || '',
+    startDate: contract.value.startDate,
+    endDate: contract.value.endDate,
+    rentAmount: Number(contract.value.rentAmount || 0),
+    depositAmount: Number(contract.value.depositAmount || 0),
+    paymentCycle: contract.value.paymentCycle || '-',
+    waterFee: Number(config.waterFee || 0),
+    electricFee: Number(config.electricFee || 0),
+    propertyFee: Number(config.propertyFee || 0),
+    status: contract.value.status || '',
+    notes: contract.value.notes || '',
+    ...info,
+  });
+  try {
+    await printDocument({ title: `租赁合同_${contract.value.contractNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });
+    ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
+  } catch (e: any) { ElMessage.error(e.message || '打印失败'); }
 }
 
 async function handleAction(action: string) {

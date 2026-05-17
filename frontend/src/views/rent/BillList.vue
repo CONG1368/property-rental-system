@@ -46,10 +46,21 @@
           <el-tag :type="row.status === '已缴' ? 'success' : row.status === '部分缴' ? 'warning' : row.status === '逾期' ? 'danger' : 'info'" size="small">{{ row.status }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
           <el-button size="small" @click="showPayDialog(row)" v-if="row.status !== '已缴'">收款</el-button>
           <el-button size="small" @click="showDetail(row)">详情</el-button>
+          <el-dropdown @command="(cmd: string) => handlePrintBill(row, cmd)" style="margin-left:4px">
+            <el-button size="small" :type="row.status === '已缴' ? 'success' : 'warning'" plain>
+              打印<el-icon><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="native"><el-icon><Printer /></el-icon> 直接打印</el-dropdown-item>
+                <el-dropdown-item command="pdf"><el-icon><Download /></el-icon> 导出PDF</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
@@ -146,8 +157,12 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Printer, ArrowDown, Download } from '@element-plus/icons-vue';
 import { getBills, getBill, payBill, generateBills, createBill } from '@/api/bills';
 import request from '@/api/request';
+import { printDocument } from '@/utils/print-service';
+import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
+import { buildBillHTML } from '@/components/print/BillPrint';
 
 const loading = ref(false); const tableData = ref<any[]>([]);
 const total = ref(0); const page = ref(1); const pageSize = ref(20);
@@ -247,6 +262,52 @@ async function showDetail(row: any) {
     billDetail.value = res.data;
   } catch {
     billDetail.value = row; // 降级：展示列表中的行数据
+  }
+}
+
+async function getCompanyName() {
+  try {
+    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo,company_seal' } });
+    const map: Record<string, string> = {};
+    (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
+    return { companyName: map['company_name_for_print'] || '物业租赁管理公司', companyLogo: map['company_logo'] || '', companySeal: map['company_seal'] || '' };
+  } catch { return { companyName: '物业租赁管理公司', companyLogo: '', companySeal: '' }; }
+}
+
+async function handlePrintBill(row: any, mode: string) {
+  const info = await getCompanyName();
+  if (row.status === '已缴' || row.status === '部分缴') {
+    // 打印收据（热敏小票）
+    const html = buildReceiptHTML({
+      receiptNo: row.billNo || `REC-${row.id}`, tenantName: row.contract?.tenant?.name || '-',
+      propertyName: row.contract?.property?.name || '-',
+      amount: Number(row.totalAmount || 0), paymentChannel: row.paymentChannel || '-',
+      paidAt: row.paidDate || new Date(), period: row.period || '-',
+      transactionNo: `TXN${row.id}`,
+      ...info,
+    });
+    try {
+      await printDocument({ title: `收据_${row.billNo}`, paperSize: '80mm', htmlContent: html, mode: mode as any });
+      ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
+    } catch (e: any) { ElMessage.error(e.message || '打印收据失败'); }
+  } else {
+    // 打印账单（A4）
+    const html = buildBillHTML({
+      billNo: row.billNo || `BL-${row.id}`, period: row.period || '-',
+      tenantName: row.contract?.tenant?.name || '-',
+      propertyName: row.contract?.property?.name || '-',
+      rentAmount: Number(row.rentAmount || 0), waterFee: Number(row.waterFee || 0),
+      electricFee: Number(row.electricFee || 0), utilityAmount: Number(row.utilityAmount || 0),
+      propertyFee: Number(row.propertyFee || 0), otherAmount: Number(row.otherAmount || 0),
+      lateFee: Number(row.lateFee || 0), totalAmount: Number(row.totalAmount || 0),
+      dueDate: row.dueDate, status: row.status,
+      paidDate: row.paidDate || null, paymentChannel: row.paymentChannel || null,
+      ...info,
+    });
+    try {
+      await printDocument({ title: `账单_${row.billNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });
+      ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
+    } catch (e: any) { ElMessage.error(e.message || '打印账单失败'); }
   }
 }
 

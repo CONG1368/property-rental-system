@@ -18,6 +18,17 @@
       <el-button size="small" type="success" @click="batchSubmit">批量提交审批</el-button>
       <el-button size="small" type="warning" @click="batchTerminate">批量终止</el-button>
       <el-button size="small" type="danger" @click="batchDelete">批量删除</el-button>
+      <el-dropdown @command="handleBatchPrint" style="margin-left:4px">
+        <el-button size="small" type="primary" plain>
+          <el-icon><Printer /></el-icon> 批量打印 <el-icon><ArrowDown /></el-icon>
+        </el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="native"><el-icon><Printer /></el-icon> 直接打印</el-dropdown-item>
+            <el-dropdown-item command="pdf"><el-icon><Download /></el-icon> 导出PDF</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
@@ -101,7 +112,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { Printer, ArrowDown, Download } from '@element-plus/icons-vue';
 import request from '@/api/request';
+import { printDocument } from '@/utils/print-service';
+import { buildBatchContractHTML } from '@/components/print/ContractBatchPrint';
 
 const router = useRouter();
 const tableData = ref<any[]>([]); const total = ref(0); const page = ref(1); const pageSize = ref(20);
@@ -133,6 +147,31 @@ function onRowClick(row: any, _c: any, e: Event) {
   router.push('/contract/detail/' + row.id);
 }
 function clearSelection() { tableRef.value?.clearSelection(); }
+
+async function handleBatchPrint(mode: string) {
+  if (selectedRows.value.length === 0) return;
+  let companyName = '物业租赁管理公司'; let companyLogo = '';
+  try {
+    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo' } });
+    const map: Record<string, string> = {};
+    (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
+    if (map['company_name_for_print']) companyName = map['company_name_for_print'];
+    if (map['company_logo']) companyLogo = map['company_logo'];
+  } catch { /* use defaults */ }
+  const html = buildBatchContractHTML({
+    contracts: selectedRows.value.map((r: any) => ({
+      contractNo: r.contractNo, tenantName: r.tenant?.name || '-',
+      propertyName: r.property?.name || '-',
+      rentAmount: Number(r.rentAmount || 0), depositAmount: Number(r.depositAmount || 0),
+      startDate: r.startDate, endDate: r.endDate, status: r.status,
+    })),
+    companyName, companyLogo,
+  });
+  try {
+    await printDocument({ title: `合同汇总_${selectedRows.value.length}份`, paperSize: 'A4', htmlContent: html, mode: mode as any });
+    ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
+  } catch (e: any) { ElMessage.error(e.message || '批量打印失败'); }
+}
 
 // ---- 单条操作 ----
 async function handleSubmit(id: number) {
