@@ -15,6 +15,15 @@
         </el-tag>
       </div>
 
+      <!-- 后端状态指示（Electron 环境自动检测） -->
+      <div v-if="showBackendStatus" class="backend-status" :class="backendReady ? 'ready' : 'waiting'">
+        <el-icon :size="16">
+          <Loading v-if="!backendReady" class="is-loading" />
+          <CircleCheck v-else />
+        </el-icon>
+        <span>{{ backendReady ? '服务已就绪' : '服务启动中，请稍候...' }}</span>
+      </div>
+
       <!-- 错误提示 -->
       <el-alert
         v-if="errorMessage"
@@ -40,8 +49,14 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" :loading="loading" class="login-btn" @click="handleLogin">
-            {{ loading ? '登录中...' : '登 录' }}
+          <el-button
+            type="primary"
+            :loading="loading"
+            :disabled="!backendReady && showBackendStatus"
+            class="login-btn"
+            @click="handleLogin"
+          >
+            {{ loading ? '登录中...' : (!backendReady && showBackendStatus ? '等待服务启动...' : '登 录') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -53,9 +68,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import { User, Lock, OfficeBuilding } from '@element-plus/icons-vue';
+import { User, Lock, OfficeBuilding, Loading, CircleCheck } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { saveCredentials, loadCredentials, clearCredentials } from '@/utils/credentialStorage';
@@ -69,6 +84,11 @@ const errorMessage = ref('');
 const rememberPassword = ref(false);
 const lastLoginRole = ref(localStorage.getItem('userRole') || '');
 const appVersion = ref('1.0.2');
+
+// 后端状态检测（Electron 环境）
+const showBackendStatus = ref(false);
+const backendReady = ref(false);
+let statusPollTimer: ReturnType<typeof setInterval> | null = null;
 
 const form = reactive({ username: '', password: '' });
 const rules: FormRules = {
@@ -94,6 +114,21 @@ function redirectByRole() {
   router.push(target);
 }
 
+// 轮询后端健康状态（Electron 环境）
+async function checkBackendStatus() {
+  if (!window.electronAPI) return;
+  try {
+    const ok = await window.electronAPI.getBackendStatus();
+    backendReady.value = ok;
+    if (ok && statusPollTimer) {
+      clearInterval(statusPollTimer);
+      statusPollTimer = null;
+    }
+  } catch {
+    backendReady.value = false;
+  }
+}
+
 // 启动时预填已保存的密码（不自动提交）
 onMounted(() => {
   const creds = loadCredentials();
@@ -101,6 +136,22 @@ onMounted(() => {
     form.username = creds.username;
     form.password = creds.password;
     rememberPassword.value = true;
+  }
+
+  // Electron 环境：轮询后端状态
+  if (window.electronAPI) {
+    showBackendStatus.value = true;
+    checkBackendStatus();
+    if (!backendReady.value) {
+      statusPollTimer = setInterval(checkBackendStatus, 2000);
+    }
+  }
+});
+
+onBeforeUnmount(() => {
+  if (statusPollTimer) {
+    clearInterval(statusPollTimer);
+    statusPollTimer = null;
   }
 });
 
@@ -125,7 +176,10 @@ async function handleLogin() {
   } catch (err: any) {
     const status = err.response?.status;
     const code = err.response?.data?.code;
-    if (code === 403) {
+    if (!err.response) {
+      // 无响应 — 后端不可达
+      errorMessage.value = '无法连接到服务，请检查服务是否已启动';
+    } else if (code === 403) {
       errorMessage.value = '账户已被禁用，请联系管理员';
     } else if (status === 401) {
       errorMessage.value = '用户名或密码错误';
@@ -172,6 +226,24 @@ async function handleLogin() {
 .login-role-hint {
   text-align: center;
   margin-bottom: 16px;
+}
+.backend-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  &.waiting {
+    background: #fdf6ec;
+    color: #e6a23c;
+  }
+  &.ready {
+    background: #f0f9eb;
+    color: #67c23a;
+  }
 }
 .login-alert {
   margin-bottom: 16px;

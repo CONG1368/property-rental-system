@@ -26,7 +26,7 @@
         <el-descriptions-item label="押金">{{ contract.depositAmount }}</el-descriptions-item>
         <el-descriptions-item label="开始日期">{{ contract.startDate }}</el-descriptions-item>
         <el-descriptions-item label="结束日期">{{ contract.endDate }}</el-descriptions-item>
-        <el-descriptions-item label="付款周期">{{ contract.paymentCycle }}</el-descriptions-item>
+        <el-descriptions-item label="付款周期">{{ paymentCycleLabel }}</el-descriptions-item>
         <el-descriptions-item label="计费模式">{{ contract.billingMode }}</el-descriptions-item>
         <el-descriptions-item label="签署日期">{{ contract.signedAt || '--' }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ contract.createdAt?.slice(0, 10) }}</el-descriptions-item>
@@ -86,15 +86,32 @@
 
     <!-- 费用配置 -->
     <el-card style="margin-top:16px" v-if="contract">
-      <template #header><span>费用配置（每月）</span></template>
-      <el-descriptions :column="3" border v-if="billingConfig">
-        <el-descriptions-item label="水费">¥{{ Number(billingConfig.waterFee || 0).toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="电费">¥{{ Number(billingConfig.electricFee || 0).toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="物业费">¥{{ Number(billingConfig.propertyFee || 0).toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="月租金" :span="2">¥{{ Number(contract.rentAmount || 0).toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="月费用合计">¥{{ monthlyTotal.toFixed(2) }}</el-descriptions-item>
+      <template #header><span>费用配置</span></template>
+      <el-descriptions :column="3" border>
+        <el-descriptions-item label="月租金">¥{{ Number(contract.rentAmount || 0).toFixed(2) }}（大写：{{ chineseRent }}）</el-descriptions-item>
+        <el-descriptions-item label="付款周期">{{ paymentCycleLabel }}</el-descriptions-item>
+        <el-descriptions-item label="每期应交租金" :span="1">
+          <span style="font-weight:bold;color:#0A3D62;font-size:16px">¥{{ periodRent.toFixed(2) }}</span>
+          <span style="font-size:12px;color:#909399">（大写：{{ chinesePeriodRent }}）</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="押金">¥{{ Number(contract.depositAmount || 0).toFixed(2) }}</el-descriptions-item>
+        <template v-if="feeItemList.length > 0">
+          <el-descriptions-item v-for="fi in feeItemList" :key="fi.name" :label="fi.name">
+            ¥{{ Number(fi.amount).toFixed(2) }} {{ fi.unit || '' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="每期费用合计">
+            <span style="font-weight:bold;color:#e67e22">¥{{ periodFeeTotal.toFixed(2) }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="每期应付总计" :span="1">
+            <span style="font-weight:bold;color:#d35400;font-size:16px">¥{{ periodTotal.toFixed(2) }}</span>
+            <span style="font-size:12px;color:#909399">（大写：{{ chinesePeriodTotal }}）</span>
+          </el-descriptions-item>
+        </template>
+        <el-descriptions-item v-if="feeItemList.length === 0" label="费用明细" :span="2">
+          <span style="color:#909399">暂无自定义费用项</span>
+        </el-descriptions-item>
       </el-descriptions>
-      <el-empty v-else description="暂无费用配置" :image-size="60" />
+      <el-empty v-if="!contract.rentAmount && feeItemList.length === 0" description="暂无费用配置" :image-size="60" />
     </el-card>
 
     <!-- 合同附件 -->
@@ -119,6 +136,25 @@
         <el-table-column label="大小" width="100"><template #default="{ row }">{{ formatFileSize(row.size) }}</template></el-table-column>
         <el-table-column prop="uploadedAt" label="上传时间" width="170"><template #default="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template></el-table-column>
       </el-table>
+    </el-card>
+
+    <!-- 合同条款 -->
+    <el-card style="margin-top:16px" v-if="contract">
+      <template #header><span>合同条款</span></template>
+      <el-timeline v-if="sortedClauses.length > 0">
+        <el-timeline-item
+          v-for="(clause, index) in sortedClauses"
+          :key="index"
+          :timestamp="'第' + (index + 1) + '条'"
+          placement="top"
+        >
+          <el-card shadow="hover" size="small">
+            <h4 style="margin:0 0 8px 0;color:#0A3D62">{{ clause.title || '(无标题)' }}</h4>
+            <p style="margin:0;font-size:13px;color:#606266;white-space:pre-wrap">{{ clause.content }}</p>
+          </el-card>
+        </el-timeline-item>
+      </el-timeline>
+      <el-empty v-else description="本合同暂无条款约定" :image-size="40" />
     </el-card>
 
     <!-- 续约对话框 -->
@@ -147,8 +183,85 @@ const route = useRoute();
 const router = useRouter();
 const contract = ref<any>(null);
 
-const billingConfig = computed(() => contract.value?.billingConfig || {});
-const monthlyTotal = computed(() => Number(contract.value?.rentAmount || 0) + Number(billingConfig.value.waterFee || 0) + Number(billingConfig.value.electricFee || 0) + Number(billingConfig.value.propertyFee || 0));
+// 付款周期 → 月数映射
+const CYCLE_MONTHS: Record<string, number> = {
+  '月': 1, '季': 3, '半年': 6, '年': 12, '两年': 24, '三年': 36, '五年': 60,
+};
+
+const cycleMonths = computed(() => CYCLE_MONTHS[contract.value?.paymentCycle] || 1);
+const periodRent = computed(() => Number(contract.value?.rentAmount || 0) * cycleMonths.value);
+
+// 费用项列表（兼容新旧格式）
+const feeItemList = computed(() => {
+  const bc = contract.value?.billingConfig || {};
+  if (bc.feeItems && Array.isArray(bc.feeItems)) return bc.feeItems;
+  // 旧格式兼容
+  const items: { name: string; amount: number; unit: string }[] = [];
+  if (Number(bc.waterFee || 0) > 0) items.push({ name: '水费', amount: Number(bc.waterFee), unit: '元/吨' });
+  if (Number(bc.electricFee || 0) > 0) items.push({ name: '电费', amount: Number(bc.electricFee), unit: '元/度' });
+  if (Number(bc.propertyFee || 0) > 0) items.push({ name: '物业费', amount: Number(bc.propertyFee), unit: '元/㎡/月' });
+  return items;
+});
+
+const periodFeeTotal = computed(() => {
+  return feeItemList.value.reduce((sum: number, fi: { name: string; amount: number; unit: string }) => {
+    if (fi.unit === '元/月' || fi.unit === '元/吨' || fi.unit === '元/度' || fi.unit === '元/㎡/月') {
+      return sum + Number(fi.amount) * cycleMonths.value;
+    }
+    return sum + Number(fi.amount);
+  }, 0);
+});
+
+const periodTotal = computed(() => periodRent.value + periodFeeTotal.value);
+
+function toChinese(n: number): string {
+  if (!n || n === 0) return '零元整';
+  const units = ['', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿'];
+  const digits = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
+  let num = Math.round(n * 100);
+  const jiao = num % 100;
+  num = Math.floor(num / 100);
+  let result = '';
+  let unitIdx = 0;
+  if (num === 0) result = '零';
+  while (num > 0) {
+    const d = num % 10;
+    if (d !== 0) result = digits[d] + units[unitIdx] + result;
+    else if (result && result[0] !== '零') result = '零' + result;
+    num = Math.floor(num / 10);
+    unitIdx++;
+  }
+  result = result.replace(/零+$/, '') + '元';
+  if (jiao > 0) {
+    const j = Math.floor(jiao / 10);
+    const f = jiao % 10;
+    if (j > 0) result += digits[j] + '角';
+    if (f > 0) result += digits[f] + '分';
+  } else result += '整';
+  return result;
+}
+
+const chineseRent = computed(() => toChinese(Number(contract.value?.rentAmount || 0)));
+const chinesePeriodRent = computed(() => toChinese(periodRent.value));
+const chinesePeriodTotal = computed(() => toChinese(periodTotal.value));
+
+const paymentCycleLabel = computed(() => {
+  const map: Record<string, string> = {
+    '月': '月付（每月）', '季': '季付（每3个月）', '半年': '半年付（每6个月）',
+    '年': '年付（每12个月）', '两年': '两年付（每24个月）', '三年': '三年付（每36个月）', '五年': '五年付（每60个月）',
+  };
+  return map[contract.value?.paymentCycle] || contract.value?.paymentCycle || '--';
+});
+
+const sortedClauses = computed(() => {
+  let raw = contract.value?.clauses;
+  // SQLite JSON 字段可能返回字符串，安全解析
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { raw = []; }
+  }
+  const list = (Array.isArray(raw) ? raw : []) as any[];
+  return [...list].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+});
 
 const renewVisible = ref(false);
 const renewForm = ref({ newEndDate: '', newRent: 0, notes: '' });
@@ -205,30 +318,28 @@ async function getCompanyInfo() {
 
 async function handlePrint(mode: string) {
   if (!contract.value) return;
-  const info = await getCompanyInfo();
-  const config = contract.value.billingConfig || {};
-  const html = buildContractHTML({
-    contractNo: contract.value.contractNo,
-    propertyName: contract.value.property?.name || '-',
-    propertyAddress: contract.value.property?.address || '',
-    propertyArea: contract.value.property?.area || 0,
-    tenantName: contract.value.tenant?.name || '-',
-    tenantIdType: contract.value.tenant?.idType || '',
-    tenantIdNumber: contract.value.tenant?.idNumber || '',
-    tenantPhone: contract.value.tenant?.phone || '',
-    startDate: contract.value.startDate,
-    endDate: contract.value.endDate,
-    rentAmount: Number(contract.value.rentAmount || 0),
-    depositAmount: Number(contract.value.depositAmount || 0),
-    paymentCycle: contract.value.paymentCycle || '-',
-    waterFee: Number(config.waterFee || 0),
-    electricFee: Number(config.electricFee || 0),
-    propertyFee: Number(config.propertyFee || 0),
-    status: contract.value.status || '',
-    notes: contract.value.notes || '',
-    ...info,
-  });
   try {
+    const info = await getCompanyInfo();
+    const html = buildContractHTML({
+      contractNo: contract.value.contractNo,
+      propertyName: contract.value.property?.name || '-',
+      propertyAddress: contract.value.property?.address || '',
+      propertyArea: contract.value.property?.area || 0,
+      tenantName: contract.value.tenant?.name || '-',
+      tenantIdType: contract.value.tenant?.idType || '',
+      tenantIdNumber: contract.value.tenant?.idNumber || '',
+      tenantPhone: contract.value.tenant?.phone || '',
+      startDate: contract.value.startDate,
+      endDate: contract.value.endDate,
+      rentAmount: Number(contract.value.rentAmount || 0),
+      depositAmount: Number(contract.value.depositAmount || 0),
+      paymentCycle: contract.value.paymentCycle || '-',
+      feeItems: feeItemList.value,
+      status: contract.value.status || '',
+      notes: contract.value.notes || '',
+      clauses: sortedClauses.value,
+      ...info,
+    });
     await printDocument({ title: `租赁合同_${contract.value.contractNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });
     ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
   } catch (e: any) { ElMessage.error(e.message || '打印失败'); }

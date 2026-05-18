@@ -23,6 +23,7 @@ import DoorLock from './DoorLock.js';
 import DoorLockPassword from './DoorLockPassword.js';
 import DoorLockKey from './DoorLockKey.js';
 import DoorLockLog from './DoorLockLog.js';
+import RoomStatusLog from './RoomStatusLog.js';
 
 // ====== 房源 <-> 合同 ======
 Property.hasMany(Contract, { foreignKey: 'propertyId', as: 'contracts' });
@@ -124,6 +125,14 @@ DoorLockLog.belongsTo(DoorLock, { foreignKey: 'lockId', as: 'lock' });
 Tenant.hasMany(DoorLockPassword, { foreignKey: 'tenantId', as: 'lockPasswords' });
 DoorLockPassword.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
 
+// ====== 房源 <-> 房态变更日志 ======
+Property.hasMany(RoomStatusLog, { foreignKey: 'propertyId', as: 'statusLogs' });
+RoomStatusLog.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+
+// ====== 用户 <-> 房态变更日志 ======
+User.hasMany(RoomStatusLog, { foreignKey: 'operatorId', as: 'roomStatusLogs' });
+RoomStatusLog.belongsTo(User, { foreignKey: 'operatorId', as: 'operator' });
+
 // ====== 用户 <-> 门锁密码/钥匙/日志 ======
 User.hasMany(DoorLockPassword, { foreignKey: 'createdBy', as: 'createdLockPasswords' });
 User.hasMany(DoorLockKey, { foreignKey: 'createdBy', as: 'managedKeys' });
@@ -135,5 +144,5 @@ export {
   Budget, Expense, FixedAsset, ContractTemplate, ContractClause,
   ContractChange, ContractLog, Approval, DunningTask,
   Notification, AuditLog, DoorLock, DoorLockPassword,
-  DoorLockKey, DoorLockLog,
+  DoorLockKey, DoorLockLog, RoomStatusLog,
 };

@@ -10,16 +10,23 @@
         </el-select>
         <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
           <el-option label="空置" value="空置" />
+          <el-option label="已锁定" value="已锁定" />
           <el-option label="已预订" value="已预订" />
           <el-option label="已出租" value="已出租" />
-          <el-option label="维修中" value="维修中" />
           <el-option label="退租中" value="退租中" />
+          <el-option label="待保洁" value="待保洁" />
+          <el-option label="待验收" value="待验收" />
+          <el-option label="维修中" value="维修中" />
+          <el-option label="已冻结" value="已冻结" />
         </el-select>
+        <el-input v-model="filterBuilding" placeholder="楼栋" clearable style="width:110px" @keyup.enter="fetchData" />
+        <el-input v-model="filterRoom" placeholder="房号" clearable style="width:110px" @keyup.enter="fetchData" />
         <el-button type="primary" @click="fetchData">查询</el-button>
       </div>
       <div class="action-group">
         <el-button type="primary" @click="showDialog()">新增房源</el-button>
         <el-button @click="$router.push('/rent/properties/import')">批量导入</el-button>
+        <el-button type="success" @click="$router.push('/rent/room-kanban')">房态看板</el-button>
       </div>
     </div>
 
@@ -33,6 +40,16 @@
     <el-table :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
       <el-table-column type="selection" width="45" />
       <el-table-column prop="name" label="房源名称" width="180" />
+      <el-table-column prop="buildingName" label="楼栋" width="80">
+        <template #default="{ row }">
+          {{ row.buildingName || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="roomNumber" label="房号" width="80">
+        <template #default="{ row }">
+          {{ row.roomNumber || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="type" label="业态" width="80">
         <template #default="{ row }">
           <el-tag :type="row.type === '公寓' ? '' : row.type === '厂房' ? 'warning' : 'success'" size="small">{{ row.type }}</el-tag>
@@ -82,8 +99,11 @@
         <el-form-item label="单元" prop="unit"><el-input v-model="form.unit" /></el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" style="width:100%">
-            <el-option label="空置" value="空置" /><el-option label="已预订" value="已预订" />
-            <el-option label="已出租" value="已出租" /><el-option label="维修中" value="维修中" /><el-option label="退租中" value="退租中" />
+            <el-option label="空置" value="空置" /><el-option label="已锁定" value="已锁定" />
+            <el-option label="已预订" value="已预订" /><el-option label="已出租" value="已出租" />
+            <el-option label="退租中" value="退租中" /><el-option label="待保洁" value="待保洁" />
+            <el-option label="待验收" value="待验收" /><el-option label="维修中" value="维修中" />
+            <el-option label="已冻结" value="已冻结" />
           </el-select>
         </el-form-item>
         <el-form-item label="业主" prop="owner"><el-input v-model="form.owner" /></el-form-item>
@@ -114,6 +134,8 @@ const pageSize = ref(20);
 const searchKeyword = ref('');
 const filterType = ref('');
 const filterStatus = ref('');
+const filterBuilding = ref('');
+const filterRoom = ref('');
 
 const formRef = ref<FormInstance>();
 const dialogVisible = ref(false);
@@ -134,7 +156,8 @@ const rules: FormRules = {
 
 function statusTagType(status: string): string {
   const map: Record<string, string> = {
-    '空置': 'info', '已预订': 'warning', '已出租': 'success', '维修中': 'danger', '退租中': 'danger',
+    '空置': 'info', '已锁定': '', '已预订': 'warning', '已出租': 'success',
+    '退租中': 'warning', '待保洁': '', '待验收': '', '维修中': 'danger', '已冻结': 'info',
   };
   return map[status] || 'info';
 }
@@ -147,6 +170,8 @@ async function fetchData() {
       keyword: searchKeyword.value || undefined,
       type: filterType.value || undefined,
       status: filterStatus.value || undefined,
+      buildingName: filterBuilding.value || undefined,
+      roomNumber: filterRoom.value || undefined,
     });
     tableData.value = res.data.list;
     total.value = res.data.total;

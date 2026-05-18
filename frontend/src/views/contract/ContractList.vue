@@ -109,11 +109,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Printer, ArrowDown, Download } from '@element-plus/icons-vue';
 import request from '@/api/request';
+import { useWebSocket } from '@/composables/useWebSocket';
 import { printDocument } from '@/utils/print-service';
 import { buildBatchContractHTML } from '@/components/print/ContractBatchPrint';
 
@@ -149,25 +150,28 @@ function onRowClick(row: any, _c: any, e: Event) {
 function clearSelection() { tableRef.value?.clearSelection(); }
 
 async function handleBatchPrint(mode: string) {
-  if (selectedRows.value.length === 0) return;
-  let companyName = '物业租赁管理公司'; let companyLogo = '';
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先勾选要打印的合同');
+    return;
+  }
   try {
-    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo' } });
-    const map: Record<string, string> = {};
-    (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
-    if (map['company_name_for_print']) companyName = map['company_name_for_print'];
-    if (map['company_logo']) companyLogo = map['company_logo'];
-  } catch { /* use defaults */ }
-  const html = buildBatchContractHTML({
-    contracts: selectedRows.value.map((r: any) => ({
-      contractNo: r.contractNo, tenantName: r.tenant?.name || '-',
-      propertyName: r.property?.name || '-',
-      rentAmount: Number(r.rentAmount || 0), depositAmount: Number(r.depositAmount || 0),
-      startDate: r.startDate, endDate: r.endDate, status: r.status,
-    })),
-    companyName, companyLogo,
-  });
-  try {
+    let companyName = '物业租赁管理公司'; let companyLogo = '';
+    try {
+      const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo' } });
+      const map: Record<string, string> = {};
+      (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
+      if (map['company_name_for_print']) companyName = map['company_name_for_print'];
+      if (map['company_logo']) companyLogo = map['company_logo'];
+    } catch { /* use defaults */ }
+    const html = buildBatchContractHTML({
+      contracts: selectedRows.value.map((r: any) => ({
+        contractNo: r.contractNo, tenantName: r.tenant?.name || '-',
+        propertyName: r.property?.name || '-',
+        rentAmount: Number(r.rentAmount || 0), depositAmount: Number(r.depositAmount || 0),
+        startDate: r.startDate, endDate: r.endDate, status: r.status,
+      })),
+      companyName, companyLogo,
+    });
     await printDocument({ title: `合同汇总_${selectedRows.value.length}份`, paperSize: 'A4', htmlContent: html, mode: mode as any });
     ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
   } catch (e: any) { ElMessage.error(e.message || '批量打印失败'); }
@@ -256,7 +260,22 @@ async function batchDelete() {
   showBatchResult('删除', done, total, skipped);
 }
 
-onMounted(() => fetchData());
+const { on: wsOn } = useWebSocket();
+let unsubContractEvents: (() => void) | null = null;
+
+onMounted(() => {
+  fetchData();
+  unsubContractEvents = wsOn('contract:status-changed', () => { fetchData(); });
+  const u1 = wsOn('contract:created', () => { fetchData(); });
+  const u2 = wsOn('contract:renewed', () => { fetchData(); });
+  const u3 = wsOn('contract:deleted', () => { fetchData(); });
+  const orig = unsubContractEvents;
+  unsubContractEvents = () => { orig?.(); u1?.(); u2?.(); u3?.(); };
+});
+
+onUnmounted(() => {
+  unsubContractEvents?.();
+});
 </script>
 
 <style lang="scss" scoped>

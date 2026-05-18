@@ -17,6 +17,41 @@ if (isSQLite && config.db.storage) {
   }
 }
 
+export async function preflightNativeModuleCheck(): Promise<void> {
+  if (!isSQLite) return;
+
+  try {
+    await import('sqlite3');
+    console.log('[Preflight] sqlite3 原生模块加载正常');
+  } catch (err: any) {
+    console.error('[Preflight] 严重: sqlite3 原生模块加载失败');
+    console.error('[Preflight] 错误:', err.message);
+    console.error('[Preflight] Node.js 版本:', process.version);
+    console.error('[Preflight] 平台/架构:', process.platform, process.arch);
+
+    // 诊断: better-sqlite3 能否加载
+    try {
+      await import('better-sqlite3');
+      console.error('[Preflight] better-sqlite3 加载正常 — 问题仅限于 sqlite3 模块');
+    } catch (e2: any) {
+      console.error('[Preflight] better-sqlite3 同样失败:', e2.message);
+      console.error('[Preflight] 可能缺少 MSVC 运行时库 (Visual C++ Redistributable)');
+    }
+
+    // 检查 node_sqlite3.node 文件位置
+    try {
+      const sqlite3Path = import.meta.resolve('sqlite3');
+      console.error('[Preflight] sqlite3 解析路径:', sqlite3Path);
+    } catch {}
+
+    throw new Error(
+      `数据库驱动加载失败: ${err.message}\n` +
+      `请确认已安装 Visual C++ Redistributable (MSVC 运行时)。\n` +
+      `如问题持续，请联系技术支持。`
+    );
+  }
+}
+
 export const sequelize = isSQLite
   ? new Sequelize({
       dialect: 'sqlite',
@@ -50,6 +85,7 @@ export const sequelize = isSQLite
 
 export async function connectDatabase(): Promise<void> {
   if (isSQLite) {
+    await preflightNativeModuleCheck();
     await sequelize.authenticate();
     console.log('[DB] SQLite connected');
     return;

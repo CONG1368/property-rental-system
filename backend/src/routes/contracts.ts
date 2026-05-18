@@ -5,6 +5,8 @@ import Property from '../models/Property.js';
 import Approval from '../models/Approval.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { transitionContract } from '../services/contract-workflow.js';
+import { transitionRoomStatus } from '../services/room-status-workflow.js';
+import { broadcast } from '../websocket/index.js';
 import { Op } from 'sequelize';
 import dayjs from 'dayjs';
 import multer from 'multer';
@@ -96,6 +98,7 @@ router.get('/', async (req: AuthRequest, res) => {
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.create({ ...req.body, createdBy: req.userId });
+    broadcast('contract:created', { contractId: contract.id, contractNo: (contract as any).contractNo, timestamp: Date.now() });
     res.json({ code: 200, data: contract, message: '合同创建成功' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
@@ -176,6 +179,19 @@ router.post('/:id/sign', async (req: AuthRequest, res) => {
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
     await transitionContract(contract.id, '执行中', req.userId || 1, '签署生效');
     await contract.update({ signedAt: new Date() });
+
+    // 联动房源状态 → 已出租
+    try {
+      await transitionRoomStatus(contract.propertyId, '已出租', req.userId || 1, {
+        action: 'contract_link',
+        notes: `合同 ${contract.contractNo} 签署生效，自动更新房源状态`,
+        linkedContractId: contract.id,
+        linkedTenantId: contract.tenantId,
+      });
+    } catch (e: any) {
+      console.warn(`[Contract] 房源状态联动失败: ${e.message}`);
+    }
+
     const updated = await Contract.findByPk(req.params.id);
     res.json({ code: 200, data: updated, message: '合同已签署并生效' });
   } catch (err: any) { res.status(400).json({ code: 400, message: err.message }); }
@@ -187,6 +203,19 @@ router.post('/:id/terminate', async (req: AuthRequest, res) => {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
     await transitionContract(contract.id, '已终止', req.userId || 1, '终止合同');
+
+    // 联动房源状态 → 退租中
+    try {
+      await transitionRoomStatus(contract.propertyId, '退租中', req.userId || 1, {
+        action: 'contract_link',
+        notes: `合同 ${contract.contractNo} 已终止，房源进入退租流程`,
+        linkedContractId: contract.id,
+        linkedTenantId: contract.tenantId,
+      });
+    } catch (e: any) {
+      console.warn(`[Contract] 房源状态联动失败: ${e.message}`);
+    }
+
     const updated = await Contract.findByPk(req.params.id);
     res.json({ code: 200, data: updated, message: '合同已终止' });
   } catch (err: any) { res.status(400).json({ code: 400, message: err.message }); }
@@ -206,12 +235,14 @@ router.post('/:id/renew', async (req: AuthRequest, res) => {
       paymentCycle: oldContract.paymentCycle,
       billingMode: oldContract.billingMode,
       billingConfig: oldContract.billingConfig,
+      clauses: oldContract.clauses || [],
       propertyId: oldContract.propertyId,
       tenantId: oldContract.tenantId,
       createdBy: req.userId,
       status: '起草中',
     });
     res.json({ code: 200, data: newContract, message: '续约合同已创建' });
+    broadcast('contract:renewed', { oldContractId: oldContract.id, newContractId: newContract.id, contractNo: (newContract as any).contractNo, timestamp: Date.now() });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
@@ -220,6 +251,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
     await contract.destroy();
+    broadcast('contract:deleted', { contractId: Number(req.params.id), contractNo: (contract as any).contractNo, timestamp: Date.now() });
     res.json({ code: 200, message: '合同已删除' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });

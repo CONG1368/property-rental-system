@@ -5,13 +5,16 @@ import { sequelize } from '../config/database.js';
 interface PropertyAttributes {
   id: number; name: string; type: '公寓'|'厂房'|'商铺'; subType: string;
   area: number; address: string; floor: string; unit: string;
+  buildingName: string; roomNumber: string; buildingOrder: number; floorOrder: number;
   waterFeeRate: number; electricFeeRate: number; propertyFeeRate: number;
-  status: '空置'|'已预订'|'已出租'|'维修中'|'退租中';
+  status: '空置'|'已锁定'|'已预订'|'已出租'|'退租中'|'待保洁'|'待验收'|'维修中'|'已冻结';
   amenities: object; owner: string; notes: string; deletedAt: Date | null;
   createdAt?: Date; updatedAt?: Date;
 }
 
-type PropertyCreationAttributes = Optional<PropertyAttributes, 'id' | 'deletedAt' | 'createdAt' | 'updatedAt'>;
+type PropertyCreationAttributes = Optional<PropertyAttributes,
+  'id' | 'buildingName' | 'roomNumber' | 'buildingOrder' | 'floorOrder' | 'deletedAt' | 'createdAt' | 'updatedAt'
+>;
 
 class Property extends BaseModel<PropertyAttributes, PropertyCreationAttributes> {
 }
@@ -25,7 +28,11 @@ Property.init({
   address: { type: DataTypes.STRING(255), defaultValue: '' },
   floor: { type: DataTypes.STRING(20), defaultValue: '' },
   unit: { type: DataTypes.STRING(20), defaultValue: '' },
-  status: { type: DataTypes.ENUM('空置','已预订','已出租','维修中','退租中'), defaultValue: '空置' },
+  buildingName: { type: DataTypes.STRING(50), defaultValue: '' },
+  roomNumber: { type: DataTypes.STRING(20), defaultValue: '' },
+  buildingOrder: { type: DataTypes.INTEGER, defaultValue: 0 },
+  floorOrder: { type: DataTypes.INTEGER, defaultValue: 0 },
+  status: { type: DataTypes.ENUM('空置','已锁定','已预订','已出租','退租中','待保洁','待验收','维修中','已冻结'), defaultValue: '空置' },
   waterFeeRate: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
   electricFeeRate: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
   propertyFeeRate: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 },
@@ -36,7 +43,13 @@ Property.init({
 }, {
   sequelize, tableName: 'properties',
   paranoid: true, deletedAt: 'deletedAt',
-  indexes: [{ fields: ['type'] }, { fields: ['status'] }, { fields: ['name'] }],
+  indexes: [
+    { fields: ['type'] },
+    { fields: ['status'] },
+    { fields: ['name'] },
+    { fields: ['buildingName', 'roomNumber'] },
+    { fields: ['buildingOrder', 'floorOrder'] },
+  ],
 });
 
 export default Property;

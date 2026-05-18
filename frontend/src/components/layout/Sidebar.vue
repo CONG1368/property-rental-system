@@ -19,6 +19,7 @@
         <span>收租管理</span>
       </template>
       <el-menu-item index="/rent/properties">房源管理</el-menu-item>
+      <el-menu-item index="/rent/room-kanban">房态看板</el-menu-item>
       <el-menu-item index="/rent/tenants">租客管理</el-menu-item>
       <el-menu-item index="/rent/bills">收租管理</el-menu-item>
       <el-menu-item index="/rent/bills/calendar">收租日历</el-menu-item>
@@ -72,7 +73,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { HomeFilled, Money, Notebook, DocumentChecked, Setting, Lock } from '@element-plus/icons-vue';
+import { HomeFilled, Money, Notebook, DocumentChecked, Setting } from '@element-plus/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();

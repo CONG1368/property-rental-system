@@ -8,6 +8,7 @@ interface BillAttributes {
   propertyFee: number; otherAmount: number; lateFee: number;
   totalAmount: number; dueDate: Date; paidDate: Date | null;
   status: '未缴'|'部分缴'|'已缴'|'逾期'; paymentChannel: string | null;
+  periodMonths: number;
   createdAt?: Date; updatedAt?: Date;
 }
 type BCreation = Optional<BillAttributes, 'id'|'createdAt'|'updatedAt'>;
@@ -17,7 +18,7 @@ Bill.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
   contractId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
   billNo: { type: DataTypes.STRING(50), allowNull: false },
-  period: { type: DataTypes.STRING(7), allowNull: false },
+  period: { type: DataTypes.STRING(20), allowNull: false },
   rentAmount: { type: DataTypes.DECIMAL(12,2), defaultValue: 0 },
   waterFee: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
   electricFee: { type: DataTypes.DECIMAL(10,2), defaultValue: 0 },
@@ -30,5 +31,6 @@ Bill.init({
   paidDate: { type: DataTypes.DATEONLY, allowNull: true },
   status: { type: DataTypes.ENUM('未缴','部分缴','已缴','逾期'), defaultValue: '未缴' },
   paymentChannel: { type: DataTypes.STRING(20), allowNull: true },
+  periodMonths: { type: DataTypes.INTEGER.UNSIGNED, defaultValue: 1 },
 }, { sequelize, tableName: 'bills', indexes: [{fields:['contractId']},{fields:['status']},{fields:['dueDate']}] });
 export default Bill;

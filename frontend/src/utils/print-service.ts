@@ -101,15 +101,8 @@ async function printNative(htmlContent: string, title: string): Promise<void> {
     return printPDF({ title, paperSize: 'A4', htmlContent, mode: 'pdf' });
   }
 
-  // 包装完整 HTML 文档
-  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
-<style>
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; color:#333; }
-</style></head><body>${htmlContent}</body></html>`;
-
   try {
-    const result = await api.printHTML(fullHtml, title);
+    const result = await api.printHTML(htmlContent, title);
     if (!result.success) {
       throw new Error(result.failureReason || '打印失败');
     }

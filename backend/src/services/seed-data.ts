@@ -12,6 +12,8 @@ import DoorLock from '../models/DoorLock.js';
 import DoorLockPassword from '../models/DoorLockPassword.js';
 import DoorLockKey from '../models/DoorLockKey.js';
 import DoorLockLog from '../models/DoorLockLog.js';
+import ContractTemplate from '../models/ContractTemplate.js';
+import ContractClause from '../models/ContractClause.js';
 import { Op } from 'sequelize';
 import dayjs from 'dayjs';
 
@@ -84,12 +86,12 @@ export async function seedChartOfAccounts(): Promise<void> {
 // ============================================================
 
 const DEMO_PROPERTIES = [
-  { name: '翡翠湾A座201', type: '公寓' as const, subType: '住宅', area: 85.5, waterFeeRate: 3.8, electricFeeRate: 0.68, propertyFeeRate: 2.5, address: '翡翠湾小区A座2楼201室', floor: '2', unit: 'A', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
-  { name: '翡翠湾B座1503', type: '公寓' as const, subType: '住宅', area: 92.0, waterFeeRate: 3.8, electricFeeRate: 0.68, propertyFeeRate: 2.5, address: '翡翠湾小区B座15楼1503室', floor: '15', unit: 'B', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
-  { name: '科创园区1号厂房', type: '厂房' as const, subType: '标准厂房', area: 1200.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区1号', floor: '1', unit: '', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
-  { name: '科创园区2号厂房', type: '厂房' as const, subType: '标准厂房', area: 1500.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区2号', floor: '1', unit: '', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
-  { name: '科创园区5号厂房', type: '厂房' as const, subType: '标准厂房', area: 2000.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区5号', floor: '1', unit: '', status: '空置' as const, amenities: {}, owner: '', notes: '' },
-  { name: '万象汇商铺1F-08', type: '商铺' as const, subType: '商业', area: 60.0, waterFeeRate: 4.5, electricFeeRate: 0.95, propertyFeeRate: 8.0, address: '万象汇商业广场1楼08号', floor: '1', unit: '', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '翡翠湾A座201', type: '公寓' as const, subType: '住宅', area: 85.5, waterFeeRate: 3.8, electricFeeRate: 0.68, propertyFeeRate: 2.5, address: '翡翠湾小区A座2楼201室', floor: '2', unit: 'A', buildingName: '翡翠湾A座', roomNumber: '201', buildingOrder: 1, floorOrder: 2, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '翡翠湾B座1503', type: '公寓' as const, subType: '住宅', area: 92.0, waterFeeRate: 3.8, electricFeeRate: 0.68, propertyFeeRate: 2.5, address: '翡翠湾小区B座15楼1503室', floor: '15', unit: 'B', buildingName: '翡翠湾B座', roomNumber: '1503', buildingOrder: 2, floorOrder: 15, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '科创园区1号厂房', type: '厂房' as const, subType: '标准厂房', area: 1200.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区1号', floor: '1', unit: '', buildingName: '科创园区', roomNumber: '1号厂房', buildingOrder: 3, floorOrder: 1, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '科创园区2号厂房', type: '厂房' as const, subType: '标准厂房', area: 1500.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区2号', floor: '1', unit: '', buildingName: '科创园区', roomNumber: '2号厂房', buildingOrder: 3, floorOrder: 1, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '科创园区5号厂房', type: '厂房' as const, subType: '标准厂房', area: 2000.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区5号', floor: '1', unit: '', buildingName: '科创园区', roomNumber: '5号厂房', buildingOrder: 3, floorOrder: 1, status: '空置' as const, amenities: {}, owner: '', notes: '' },
+  { name: '万象汇商铺1F-08', type: '商铺' as const, subType: '商业', area: 60.0, waterFeeRate: 4.5, electricFeeRate: 0.95, propertyFeeRate: 8.0, address: '万象汇商业广场1楼08号', floor: '1', unit: '', buildingName: '万象汇商铺', roomNumber: '1F-08', buildingOrder: 4, floorOrder: 1, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
 ];
 
 const DEMO_TENANTS = [
@@ -661,4 +663,53 @@ export async function seedDoorLocks(): Promise<void> {
   }
 
   console.log('[Seed] 4 door locks (2 smart + 2 traditional) with demo data created');
+}
+
+const DEFAULT_CLAUSES = [
+  { title: '房屋用途', content: '乙方承诺租赁物业仅用于生产经营用途，不得擅自改变房屋用途。如需变更，应提前30日书面通知甲方并征得甲方书面同意。', type: '标准', sortOrder: 1, isRequired: true },
+  { title: '转租限制', content: '未经甲方书面同意，乙方不得将租赁物业全部或部分转租、分租、转让、抵押或以其他方式处置给第三方。如乙方确需转租，须事先取得甲方书面同意，并按甲方要求补交转租相关费用。', type: '标准', sortOrder: 2, isRequired: true },
+  { title: '装修与改造', content: '乙方如需对租赁物业进行装修、改造或增设附属设施，须事先向甲方提交书面方案（含设计图纸和安全评估）并经甲方书面批准后方可实施。装修期间不得损坏房屋主体结构和承重墙，相关费用由乙方自行承担。', type: '标准', sortOrder: 3, isRequired: false },
+  { title: '安全消防责任', content: '乙方应遵守国家及地方消防安全法规，配备必要的消防器材，定期检查电气线路。因乙方原因造成的火灾、安全事故，由乙方承担全部法律责任和经济赔偿责任。乙方应指定专人负责日常安全检查。', type: '风险', sortOrder: 4, isRequired: true },
+  { title: '环境卫生', content: '乙方应保持租赁物业及周边区域清洁卫生，不得堆放易燃易爆、有毒有害等危险物品。生产经营产生的废弃物须按照环保部门规定分类妥善处理，不得随意倾倒排放。', type: '标准', sortOrder: 5, isRequired: false },
+  { title: '设备维护', content: '租赁期间，乙方应合理使用并妥善维护甲方提供的设备设施。因乙方使用不当造成损坏的，维修费用由乙方承担。日常易损件（灯泡、开关面板、水龙头垫圈等）更换由乙方负责，大型设备维修由甲方负责。', type: '标准', sortOrder: 6, isRequired: false },
+  { title: '水电费用', content: '租赁期间产生的水费、电费由乙方自行承担。乙方应按时向供水供电部门或甲方缴纳费用，不得拖欠。如因乙方欠费导致停水停电、影响生产经营的，由乙方自行承担全部责任和后果。', type: '标准', sortOrder: 7, isRequired: true },
+  { title: '违约责任', content: '乙方逾期支付租金的，每逾期一日应按当期应付租金的千分之五向甲方支付违约金。逾期超过30日的，甲方有权单方解除本合同并要求乙方赔偿全部损失（含租金损失、违约金及甲方追索费用等）。', type: '风险', sortOrder: 8, isRequired: true },
+  { title: '合同解除', content: '有下列情形之一的，甲方有权单方解除本合同：(1)乙方擅自转租、转让或抵押租赁物业的；(2)乙方逾期支付租金累计超过30日的；(3)乙方擅自改变房屋用途的；(4)乙方在租赁物业内从事违法活动的；(5)乙方严重损坏房屋主体结构且拒不修复的。', type: '风险', sortOrder: 9, isRequired: true },
+  { title: '争议解决', content: '本合同在履行过程中发生争议的，双方应首先友好协商解决；协商不成的，任何一方均可向物业所在地有管辖权的人民法院提起诉讼。本合同一式两份，甲乙双方各执一份，具有同等法律效力。', type: '标准', sortOrder: 10, isRequired: true },
+];
+
+export async function seedContractTemplates(): Promise<void> {
+  const existing = await ContractTemplate.findOne();
+  if (existing) {
+    console.log('[Seed] Contract templates already exist, skipping');
+    return;
+  }
+
+  console.log('[Seed] Creating contract templates with default clauses...');
+
+  const propertyTypes = ['厂房', '商铺', '住房'] as const;
+  const typeNames: Record<string, string> = { '厂房': '厂房租赁标准模板', '商铺': '商铺租赁标准模板', '住房': '住房租赁标准模板' };
+
+  for (const propType of propertyTypes) {
+    const template = await ContractTemplate.create({
+      name: typeNames[propType],
+      type: propType,
+      isDefault: true,
+      content: {} as any,
+      terms: {} as any,
+    });
+
+    for (const clause of DEFAULT_CLAUSES) {
+      await ContractClause.create({
+        templateId: template.id,
+        title: clause.title,
+        content: clause.content,
+        type: clause.type,
+        sortOrder: clause.sortOrder,
+        isRequired: clause.isRequired,
+      } as any);
+    }
+  }
+
+  console.log(`[Seed] 3 contract templates × ${DEFAULT_CLAUSES.length} clauses created`);
 }

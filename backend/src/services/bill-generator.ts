@@ -3,6 +3,11 @@ import Contract from '../models/Contract.js';
 import Bill from '../models/Bill.js';
 import dayjs from 'dayjs';
 
+const CYCLE_MONTHS: Record<string, number> = {
+  '月': 1, '季': 3, '半年': 6, '年': 12,
+  '两年': 24, '三年': 36, '五年': 60,
+};
+
 export async function generateBills(): Promise<number> {
   const activeContracts = await Contract.findAll({
     where: { status: '执行中' },
@@ -17,14 +22,15 @@ export async function generateBills(): Promise<number> {
       order: [['period', 'DESC']],
     });
 
+    const cycle = (contract as any).paymentCycle as string;
+    const cycleMonths = CYCLE_MONTHS[cycle] || 1;
+
     // 计算下一期账期
     let nextPeriod: string;
     if (!lastBill) {
       nextPeriod = dayjs(contract.startDate).format('YYYY-MM');
     } else {
-      const cycle = (contract as any).paymentCycle;
-      const months = cycle === '月' ? 1 : cycle === '季' ? 3 : 12;
-      nextPeriod = dayjs(lastBill.period + '-01').add(months, 'month').format('YYYY-MM');
+      nextPeriod = dayjs(lastBill.period + '-01').add(cycleMonths, 'month').format('YYYY-MM');
     }
 
     // 只生成本月及之前的账期（不提前生成未来账单）
@@ -35,13 +41,13 @@ export async function generateBills(): Promise<number> {
     });
     if (existing) continue;
 
-    // 从 billingConfig 读取费用配置
+    // 从 billingConfig 读取费用配置，按付款周期乘倍数
     const bc = (contract as any).billingConfig || {};
-    const waterFee = Number(bc.waterFee || 0);
-    const electricFee = Number(bc.electricFee || 0);
-    const propertyFee = Number(bc.propertyFee || 0);
+    const waterFee = Number(bc.waterFee || 0) * cycleMonths;
+    const electricFee = Number(bc.electricFee || 0) * cycleMonths;
+    const propertyFee = Number(bc.propertyFee || 0) * cycleMonths;
     const utilityAmount = waterFee + electricFee;
-    const rentAmount = Number(contract.rentAmount);
+    const rentAmount = Number(contract.rentAmount) * cycleMonths;
     const totalAmount = rentAmount + waterFee + electricFee + propertyFee;
 
     // 到期日为账期月份第5天
@@ -62,7 +68,7 @@ export async function generateBills(): Promise<number> {
       totalAmount,
       dueDate: new Date(dueDate),
       status: '未缴',
-    });
+    } as any);
     generated++;
   }
 

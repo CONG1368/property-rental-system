@@ -77,6 +77,24 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '收租看板', icon: 'DataAnalysis' },
       },
       {
+        path: 'rent/room-kanban',
+        name: 'RoomStatusKanban',
+        component: () => import('@/views/rent/RoomStatusKanban.vue'),
+        meta: { title: '房态看板', icon: 'Grid' },
+      },
+      {
+        path: 'rent/room-kanban/dashboard',
+        name: 'RoomDashboard',
+        component: () => import('@/views/rent/RoomDashboard.vue'),
+        meta: { title: '数据大屏', hidden: true },
+      },
+      {
+        path: 'rent/room-kanban/batch-gen',
+        name: 'RoomBatchGenerate',
+        component: () => import('@/views/rent/RoomBatchGenerate.vue'),
+        meta: { title: '批量生成房间', hidden: true },
+      },
+      {
         path: 'rent/locks',
         name: 'DoorLockList',
         component: () => import('@/views/rent/DoorLockList.vue'),

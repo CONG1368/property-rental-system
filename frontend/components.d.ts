@@ -8,7 +8,9 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppLayout: typeof import('./src/components/layout/AppLayout.vue')['default']
+    BatchStatusDialog: typeof import('./src/components/BatchStatusDialog.vue')['default']
     Breadcrumb: typeof import('./src/components/layout/Breadcrumb.vue')['default']
+    BuildingFloorSelector: typeof import('./src/components/BuildingFloorSelector.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAside: typeof import('element-plus/es')['ElAside']
     ElBadge: typeof import('element-plus/es')['ElBadge']
@@ -65,6 +67,11 @@ declare module 'vue' {
     ElTree: typeof import('element-plus/es')['ElTree']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    RoomCard: typeof import('./src/components/RoomCard.vue')['default']
+    RoomGrid: typeof import('./src/components/RoomGrid.vue')['default']
+    RoomQuickActionDrawer: typeof import('./src/components/RoomQuickActionDrawer.vue')['default']
+    RoomStatsPanel: typeof import('./src/components/RoomStatsPanel.vue')['default']
+    RoomTableView: typeof import('./src/components/RoomTableView.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Sidebar: typeof import('./src/components/layout/Sidebar.vue')['default']
