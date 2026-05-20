@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. **任务进度更新**：每次完成一个开发任务后，必须用表格实时更新任务进度（含任务编号、名称、状态、变更文件清单），并列出后续剩余开发任务。
 2. **语言要求**：开发全程和思考全程必须都用中文显示。所有与用户的沟通、代码注释、文档内容均使用中文。
+3. **多Agent并行 + 代码审计**：凡规划任务超过2个，一律采用多Agent并发执行以加快开发进度。所有任务完成后，必须有一个Agent专门进行代码质量审计（检查重复代码、未使用变量、类型安全、安全漏洞、性能问题），审计结果以表格形式输出。
 
 ## 项目概述
 
@@ -75,21 +76,21 @@ npm run build:electron         # 先完成前后端构建，再运行此命令
 │       │   ├── layout/        # AppLayout.vue — 主布局（侧边栏+顶栏）
 │       │   └── print/         # 打印 HTML 模板（5套：合同/租客/账单/收据/批量）
 │       ├── router/            # 路由定义（hash 模式，token 导航守卫）
-│       ├── composables/       # Vue3 组合式函数（useWebSocket 等）
+│       ├── composables/       # Vue3 组合式函数（useWebSocket / useIdCardReader）
 │       ├── utils/             # 工具模块（打印服务/头像/凭证存储）
-│       ├── views/             # 页面组件（40个）
+│       ├── views/             # 页面组件（42个）
 │       │   ├── dashboard/     # 首页概览
 │       │   ├── rent/          # 租赁管理（房源/租客/账单/门锁/催缴/房态看板）
 │       │   ├── finance/       # 财务管理（账套/科目/凭证/费用/税务/预算/报表/看板）
 │       │   ├── contract/      # 合同管理（列表/详情/起草/审批/看板/到期/续约/模板/合规）
-│       │   └── system/        # 系统设置（用户/字典/打印设置/审计日志）
+│       │   └── system/        # 系统设置（用户/打印设置/审计日志/身份证读卡器）
 │       └── api/request.ts     # Axios 实例（baseURL=/api，拦截器处理 token/401）
 ├── backend/                   # Express 后端（ESM 模块）
 │   └── src/
 │       ├── index.ts           # 入口：连接DB→迁移→同步表→种子数据→启动HTTP+WS
 │       ├── app.ts             # Express 应用（helmet/cors/morgan/json/路由/错误处理）
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
-│       ├── models/            # Sequelize 模型（28个数据模型 + index/BaseModel）
+│       ├── models/            # Sequelize 模型（30个数据模型 + index/BaseModel）
 │       ├── routes/            # Express 路由（24个模块 + index，统一挂载 /api 前缀）
 │       ├── middleware/        # auth（JWT验证）/ rbac / audit-log / validate / rate-limiter / error-handler
 │       ├── services/          # 业务服务层（19个服务）
@@ -154,7 +155,7 @@ Phase 0: setupStartupLogging() + setupGlobalErrorHandlers()
 Phase 1: connectDatabase() → runAllMigrations() → sequelize.sync() → initAdminUser()
          迁移在 sync 前执行——先补旧表缺失列，再建新表
 Phase 2: HTTP + WebSocket 启动（端口 3001，登录立即可用）
-Phase 3: 后台种子数据（seedChartOfAccounts → seedAllDemoData → seedDoorLocks → seedContractTemplates）
+Phase 3: 后台种子数据（seedChartOfAccounts → seedAllDemoData → seedDoorLocks → seedContractTemplates → seedIdCardReaders）
          幂等执行，失败仅告警不中断，下次重启重试
 Phase 4: connectRedis()（可选，失败自动退化）
 ```
@@ -176,8 +177,8 @@ Phase 4: connectRedis()（可选，失败自动退化）
 `electron/main.ts`：
 
 1. `app.whenReady()` → `buildMenu()`（中文菜单栏，macOS/Windows 自适应）→ `spawnBackend()` → `createWindow()`
-2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/物业租赁综合管理系统/data/`，监听 stdout 中 `Server running` 确认启动完成（8s 超时）
-3. IPC 通道：`get-app-version`（返回版本号）、`get-backend-status`（健康检查）、`print-html`（原生打印）、`save-file-dialog`（保存文件对话框）、`open-file-dialog`（打开文件对话框）
+2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/物业租赁综合管理系统/data/`，三通道并行检测后端就绪（stdout 多关键字 + 5s 兜底 + HTTP 健康检查轮询 `/api/health`，30s 安全超时）
+3. IPC 通道：`get-app-version`、`get-backend-status`、`get-backend-url`、`print-html`、`save-file-dialog`、`open-file-dialog`、`read-id-card`
 4. 开发模式窗口加载 `http://localhost:5173`，生产模式加载 `file://` 协议
 5. 生产模式禁止开发者工具（拦截 `devtools-opened` 事件）
 
@@ -385,6 +386,7 @@ Mock 模式下这三项均可正常运行（写日志文件），不影响开发
 | `properties` | `roomNumber` | VARCHAR(20) |
 | `properties` | `buildingOrder` | INTEGER (默认0) |
 | `properties` | `floorOrder` | INTEGER (默认0) |
+| `tenants` | `gender` / `birthDate` / `ethnicity` / `idAddress` / `idIssuingAuthority` / `idValidFrom` / `idValidTo` / `idPhoto` | VARCHAR/TEXT (8列) |
 
 **新增迁移步骤**：在 `MIGRATION_DEFINITIONS` 数组中添加新条目即可，重启后自动应用。
 
@@ -422,6 +424,12 @@ off('room:status-changed', callback);
 **当前使用的事件**：
 - `room:status-changed` — 单个房态变更后广播
 - `room:batch-status-changed` — 批量房态变更后广播
+- `contract:created` — 合同创建
+- `contract:deleted` — 合同删除
+- `contract:renewed` — 合同续约
+- `contract:status-changed` — 合同状态变更
+- `id-card:read-success` — 身份证读卡成功
+- `id-card:read-failure` — 身份证读卡失败
 
 ### 房态看板前端架构
 
@@ -482,11 +490,45 @@ off('room:status-changed', callback);
 
 **打印入口**：合同详情页（头部打印按钮，状态为执行中/已签订/已到期时可用）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
 
-**打印设置**：`PrintSettings.vue`（`/system/print-settings`）— 上传公司 Logo/电子签章（Base64 存储），编辑公司全称，实时预览合同抬头和收据效果。存储于 `system_configs` 表（`company_logo`/`company_seal`/`company_name_for_print` 三个 key）。
+**打印设置**：`PrintSettings.vue`（`/system/print-settings`）— 配置公司全称/Logo/电子签章/证件类型/证件号码/联系电话（6 个 system_configs key），实时预览合同抬头。Base64 存储图片。
 
 **后端 API**：`/api/system-configs`（admin 权限）— `GET /keys?keys=k1,k2` 批量查询配置、`PUT /:key` 保存单个配置（upsert 模式）。
 
-**Electron IPC**：`main.ts` 新增 `print-html`（开隐藏窗口渲染 HTML 后调用系统打印）、`open-file-dialog`、`save-file-dialog` 三个 handler。`preload.ts` 暴露 `printHTML`、`saveFile` 到渲染进程。
+**Electron IPC**：`main.ts` 注册 7 个 IPC handler（`print-html` 开隐藏窗口渲染 HTML 后调用系统打印；`read-id-card` 预留给硬件 SDK；`save-file-dialog`/`open-file-dialog` 文件对话框等）。`preload.ts` 通过 `contextBridge.exposeInMainWorld('electronAPI', {...})` 暴露到渲染进程。
+
+### 身份证读卡器模块
+
+**Provider 模式**：参照 `door-lock-provider.ts` 架构，`backend/src/services/id-card-provider.ts` 定义 `IdCardReaderProvider` 抽象接口 + `MockIdCardProvider` 实现（日志写入 `backend/logs/id-card-provider.jsonl`）。通过工厂函数 `getIdCardProvider()` 获取单例 Provider。
+
+**数据模型（3 个）**：
+- `IdCardReader` — 设备注册表（品牌枚举：华视/新中新/普天/精伦/中控/其他，接口类型：USB/串口/蓝牙/WiFi，状态：在线/离线/故障/未激活）
+- `IdCardReadLog` — 读卡审计日志（仅追加，`updatedAt: false`，身份证号脱敏存储，关联读卡器+操作人+租客）
+- `Tenant` 扩展 8 字段 — `gender`/`birthDate`/`ethnicity`/`idAddress`/`idIssuingAuthority`/`idValidFrom`/`idValidTo`/`idPhoto`
+
+**服务层**：`id-card-service.ts` — ISO 7064:1983 MOD 11-2 校验位算法、身份证重复检测、年龄/有效期校验、脱敏工具、读卡流程（含 WebSocket 广播 `id-card:read-success`/`id-card:read-failure`）。
+
+**路由**：`/api/id-card-readers`（8 个端点），挂载于管理员角色。`/api/tenants` POST 创建时自动检测重复身份证号（409 冲突）。
+
+**前端**：
+- `useIdCardReader` composable — 设备列表获取、读卡触发、自动寻找在线设备
+- `IdCardReadButton.vue` — 通用读卡按钮（Props: `readerId?`/`mode`，Emit: `@success`/`@error`）
+- `IdCardReaderSettings.vue` — 设备管理页面（`/system/id-card-readers`）
+
+**Electron IPC**：`read-id-card` 通道（当前返回 Mock 提示，预留 SDK 接入点）。
+
+### 合同 billingConfig — 可扩展 JSON 字段
+
+`Contract.billingConfig`（JSON 类型）是合同的元数据容器，**新增可选配置项时不需修改模型列**，只需在表单、打印模板、详情页三处同步即可。当前字段：
+
+| 字段组 | 字段 | 说明 |
+|--------|------|------|
+| 费用 | `feeItems[]` | `{ name, amount, unit }` |
+| 收款 | `paymentMethod` / `bankName` / `bankAccountNumber` / `bankAccountName` | 收款方式及银行账号 |
+| 税务 | `taxType` / `taxRate` / `invoiceType` | 含税/不含税、税率、发票类型 |
+| 细则 | `lateFeeRate` / `depositTerms` / `maintenanceParty` / `terminationNotice` / `renewalNotice` / `subletAllowed` | 滞纳金/押金/维修/转租/解约/续约 |
+| 附件 | `attachments[]` | `{ name, path, size, uploadedAt }` |
+
+**注意**：新增 billingConfig 字段时，必须同步修改 3 个位置：ContractDraft.vue（表单+变量+`buildBillingConfig`+编辑回填）、ContractPrint.ts（`ContractPrintData` 接口+打印内容）、ContractDetail.vue（展示+`handlePrint` 传参）。
 
 ### 已知孤立文件
 

@@ -63,9 +63,9 @@
         <span>系统设置</span>
       </template>
       <el-menu-item index="/system/users">用户管理</el-menu-item>
-      <el-menu-item index="/system/dicts">数据字典</el-menu-item>
       <el-menu-item index="/system/audit-logs">审计日志</el-menu-item>
       <el-menu-item index="/system/print-settings">打印设置</el-menu-item>
+      <el-menu-item index="/system/id-card-readers">身份证读卡器</el-menu-item>
     </el-sub-menu>
   </el-menu>
 </template>

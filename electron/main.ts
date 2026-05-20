@@ -167,6 +167,14 @@ ipcMain.handle('save-file-dialog', async (_event, options: any) => {
   return result;
 });
 
+// 身份证读卡器（调用 DLL SDK）— 当前返回提示，实际 SDK 接入时替换此实现
+ipcMain.handle('read-id-card', async (_event, provider: string, port: string) => {
+  // TODO: 通过 node-ffi 或 child_process 调用品牌 DLL SDK
+  // provider: '华视' | '新中新' | '普天' | '精伦' | '中控'
+  // 当前返回错误提示，Mock 模式请通过后端 API /api/id-card-readers/:id/read 测试
+  return { success: false, error: '请连接实体读卡器设备或使用后端 Mock 模式测试' };
+});
+
 // 文件打开对话框
 ipcMain.handle('open-file-dialog', async (_event, options: any) => {
   const result = await dialog.showOpenDialog(mainWindow!, options);

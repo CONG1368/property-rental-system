@@ -7,7 +7,7 @@ import { app } from 'electron';
 let backendProcess: ChildProcess | null = null;
 
 /** HTTP 健康检查轮询 — 确认后端端口已真正监听 */
-function waitForHealth(maxAttempts = 15, intervalMs = 500): Promise<void> {
+function waitForHealth(maxAttempts = 30, intervalMs = 500): Promise<void> {
   return new Promise((resolve, reject) => {
     let attempts = 0;
     const check = () => {
@@ -99,19 +99,35 @@ export function spawnBackend(): Promise<void> {
     let resolved = false;
     let stderrBuffer = '';
 
+    // 并行双通道检测 — stdout 管道可能被 C 运行时缓冲，故同时启动健康检查轮询
+    let healthCheckStarted = false;
+    const startHealthPolling = () => {
+      if (healthCheckStarted) return;
+      healthCheckStarted = true;
+      console.log('[Backend] Starting parallel health check polling...');
+      waitForHealth().then(() => {
+        if (!resolved) { resolved = true; resolve(); }
+      }).catch((err) => {
+        console.log('[Backend] Health check polling failed:', err.message);
+      });
+    };
+
     backendProcess.stdout?.on('data', (data: Buffer) => {
       const msg = data.toString().trim();
       console.log('[Backend]', msg);
-      if (!resolved && msg.includes('Server running')) {
-        // 检测到 "Server running" 后，通过 HTTP 健康检查确认端口已真正监听
-        waitForHealth().then(() => {
-          if (!resolved) { resolved = true; resolve(); }
-        }).catch((err) => {
-          console.log('[Backend] Health check pending:', err.message);
-          // 不立即 resolve，安全超时会兜底处理
-        });
+      // 检测到关键启动信息后立即启动健康检查轮询
+      if (!healthCheckStarted && (msg.includes('Server running') || msg.includes('[DB] Admin user ready') || msg.includes('Tables synced'))) {
+        startHealthPolling();
       }
     });
+
+    // 兜底：5 秒后若无 stdout 事件（缓冲导致），直接启动健康检查轮询
+    const healthPollFallback = setTimeout(() => {
+      if (!healthCheckStarted) {
+        console.log('[Backend] No stdout detected in 5s — starting health check fallback');
+        startHealthPolling();
+      }
+    }, 5000);
 
     backendProcess.stderr?.on('data', (data: Buffer) => {
       const msg = data.toString().trim();
@@ -120,11 +136,12 @@ export function spawnBackend(): Promise<void> {
     });
 
     backendProcess.on('error', (err) => {
-      if (!resolved) { resolved = true; reject(err); }
+      if (!resolved) { clearTimeout(healthPollFallback); resolved = true; reject(err); }
     });
 
     backendProcess.on('close', (code) => {
       if (!resolved) {
+        clearTimeout(healthPollFallback);
         resolved = true;
         // 尝试读取后端启动日志文件
         let logContent = '';
@@ -149,14 +166,15 @@ export function spawnBackend(): Promise<void> {
       }
     });
 
-    // 安全超时 — 15 秒后强制 resolve（此时窗口打开，登录页显示"等待服务启动"）
+    // 安全超时 — 30 秒后强制 resolve（首次安装需建库/迁移/同步30张表/种子数据）
     setTimeout(() => {
       if (!resolved) {
         console.log('[Backend] Safety timeout reached, backend may still be initializing');
+        clearTimeout(healthPollFallback);
         resolved = true;
         resolve();
       }
-    }, 15000);
+    }, 30000);
   });
 }
 

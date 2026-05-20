@@ -147,7 +147,7 @@ async function main() {
 </head>
 <body>
 <h1>物业租赁综合管理系统 — 使用说明书</h1>
-<p class="header-info">版本：v1.0.2 | 2026年5月18日 | 仅供内部使用</p>
+<p class="header-info">版本：v1.0.2 | 2026年5月20日 | 仅供内部使用</p>
 ${bodyHtml}
 </body>
 </html>`;

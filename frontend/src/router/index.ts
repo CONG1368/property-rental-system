@@ -230,12 +230,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '用户管理', icon: 'UserFilled' },
       },
       {
-        path: 'system/dicts',
-        name: 'DictList',
-        component: () => import('@/views/system/DictList.vue'),
-        meta: { title: '数据字典', icon: 'Collection' },
-      },
-      {
         path: 'system/audit-logs',
         name: 'AuditLog',
         component: () => import('@/views/system/AuditLog.vue'),
@@ -246,6 +240,12 @@ const routes: RouteRecordRaw[] = [
         name: 'PrintSettings',
         component: () => import('@/views/system/PrintSettings.vue'),
         meta: { title: '打印设置', icon: 'Printer' },
+      },
+      {
+        path: 'system/id-card-readers',
+        name: 'IdCardReaders',
+        component: () => import('@/views/system/IdCardReaderSettings.vue'),
+        meta: { title: '身份证读卡器', icon: 'Reading' },
       },
     ],
   },

@@ -32,6 +32,19 @@ const MIGRATION_DEFINITIONS: ColumnMigration[] = [
       { name: 'floorOrder', sqliteType: 'INTEGER', defaultValue: '0' },
     ],
   },
+  {
+    tableName: 'tenants',
+    columns: [
+      { name: 'gender', sqliteType: 'VARCHAR(10)', defaultValue: "''" },
+      { name: 'birthDate', sqliteType: 'VARCHAR(10)', defaultValue: "''" },
+      { name: 'ethnicity', sqliteType: 'VARCHAR(20)', defaultValue: "''" },
+      { name: 'idAddress', sqliteType: 'VARCHAR(200)', defaultValue: "''" },
+      { name: 'idIssuingAuthority', sqliteType: 'VARCHAR(100)', defaultValue: "''" },
+      { name: 'idValidFrom', sqliteType: 'VARCHAR(10)', defaultValue: "''" },
+      { name: 'idValidTo', sqliteType: 'VARCHAR(10)', defaultValue: "''" },
+      { name: 'idPhoto', sqliteType: 'TEXT', defaultValue: "''" },
+    ],
+  },
 ];
 
 async function checkTableExists(tableName: string): Promise<boolean> {

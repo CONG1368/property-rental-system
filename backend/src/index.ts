@@ -138,11 +138,12 @@ async function start() {
   // Phase 3：后台初始化种子数据（幂等，已有数据自动跳过）
   console.log('[Seed] Starting background data initialization...');
   try {
-    const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates } = await import('./services/seed-data.js');
+    const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates, seedIdCardReaders } = await import('./services/seed-data.js');
     await seedChartOfAccounts();
     await seedAllDemoData();
     await seedDoorLocks();
     await seedContractTemplates();
+    await seedIdCardReaders();
     console.log('[Seed] All seed data ready');
   } catch (err: any) {
     console.error('[Seed] Data initialization error:', err.message);

@@ -24,6 +24,7 @@ import notificationRoutes from './notifications.js';
 import paymentCallbackRoutes from './paymentCallbacks.js';
 import doorLockRoutes from './doorLocks.js';
 import systemConfigRoutes from './systemConfigs.js';
+import idCardReaderRoutes from './idCardReaders.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireAdmin, requireRole } from '../middleware/requireRole.js';
 
@@ -69,6 +70,7 @@ router.use('/users', authMiddleware, requireAdmin, userRoutes);
 router.use('/dicts', authMiddleware, requireAdmin, dictRoutes);
 router.use('/audit-logs', authMiddleware, requireAdmin, auditLogRoutes);
 router.use('/system-configs', authMiddleware, requireAdmin, systemConfigRoutes);
+router.use('/id-card-readers', authMiddleware, requireRole('管理员'), idCardReaderRoutes);
 
 // 404 统一 JSON 响应
 router.use((_req, res) => {

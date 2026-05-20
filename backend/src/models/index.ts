@@ -24,6 +24,8 @@ import DoorLockPassword from './DoorLockPassword.js';
 import DoorLockKey from './DoorLockKey.js';
 import DoorLockLog from './DoorLockLog.js';
 import RoomStatusLog from './RoomStatusLog.js';
+import IdCardReader from './IdCardReader.js';
+import IdCardReadLog from './IdCardReadLog.js';
 
 // ====== 房源 <-> 合同 ======
 Property.hasMany(Contract, { foreignKey: 'propertyId', as: 'contracts' });
@@ -138,11 +140,15 @@ User.hasMany(DoorLockPassword, { foreignKey: 'createdBy', as: 'createdLockPasswo
 User.hasMany(DoorLockKey, { foreignKey: 'createdBy', as: 'managedKeys' });
 User.hasMany(DoorLockLog, { foreignKey: 'operatorId', as: 'lockLogs' });
 
+// ====== 身份证读卡器 <-> 读卡日志 ======
+IdCardReader.hasMany(IdCardReadLog, { foreignKey: 'readerId', as: 'readLogs' });
+IdCardReadLog.belongsTo(IdCardReader, { foreignKey: 'readerId', as: 'reader' });
+
 export {
   User, Property, Tenant, Contract, Bill, PaymentRecord,
   Voucher, VoucherEntry, AccountBook, ChartOfAccount,
   Budget, Expense, FixedAsset, ContractTemplate, ContractClause,
   ContractChange, ContractLog, Approval, DunningTask,
   Notification, AuditLog, DoorLock, DoorLockPassword,
-  DoorLockKey, DoorLockLog, RoomStatusLog,
+  DoorLockKey, DoorLockLog, RoomStatusLog, IdCardReader, IdCardReadLog,
 };

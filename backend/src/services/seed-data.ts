@@ -95,11 +95,11 @@ const DEMO_PROPERTIES = [
 ];
 
 const DEMO_TENANTS = [
-  { name: '张伟', idType: '身份证' as const, idNumber: '3201**********1234', phone: '13800008888', email: '', wechat: '', contactPerson: '', creditScore: 85, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '' },
-  { name: '李娜', idType: '身份证' as const, idNumber: '3202**********5678', phone: '13900009999', email: '', wechat: '', contactPerson: '', creditScore: 72, creditGrade: 'B' as const, status: '在租中' as const, attachments: {}, notes: '' },
-  { name: '创新科技公司', idType: '营业执照' as const, idNumber: '9132**********01', phone: '0512-66668888', email: '', wechat: '', contactPerson: '王经理', creditScore: 90, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '' },
-  { name: '长江机械制造公司', idType: '营业执照' as const, idNumber: '9132**********02', phone: '0512-66667777', email: '', wechat: '', contactPerson: '韩厂长', creditScore: 83, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '' },
-  { name: '精密模具加工厂', idType: '营业执照' as const, idNumber: '9132**********03', phone: '0512-66669999', email: '', wechat: '', contactPerson: '刘经理', creditScore: 70, creditGrade: 'B' as const, status: '在租中' as const, attachments: {}, notes: '' },
+  { name: '张伟', idType: '身份证' as const, idNumber: '3201**********1234', phone: '13800008888', email: '', wechat: '', contactPerson: '', creditScore: 85, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
+  { name: '李娜', idType: '身份证' as const, idNumber: '3202**********5678', phone: '13900009999', email: '', wechat: '', contactPerson: '', creditScore: 72, creditGrade: 'B' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
+  { name: '创新科技公司', idType: '营业执照' as const, idNumber: '9132**********01', phone: '0512-66668888', email: '', wechat: '', contactPerson: '王经理', creditScore: 90, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
+  { name: '长江机械制造公司', idType: '营业执照' as const, idNumber: '9132**********02', phone: '0512-66667777', email: '', wechat: '', contactPerson: '韩厂长', creditScore: 83, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
+  { name: '精密模具加工厂', idType: '营业执照' as const, idNumber: '9132**********03', phone: '0512-66669999', email: '', wechat: '', contactPerson: '刘经理', creditScore: 70, creditGrade: 'B' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
 ];
 
 interface DemoContractDef {
@@ -712,4 +712,41 @@ export async function seedContractTemplates(): Promise<void> {
   }
 
   console.log(`[Seed] 3 contract templates × ${DEFAULT_CLAUSES.length} clauses created`);
+}
+
+export async function seedIdCardReaders(): Promise<void> {
+  const { default: IdCardReader } = await import('../models/IdCardReader.js');
+  const count = await IdCardReader.count();
+  if (count > 0) {
+    console.log('[Seed] IdCardReaders already seeded — skipping');
+    return;
+  }
+
+  const readers = [
+    {
+      name: '前台读卡器',
+      brand: '华视' as const,
+      model: 'CVR-100UC',
+      interfaceType: 'USB' as const,
+      port: 'USB1',
+      status: '在线' as const,
+      firmwareVersion: 'V2.3.1',
+      lastReadAt: new Date(),
+    },
+    {
+      name: '办公室读卡器',
+      brand: '新中新' as const,
+      model: 'DKQ-A16D',
+      interfaceType: 'USB' as const,
+      port: 'USB2',
+      status: '未激活' as const,
+      firmwareVersion: 'V1.8.0',
+    },
+  ];
+
+  for (const r of readers) {
+    await IdCardReader.create(r as any);
+  }
+
+  console.log(`[Seed] ${readers.length} id card readers created`);
 }

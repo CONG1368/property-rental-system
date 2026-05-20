@@ -110,8 +110,32 @@
         <el-descriptions-item v-if="feeItemList.length === 0" label="费用明细" :span="2">
           <span style="color:#909399">暂无自定义费用项</span>
         </el-descriptions-item>
+        <el-descriptions-item label="价格类型">
+          <el-tag :type="taxType === '不含税' ? 'danger' : 'success'" size="small">{{ taxType }}</el-tag>
+          <span v-if="taxType === '不含税' && taxRate" style="margin-left:8px;font-size:12px;color:#e74c3c">
+            增值税 {{ taxRate }}% 另计
+          </span>
+        </el-descriptions-item>
+        <el-descriptions-item label="发票类型">{{ invoiceType || '--' }}</el-descriptions-item>
       </el-descriptions>
       <el-empty v-if="!contract.rentAmount && feeItemList.length === 0" description="暂无费用配置" :image-size="60" />
+    </el-card>
+
+    <!-- 合同细则 -->
+    <el-card style="margin-top:16px" v-if="contract">
+      <template #header><span>合同细则</span></template>
+      <el-descriptions :column="2" border size="small">
+        <el-descriptions-item label="滞纳金">{{ ((bcDetail.lateFeeRate ?? 0.05) * 100).toFixed(1) }}% / 月</el-descriptions-item>
+        <el-descriptions-item label="维修责任">
+          {{ bcDetail.maintenanceParty === '乙方' ? '乙方负责' : bcDetail.maintenanceParty === '按约定' ? '双方按约定' : '甲方负责' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="允许转租">
+          <el-tag :type="bcDetail.subletAllowed ? 'success' : 'info'" size="small">{{ bcDetail.subletAllowed ? '允许' : '禁止' }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="解约通知期">{{ bcDetail.terminationNotice ?? 30 }} 天</el-descriptions-item>
+        <el-descriptions-item label="续约通知期">{{ bcDetail.renewalNotice ?? 30 }} 天</el-descriptions-item>
+        <el-descriptions-item label="押金退还条件">{{ bcDetail.depositTerms || '租赁期满无违约欠费，全额无息退还' }}</el-descriptions-item>
+      </el-descriptions>
     </el-card>
 
     <!-- 合同附件 -->
@@ -253,6 +277,11 @@ const paymentCycleLabel = computed(() => {
   return map[contract.value?.paymentCycle] || contract.value?.paymentCycle || '--';
 });
 
+const bcDetail = computed(() => contract.value?.billingConfig || {});
+const taxType = computed(() => bcDetail.value.taxType || '含税');
+const taxRate = computed(() => bcDetail.value.taxRate ?? 5);
+const invoiceType = computed(() => bcDetail.value.invoiceType || '增值税普通发票');
+
 const sortedClauses = computed(() => {
   let raw = contract.value?.clauses;
   // SQLite JSON 字段可能返回字符串，安全解析
@@ -305,21 +334,26 @@ async function fetchContract() {
 async function getCompanyInfo() {
   let companyName = '物业租赁管理公司';
   let companyLogo = ''; let companySeal = '';
+  let companyIdType = ''; let companyIdNumber = ''; let companyPhone = '';
   try {
-    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo,company_seal' } });
+    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo,company_seal,company_id_type,company_id_number,company_phone' } });
     const map: Record<string, string> = {};
     (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
     if (map['company_name_for_print']) companyName = map['company_name_for_print'];
     if (map['company_logo']) companyLogo = map['company_logo'];
     if (map['company_seal']) companySeal = map['company_seal'];
+    if (map['company_id_type']) companyIdType = map['company_id_type'];
+    if (map['company_id_number']) companyIdNumber = map['company_id_number'];
+    if (map['company_phone']) companyPhone = map['company_phone'];
   } catch { /* use defaults */ }
-  return { companyName, companyLogo, companySeal };
+  return { companyName, companyLogo, companySeal, companyIdType, companyIdNumber, companyPhone };
 }
 
 async function handlePrint(mode: string) {
   if (!contract.value) return;
   try {
     const info = await getCompanyInfo();
+	    const bc = contract.value?.billingConfig || {};
     const html = buildContractHTML({
       contractNo: contract.value.contractNo,
       propertyName: contract.value.property?.name || '-',
@@ -338,6 +372,19 @@ async function handlePrint(mode: string) {
       status: contract.value.status || '',
       notes: contract.value.notes || '',
       clauses: sortedClauses.value,
+      paymentMethod: bc.paymentMethod || '',
+      bankName: bc.bankName || '',
+      bankAccountNumber: bc.bankAccountNumber || '',
+      bankAccountName: bc.bankAccountName || '',
+      taxType: bc.taxType || '含税',
+      taxRate: bc.taxRate ?? 5,
+      invoiceType: bc.invoiceType || '增值税普通发票',
+      lateFeeRate: bc.lateFeeRate ?? 0.05,
+      depositTerms: bc.depositTerms || '',
+      maintenanceParty: bc.maintenanceParty || '甲方',
+      terminationNotice: bc.terminationNotice ?? 30,
+      renewalNotice: bc.renewalNotice ?? 30,
+      subletAllowed: bc.subletAllowed ?? false,
       ...info,
     });
     await printDocument({ title: `租赁合同_${contract.value.contractNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });

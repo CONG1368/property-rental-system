@@ -90,6 +90,106 @@
       </div>
     </el-card>
 
+    <!-- 收款方式 -->
+    <el-card style="margin-bottom:16px">
+      <template #header><span>收款方式</span></template>
+      <el-form-item label="收款方式">
+        <el-select v-model="paymentMethod" placeholder="请选择收款方式" @change="onPaymentMethodChange" style="width:100%">
+          <el-option label="现金" value="现金" />
+          <el-option label="银行汇款" value="银行汇款" />
+          <el-option label="微信支付" value="微信支付" />
+          <el-option label="支付宝" value="支付宝" />
+        </el-select>
+      </el-form-item>
+      <template v-if="paymentMethod === '银行汇款'">
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-form-item label="开户银行"><el-input v-model="bankName" placeholder="如：中国工商银行XX支行" /></el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="银行账号"><el-input v-model="bankAccountNumber" placeholder="收款银行账号" /></el-form-item>
+          </el-col>
+          <el-col :span="8">
+            <el-form-item label="收款户名"><el-input v-model="bankAccountName" placeholder="收款账户户名" /></el-form-item>
+          </el-col>
+        </el-row>
+      </template>
+    </el-card>
+
+    <!-- 税务信息 -->
+    <el-card style="margin-bottom:16px">
+      <template #header><span>税务信息</span></template>
+      <el-row :gutter="16">
+        <el-col :span="8">
+          <el-form-item label="价格类型">
+            <el-select v-model="taxType" style="width:100%">
+              <el-option label="含税" value="含税" />
+              <el-option label="不含税" value="不含税" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="税率(%)">
+            <el-input-number v-model="taxRate" :min="0" :max="17" :precision="1" :step="0.5" style="width:100%" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="发票类型">
+            <el-select v-model="invoiceType" style="width:100%">
+              <el-option label="增值税普通发票" value="增值税普通发票" />
+              <el-option label="增值税专用发票" value="增值税专用发票" />
+              <el-option label="收据" value="收据" />
+              <el-option label="不开票" value="不开票" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </el-card>
+
+    <!-- 合同细则 -->
+    <el-card style="margin-bottom:16px">
+      <template #header><span>合同细则</span></template>
+      <el-row :gutter="16">
+        <el-col :span="8">
+          <el-form-item label="滞纳金比例">
+            <el-input-number v-model="lateFeeRate" :min="0" :max="1" :precision="3" :step="0.01" style="width:70%" />
+            <span style="margin-left:4px;font-size:12px;color:#909399">/月</span>
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="维修责任">
+            <el-select v-model="maintenanceParty" style="width:100%">
+              <el-option label="甲方（出租方）" value="甲方" />
+              <el-option label="乙方（承租方）" value="乙方" />
+              <el-option label="双方按约定" value="按约定" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="允许转租">
+            <el-switch v-model="subletAllowed" active-text="允许" inactive-text="禁止" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row :gutter="16">
+        <el-col :span="8">
+          <el-form-item label="解约通知期(天)">
+            <el-input-number v-model="terminationNotice" :min="0" :max="365" style="width:100%" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="续约通知期(天)">
+            <el-input-number v-model="renewalNotice" :min="0" :max="365" style="width:100%" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="8">
+          <el-form-item label="押金退还条件">
+            <el-input v-model="depositTerms" placeholder="如：退租验房无误后15日内无息退还" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </el-card>
+
     <!-- 合同模板选择 -->
     <el-card style="margin-bottom:16px">
       <template #header><span>合同条款模板</span></template>
@@ -151,6 +251,33 @@ const form = reactive({
 interface FeeItem { name: string; amount: number; unit: string; }
 
 const feeItems = ref<FeeItem[]>([]);
+
+// 收款方式
+const paymentMethod = ref('');
+const bankName = ref('');
+const bankAccountNumber = ref('');
+const bankAccountName = ref('');
+
+// 税务信息
+const taxType = ref('含税');
+const taxRate = ref(5);
+const invoiceType = ref('增值税普通发票');
+
+// 合同细则
+const lateFeeRate = ref(0.05);
+const depositTerms = ref('');
+const maintenanceParty = ref('甲方');
+const terminationNotice = ref(30);
+const renewalNotice = ref(30);
+const subletAllowed = ref(false);
+
+function onPaymentMethodChange(val: string) {
+  if (val !== '银行汇款') {
+    bankName.value = '';
+    bankAccountNumber.value = '';
+    bankAccountName.value = '';
+  }
+}
 
 function addFeeItem() {
   feeItems.value.push({ name: '', amount: 0, unit: '元/月' });
@@ -225,12 +352,33 @@ function addClause() {
 function buildBillingConfig() {
   return {
     feeItems: feeItems.value,
+    paymentMethod: paymentMethod.value,
+    bankName: bankName.value,
+    bankAccountNumber: bankAccountNumber.value,
+    bankAccountName: bankAccountName.value,
+    taxType: taxType.value,
+    taxRate: taxRate.value,
+    invoiceType: invoiceType.value,
+    lateFeeRate: lateFeeRate.value,
+    depositTerms: depositTerms.value,
+    maintenanceParty: maintenanceParty.value,
+    terminationNotice: terminationNotice.value,
+    renewalNotice: renewalNotice.value,
+    subletAllowed: subletAllowed.value,
   };
 }
 
 async function handleSave() {
   try {
-    const payload = { ...form, billingConfig: buildBillingConfig(), clauses: clauses.value };
+    // 条款去重：按 title + content 去重，保留第一条
+    const seen = new Set<string>();
+    const dedupedClauses = clauses.value.filter(c => {
+      const key = `${c.title}|||${c.content}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const payload = { ...form, billingConfig: buildBillingConfig(), clauses: dedupedClauses };
     if (isEdit.value) {
       await request.put('/contracts/' + route.params.id, payload);
       ElMessage.success('草稿已保存');
@@ -248,7 +396,14 @@ async function handleSubmit() {
   try {
     let id = route.params.id;
     if (!id) {
-      const payload = { ...form, billingConfig: buildBillingConfig(), clauses: clauses.value };
+      const seen = new Set<string>();
+      const dedupedClauses = clauses.value.filter(c => {
+        const key = `${c.title}|||${c.content}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      const payload = { ...form, billingConfig: buildBillingConfig(), clauses: dedupedClauses };
       const res = await request.post('/contracts', payload);
       id = res.data.id;
     }
@@ -302,6 +457,22 @@ onMounted(async () => {
         if (Number(bc.factoryArea || 0) > 0) items.push({ name: '出租面积', amount: Number(bc.factoryArea || 0), unit: '㎡' });
         feeItems.value = items;
       }
+      // 加载收款方式
+      paymentMethod.value = bc.paymentMethod || '';
+      bankName.value = bc.bankName || '';
+      bankAccountNumber.value = bc.bankAccountNumber || '';
+      bankAccountName.value = bc.bankAccountName || '';
+      // 加载税务信息
+      taxType.value = bc.taxType || '含税';
+      taxRate.value = bc.taxRate ?? 5;
+      invoiceType.value = bc.invoiceType || '增值税普通发票';
+      // 加载合同细则
+      lateFeeRate.value = bc.lateFeeRate ?? 0.05;
+      depositTerms.value = bc.depositTerms || '';
+      maintenanceParty.value = bc.maintenanceParty || '甲方';
+      terminationNotice.value = bc.terminationNotice ?? 30;
+      renewalNotice.value = bc.renewalNotice ?? 30;
+      subletAllowed.value = bc.subletAllowed ?? false;
       let rawClauses = d.clauses;
       if (typeof rawClauses === 'string') {
         try { rawClauses = JSON.parse(rawClauses); } catch { rawClauses = []; }

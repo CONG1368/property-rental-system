@@ -45,6 +45,9 @@
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="姓名" prop="name"><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="证件类型" prop="idType"><el-select v-model="form.idType" style="width:100%"><el-option label="身份证" value="身份证" /><el-option label="营业执照" value="营业执照" /><el-option label="护照" value="护照" /></el-select></el-form-item>
+        <el-form-item label=" ">
+          <IdCardReadButton mode="fill" @success="onIdCardRead" />
+        </el-form-item>
         <el-form-item label="证件号" prop="idNumber"><el-input v-model="form.idNumber" /></el-form-item>
         <el-form-item label="手机号" prop="phone"><el-input v-model="form.phone" /></el-form-item>
         <el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item>
@@ -62,6 +65,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';
+import IdCardReadButton from '@/components/IdCardReadButton.vue';
+import { IdCardData } from '@/composables/useIdCardReader';
 
 const router = useRouter();
 const tableData = ref<any[]>([]); const loading = ref(false);
@@ -142,6 +147,13 @@ async function batchDelete() {
   }
   clearSelection();
   fetchData();
+}
+
+function onIdCardRead(data: IdCardData) {
+  form.value.name = data.name;
+  form.value.idType = '身份证';
+  form.value.idNumber = data.idNumber;
+  // 身份证不含手机号，保留手动输入
 }
 
 onMounted(() => { fetchData(); });

@@ -29,6 +29,22 @@
               </div>
             </el-form-item>
 
+            <el-form-item label="证件类型">
+              <el-select v-model="form.companyIdType" placeholder="请选择" style="width:100%">
+                <el-option label="营业执照" value="营业执照" />
+                <el-option label="身份证" value="身份证" />
+                <el-option label="护照" value="护照" />
+              </el-select>
+            </el-form-item>
+
+            <el-form-item label="证件号码">
+              <el-input v-model="form.companyIdNumber" placeholder="统一社会信用代码或证件号" />
+            </el-form-item>
+
+            <el-form-item label="联系电话">
+              <el-input v-model="form.companyPhone" placeholder="公司联系电话" />
+            </el-form-item>
+
             <el-form-item label="电子签章">
               <div style="display:flex;align-items:center;gap:12px">
                 <el-upload
@@ -67,7 +83,15 @@
               <div style="font-size:11px;color:#999;margin-top:2px">合同编号：CT-2024-001</div>
               <div style="font-size:12px;color:#333;margin-top:8px">
                 <p style="margin:2px 0">出租方（甲方）：{{ form.companyName || '物业租赁管理公司' }}</p>
-                <p style="margin:2px 0">承租方（乙方）：张伟</p>
+                <p v-if="form.companyIdType || form.companyIdNumber" style="margin:1px 0 1px 12px;font-size:11px;color:#666">
+                  证件类型/号码：{{ form.companyIdType || '--' }} / {{ form.companyIdNumber || '--' }}
+                </p>
+                <p v-if="form.companyPhone" style="margin:1px 0 1px 12px;font-size:11px;color:#666">
+                  联系电话：{{ form.companyPhone }}
+                </p>
+                <p style="margin:2px 0;margin-top:4px">承租方（乙方）：张伟</p>
+                <p style="margin:1px 0 1px 12px;font-size:11px;color:#666">证件类型/号码：身份证 / 320106199001011234</p>
+                <p style="margin:1px 0 1px 12px;font-size:11px;color:#666">联系电话：13800138000</p>
               </div>
             </div>
           </div>
@@ -130,18 +154,24 @@ const form = reactive({
   companyName: '物业租赁管理公司',
   companyLogo: '',
   companySeal: '',
+  companyIdType: '',
+  companyIdNumber: '',
+  companyPhone: '',
 });
 
 onMounted(async () => {
   try {
     const res = await request.get('/system-configs/keys', {
-      params: { keys: 'company_name_for_print,company_logo,company_seal' },
+      params: { keys: 'company_name_for_print,company_logo,company_seal,company_id_type,company_id_number,company_phone' },
     });
     const map: Record<string, string> = {};
     (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
     if (map['company_name_for_print']) form.companyName = map['company_name_for_print'];
     if (map['company_logo']) form.companyLogo = map['company_logo'];
     if (map['company_seal']) form.companySeal = map['company_seal'];
+    if (map['company_id_type']) form.companyIdType = map['company_id_type'];
+    if (map['company_id_number']) form.companyIdNumber = map['company_id_number'];
+    if (map['company_phone']) form.companyPhone = map['company_phone'];
   } catch { /* use defaults */ }
 });
 
@@ -163,6 +193,9 @@ async function handleSave() {
     await request.put('/system-configs/company_name_for_print', { configValue: form.companyName });
     await request.put('/system-configs/company_logo', { configValue: form.companyLogo });
     await request.put('/system-configs/company_seal', { configValue: form.companySeal });
+    await request.put('/system-configs/company_id_type', { configValue: form.companyIdType });
+    await request.put('/system-configs/company_id_number', { configValue: form.companyIdNumber });
+    await request.put('/system-configs/company_phone', { configValue: form.companyPhone });
     ElMessage.success('打印设置已保存');
   } catch { /* ignore */ }
   finally { saving.value = false; }

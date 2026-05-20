@@ -67,6 +67,7 @@ declare module 'vue' {
     ElTree: typeof import('element-plus/es')['ElTree']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    IdCardReadButton: typeof import('./src/components/IdCardReadButton.vue')['default']
     RoomCard: typeof import('./src/components/RoomCard.vue')['default']
     RoomGrid: typeof import('./src/components/RoomGrid.vue')['default']
     RoomQuickActionDrawer: typeof import('./src/components/RoomQuickActionDrawer.vue')['default']
