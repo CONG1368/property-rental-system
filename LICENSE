@@ -1,21 +1,57 @@
-MIT License
+专有软件许可证 (Proprietary License)
 
-Copyright (c) 2026 物业租赁综合管理系统
+版权所有 (c) 2025-2026 CONG1368. 保留所有权利 (All Rights Reserved).
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+一、许可范围
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+在遵守本协议全部条款的前提下，版权人授予您一项非排他性、不可转让、不可
+再许可的有限许可，仅允许您将本软件用于个人学习和研究目的。
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+上述许可是您使用本软件的唯一合法依据。本协议未明确授予的任何权利均归
+版权人所有。
+
+二、禁止行为
+
+未经版权人事先明确的书面授权，您不得：
+
+  (a) 将本软件或其任何部分用于任何商业目的，包括但不限于：
+      - 将本软件作为产品或服务向第三方销售、许可、出租、转让或分发；
+      - 将本软件用于任何营利性机构的日常运营或业务活动中；
+      - 将本软件作为 SaaS（软件即服务）、PaaS、ASP 或其他托管服务
+        提供给任何第三方；
+      - 利用本软件或其衍生作品直接或间接获取收入或商业利益；
+      - 将本软件嵌入或集成为任何商业产品的一部分；
+
+  (b) 移除、修改或遮盖本软件中的版权声明、商标或其他专有权声明；
+
+  (c) 将本软件的全部或实质性部分公开展示、传播或分发（fork 本仓库
+      且保留所有原始版权声明的除外）；
+
+  (d) 将本软件用于任何违反适用法律法规或第三方权利的活动。
+
+三、所有权
+
+本软件的所有权、知识产权及其他相关权利均由版权人独占保留。本协议不构成
+对上述任何权利的转让或出售，仅为附条件的有限使用许可。
+
+四、免责声明
+
+本软件按"现状"提供，不附带任何形式的明示或默示担保，包括但不限于适销性、
+特定用途适用性及不侵权的默示担保。在任何情况下，版权人均不对因使用或
+无法使用本软件而产生的任何直接、间接、附带、特殊或继发性损害赔偿承担
+法律责任，即使已被告知发生此类损害的可能性。
+
+五、商业授权
+
+如需将本软件用于商业目的，必须事先获得版权人的书面授权。有意者请通过
+GitHub 平台与版权人联系。
+
+六、终止
+
+若您违反本协议任何条款，本许可自动终止。终止后，您必须立即停止使用
+本软件并销毁所有副本。有关所有权、免责声明及责任限制的条款在许可终止后
+继续有效。
+
+--------------------------------------------------------------------------------
+
+© 2025-2026 CONG1368. All Rights Reserved.

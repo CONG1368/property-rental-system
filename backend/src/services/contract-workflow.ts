@@ -1,6 +1,8 @@
 import Contract from '../models/Contract.js';
 import ContractLog from '../models/ContractLog.js';
 import Approval from '../models/Approval.js';
+import { transitionRoomStatus } from './room-status-workflow.js';
+import { broadcast } from '../websocket/index.js';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   '起草中': ['审批中'],
@@ -39,6 +41,17 @@ export async function transitionContract(
   });
 
   console.log(`[Contract] ${contract.contractNo}: ${oldStatus} → ${newStatus}`);
+
+  // 广播合同状态变更事件
+  broadcast('contract:status-changed', {
+    contractId,
+    contractNo: (contract as any).contractNo,
+    oldStatus,
+    newStatus,
+    propertyId: (contract as any).propertyId,
+    tenantId: (contract as any).tenantId,
+    timestamp: Date.now(),
+  });
 }
 
 export async function setExpiringContracts(): Promise<number> {
@@ -55,6 +68,14 @@ export async function setExpiringContracts(): Promise<number> {
 
     for (const contract of contracts) {
       await contract.update({ status: '到期提醒' });
+      // 联动房源状态 → 退租中
+      try {
+        await transitionRoomStatus((contract as any).propertyId, '退租中', 1, {
+          action: 'system',
+          notes: `合同 ${(contract as any).contractNo} 已到期，系统自动更新房源状态`,
+          linkedContractId: contract.id,
+        });
+      } catch { /* 联动失败不中断主流程 */ }
       count++;
     }
   }

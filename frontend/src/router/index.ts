@@ -76,6 +76,36 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/rent/RentDashboard.vue'),
         meta: { title: '收租看板', icon: 'DataAnalysis' },
       },
+      {
+        path: 'rent/room-kanban',
+        name: 'RoomStatusKanban',
+        component: () => import('@/views/rent/RoomStatusKanban.vue'),
+        meta: { title: '房态看板', icon: 'Grid' },
+      },
+      {
+        path: 'rent/room-kanban/dashboard',
+        name: 'RoomDashboard',
+        component: () => import('@/views/rent/RoomDashboard.vue'),
+        meta: { title: '数据大屏', hidden: true },
+      },
+      {
+        path: 'rent/room-kanban/batch-gen',
+        name: 'RoomBatchGenerate',
+        component: () => import('@/views/rent/RoomBatchGenerate.vue'),
+        meta: { title: '批量生成房间', hidden: true },
+      },
+      {
+        path: 'rent/locks',
+        name: 'DoorLockList',
+        component: () => import('@/views/rent/DoorLockList.vue'),
+        meta: { title: '门锁管理', icon: 'Lock' },
+      },
+      {
+        path: 'rent/locks/:id',
+        name: 'DoorLockDetail',
+        component: () => import('@/views/rent/DoorLockDetail.vue'),
+        meta: { title: '门锁详情', hidden: true },
+      },
       // ====== 财务报表 ======
       {
         path: 'finance/books',
@@ -200,16 +230,22 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '用户管理', icon: 'UserFilled' },
       },
       {
-        path: 'system/dicts',
-        name: 'DictList',
-        component: () => import('@/views/system/DictList.vue'),
-        meta: { title: '数据字典', icon: 'Collection' },
-      },
-      {
         path: 'system/audit-logs',
         name: 'AuditLog',
         component: () => import('@/views/system/AuditLog.vue'),
         meta: { title: '审计日志', icon: 'Monitor' },
+      },
+      {
+        path: 'system/print-settings',
+        name: 'PrintSettings',
+        component: () => import('@/views/system/PrintSettings.vue'),
+        meta: { title: '打印设置', icon: 'Printer' },
+      },
+      {
+        path: 'system/id-card-readers',
+        name: 'IdCardReaders',
+        component: () => import('@/views/system/IdCardReaderSettings.vue'),
+        meta: { title: '身份证读卡器', icon: 'Reading' },
       },
     ],
   },

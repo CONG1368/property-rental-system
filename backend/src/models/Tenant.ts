@@ -7,6 +7,10 @@ interface TenantAttributes {
   phone: string; email: string; wechat: string; contactPerson: string;
   creditScore: number; creditGrade: 'A'|'B'|'C'|'D';
   status: '待入住'|'在租中'|'已退租'; attachments: object; notes: string;
+  gender: string; birthDate: string; ethnicity: string;
+  idAddress: string; idIssuingAuthority: string;
+  idValidFrom: string; idValidTo: string;
+  idPhoto: string;
   createdAt?: Date; updatedAt?: Date;
 }
 
@@ -29,6 +33,14 @@ Tenant.init({
   status: { type: DataTypes.ENUM('待入住','在租中','已退租'), defaultValue: '待入住' },
   attachments: { type: DataTypes.JSON, defaultValue: {} },
   notes: { type: DataTypes.TEXT, defaultValue: '' },
+  gender: { type: DataTypes.STRING(10), defaultValue: '' },
+  birthDate: { type: DataTypes.STRING(10), defaultValue: '' },
+  ethnicity: { type: DataTypes.STRING(20), defaultValue: '' },
+  idAddress: { type: DataTypes.STRING(200), defaultValue: '' },
+  idIssuingAuthority: { type: DataTypes.STRING(100), defaultValue: '' },
+  idValidFrom: { type: DataTypes.STRING(10), defaultValue: '' },
+  idValidTo: { type: DataTypes.STRING(10), defaultValue: '' },
+  idPhoto: { type: DataTypes.TEXT, defaultValue: '' },
 }, { sequelize, tableName: 'tenants', indexes: [{ fields: ['phone'] }, { fields: ['creditGrade'] }, { fields: ['name'] }] });
 
 export default Tenant;

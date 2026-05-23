@@ -3,6 +3,7 @@ import Tenant from '../models/Tenant.js';
 import Contract from '../models/Contract.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { Op } from 'sequelize';
+import { checkDuplicateIdNumber, mapCardDataToTenantForm } from '../services/id-card-service.js';
 
 const router = Router();
 
@@ -34,6 +35,14 @@ router.get('/', async (req: AuthRequest, res) => {
 // POST /api/tenants — 创建租客
 router.post('/', async (req: AuthRequest, res) => {
   try {
+    // 检查身份证号是否重复
+    if (req.body.idNumber) {
+      const dupCheck = await checkDuplicateIdNumber(req.body.idNumber);
+      if (dupCheck.duplicate) {
+        return res.status(409).json({ code: 409, message: `该身份证号已关联租客「${dupCheck.tenant?.name}」` });
+      }
+    }
+
     const tenant = await Tenant.create(req.body);
     res.json({ code: 200, data: tenant, message: '租客创建成功' });
   } catch (err: any) {
@@ -103,6 +112,25 @@ router.post('/:id/check-out', async (req: AuthRequest, res) => {
     if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });
     await tenant.update({ status: '已退租' });
     res.json({ code: 200, data: tenant, message: '退租办理成功' });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
+// POST /tenants/read-card-to-form — 将读卡数据映射为租客表单
+router.post('/read-card-to-form', async (req: AuthRequest, res) => {
+  try {
+    const cardData = req.body;
+    if (!cardData || !cardData.idNumber) {
+      return res.status(400).json({ code: 400, message: '缺少身份证数据' });
+    }
+    const formData = mapCardDataToTenantForm(cardData);
+    // 检查重复
+    const dupCheck = await checkDuplicateIdNumber(cardData.idNumber);
+    res.json({
+      code: 200,
+      data: { formData, duplicate: dupCheck.duplicate, duplicateTenant: dupCheck.tenant || null },
+    });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });
   }

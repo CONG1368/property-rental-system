@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
 import { spawnBackend } from './spawn-backend';
 
 let mainWindow: BrowserWindow | null = null;
@@ -139,16 +141,96 @@ function createWindow() {
   });
 }
 
+// 后端状态（由 spawnBackend 和健康检查更新）
+let backendReady = false;
+
 // IPC 处理器
 ipcMain.handle('get-app-version', () => app.getVersion());
-ipcMain.handle('get-backend-status', () => true);
+
+// 真实后端状态检测 — 通过 HTTP 健康检查确认后端是否就绪
+ipcMain.handle('get-backend-status', async () => {
+  try {
+    const resp = await fetch('http://localhost:3001/api/health');
+    backendReady = resp.ok;
+    return backendReady;
+  } catch {
+    backendReady = false;
+    return false;
+  }
+});
+
+ipcMain.handle('get-backend-url', () => 'http://localhost:3001');
+
+// 文件保存对话框
+ipcMain.handle('save-file-dialog', async (_event, options: any) => {
+  const result = await dialog.showSaveDialog(mainWindow!, options);
+  return result;
+});
+
+// 身份证读卡器（调用 DLL SDK）— 当前返回提示，实际 SDK 接入时替换此实现
+ipcMain.handle('read-id-card', async (_event, provider: string, port: string) => {
+  // TODO: 通过 node-ffi 或 child_process 调用品牌 DLL SDK
+  // provider: '华视' | '新中新' | '普天' | '精伦' | '中控'
+  // 当前返回错误提示，Mock 模式请通过后端 API /api/id-card-readers/:id/read 测试
+  return { success: false, error: '请连接实体读卡器设备或使用后端 Mock 模式测试' };
+});
+
+// 文件打开对话框
+ipcMain.handle('open-file-dialog', async (_event, options: any) => {
+  const result = await dialog.showOpenDialog(mainWindow!, options);
+  return result;
+});
+
+// HTML 原生打印（临时文件渲染 → 弹出系统打印对话框）
+ipcMain.handle('print-html', async (_event, html: string, title: string) => {
+  return new Promise((resolve) => {
+    // 写入临时 HTML 文件（避免 data: URL 的长度限制和编码问题）
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'property-print-'));
+    const tmpFile = path.join(tmpDir, `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`);
+    const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; color:#333; margin:0; padding:16px; }
+  img { max-width:100%; }
+</style></head><body>${html}</body></html>`;
+    fs.writeFileSync(tmpFile, fullHtml, 'utf-8');
+
+    const printWin = new BrowserWindow({
+      width: 800, height: 600, show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true },
+    });
+
+    printWin.loadFile(tmpFile).then(() => {
+      printWin.webContents.print({
+        silent: false,
+        printBackground: true,
+      }, (success, failureReason) => {
+        printWin.close();
+        // 清理临时文件
+        try { fs.rmSync(tmpDir, { recursive: true }); } catch { /* 忽略清理错误 */ }
+        resolve({ success, failureReason });
+      });
+    }).catch((err) => {
+      printWin.close();
+      try { fs.rmSync(tmpDir, { recursive: true }); } catch { /* ignore */ }
+      resolve({ success: false, failureReason: err.message });
+    });
+  });
+});
 
 app.whenReady().then(async () => {
   buildMenu();
   try {
     await spawnBackend();
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to start backend:', err);
+    // 硬错误弹窗提示（文件缺失、进程崩溃），超时错误不弹窗（登录页会显示等待状态）
+    if (err.message?.includes('not found') || err.message?.includes('exited with code')) {
+      dialog.showErrorBox(
+        '服务启动失败',
+        `后端服务未能正常启动。\n\n${err.message}\n\n请尝试重新安装应用程序。`
+      );
+    }
   }
   createWindow();
 });

@@ -21,9 +21,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted } from 'vue';
+import { reactive, onMounted, onUnmounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
+import { useWebSocket } from '@/composables/useWebSocket';
 
 const columns = reactive([
   { status: '起草中',   title: '起草中',   tagType: 'info',    count: 0, contracts: [] as any[] },
@@ -36,7 +37,8 @@ const columns = reactive([
   { status: '已终止',   title: '已终止',   tagType: 'info',    count: 0, contracts: [] as any[] },
 ]);
 
-onMounted(async () => {
+async function fetchKanban() {
+  columns.forEach(col => { col.count = 0; col.contracts = []; });
   try {
     const res = await request.get('/contracts', { params: { pageSize: 500 } });
     const list = res?.data?.list;
@@ -48,6 +50,23 @@ onMounted(async () => {
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.message || '加载合同看板失败');
   }
+}
+
+const { on: wsOn } = useWebSocket();
+let unsubContractChanged: (() => void) | null = null;
+
+onMounted(() => {
+  fetchKanban();
+  unsubContractChanged = wsOn('contract:status-changed', () => { fetchKanban(); });
+  const u1 = wsOn('contract:created', () => { fetchKanban(); });
+  const u2 = wsOn('contract:renewed', () => { fetchKanban(); });
+  const u3 = wsOn('contract:deleted', () => { fetchKanban(); });
+  const orig = unsubContractChanged;
+  unsubContractChanged = () => { orig?.(); u1?.(); u2?.(); u3?.(); };
+});
+
+onUnmounted(() => {
+  unsubContractChanged?.();
 });
 </script>
 

@@ -77,7 +77,8 @@ router.post('/', async (req: AuthRequest, res) => {
       totalAmount: total,
       dueDate: new Date(dueDate),
       status: '未缴',
-    });
+      periodMonths: 1,
+    } as any);
     res.json({ code: 200, data: bill, message: '账单创建成功' });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });

@@ -8,6 +8,12 @@ import PaymentRecord from '../models/PaymentRecord.js';
 import Voucher from '../models/Voucher.js';
 import VoucherEntry from '../models/VoucherEntry.js';
 import Expense from '../models/Expense.js';
+import DoorLock from '../models/DoorLock.js';
+import DoorLockPassword from '../models/DoorLockPassword.js';
+import DoorLockKey from '../models/DoorLockKey.js';
+import DoorLockLog from '../models/DoorLockLog.js';
+import ContractTemplate from '../models/ContractTemplate.js';
+import ContractClause from '../models/ContractClause.js';
 import { Op } from 'sequelize';
 import dayjs from 'dayjs';
 
@@ -80,20 +86,20 @@ export async function seedChartOfAccounts(): Promise<void> {
 // ============================================================
 
 const DEMO_PROPERTIES = [
-  { name: '翡翠湾A座201', type: '公寓' as const, subType: '住宅', area: 85.5, waterFeeRate: 3.8, electricFeeRate: 0.68, propertyFeeRate: 2.5, address: '翡翠湾小区A座2楼201室', floor: '2', unit: 'A', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
-  { name: '翡翠湾B座1503', type: '公寓' as const, subType: '住宅', area: 92.0, waterFeeRate: 3.8, electricFeeRate: 0.68, propertyFeeRate: 2.5, address: '翡翠湾小区B座15楼1503室', floor: '15', unit: 'B', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
-  { name: '科创园区1号厂房', type: '厂房' as const, subType: '标准厂房', area: 1200.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区1号', floor: '1', unit: '', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
-  { name: '科创园区2号厂房', type: '厂房' as const, subType: '标准厂房', area: 1500.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区2号', floor: '1', unit: '', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
-  { name: '科创园区5号厂房', type: '厂房' as const, subType: '标准厂房', area: 2000.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区5号', floor: '1', unit: '', status: '空置' as const, amenities: {}, owner: '', notes: '' },
-  { name: '万象汇商铺1F-08', type: '商铺' as const, subType: '商业', area: 60.0, waterFeeRate: 4.5, electricFeeRate: 0.95, propertyFeeRate: 8.0, address: '万象汇商业广场1楼08号', floor: '1', unit: '', status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '翡翠湾A座201', type: '公寓' as const, subType: '住宅', area: 85.5, waterFeeRate: 3.8, electricFeeRate: 0.68, propertyFeeRate: 2.5, address: '翡翠湾小区A座2楼201室', floor: '2', unit: 'A', buildingName: '翡翠湾A座', roomNumber: '201', buildingOrder: 1, floorOrder: 2, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '翡翠湾B座1503', type: '公寓' as const, subType: '住宅', area: 92.0, waterFeeRate: 3.8, electricFeeRate: 0.68, propertyFeeRate: 2.5, address: '翡翠湾小区B座15楼1503室', floor: '15', unit: 'B', buildingName: '翡翠湾B座', roomNumber: '1503', buildingOrder: 2, floorOrder: 15, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '科创园区1号厂房', type: '厂房' as const, subType: '标准厂房', area: 1200.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区1号', floor: '1', unit: '', buildingName: '科创园区', roomNumber: '1号厂房', buildingOrder: 3, floorOrder: 1, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '科创园区2号厂房', type: '厂房' as const, subType: '标准厂房', area: 1500.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区2号', floor: '1', unit: '', buildingName: '科创园区', roomNumber: '2号厂房', buildingOrder: 3, floorOrder: 1, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
+  { name: '科创园区5号厂房', type: '厂房' as const, subType: '标准厂房', area: 2000.0, waterFeeRate: 5.2, electricFeeRate: 1.15, propertyFeeRate: 1.8, address: '高新区科创园区5号', floor: '1', unit: '', buildingName: '科创园区', roomNumber: '5号厂房', buildingOrder: 3, floorOrder: 1, status: '空置' as const, amenities: {}, owner: '', notes: '' },
+  { name: '万象汇商铺1F-08', type: '商铺' as const, subType: '商业', area: 60.0, waterFeeRate: 4.5, electricFeeRate: 0.95, propertyFeeRate: 8.0, address: '万象汇商业广场1楼08号', floor: '1', unit: '', buildingName: '万象汇商铺', roomNumber: '1F-08', buildingOrder: 4, floorOrder: 1, status: '已出租' as const, amenities: {}, owner: '', notes: '' },
 ];
 
 const DEMO_TENANTS = [
-  { name: '张伟', idType: '身份证' as const, idNumber: '3201**********1234', phone: '13800008888', email: '', wechat: '', contactPerson: '', creditScore: 85, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '' },
-  { name: '李娜', idType: '身份证' as const, idNumber: '3202**********5678', phone: '13900009999', email: '', wechat: '', contactPerson: '', creditScore: 72, creditGrade: 'B' as const, status: '在租中' as const, attachments: {}, notes: '' },
-  { name: '创新科技公司', idType: '营业执照' as const, idNumber: '9132**********01', phone: '0512-66668888', email: '', wechat: '', contactPerson: '王经理', creditScore: 90, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '' },
-  { name: '长江机械制造公司', idType: '营业执照' as const, idNumber: '9132**********02', phone: '0512-66667777', email: '', wechat: '', contactPerson: '韩厂长', creditScore: 83, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '' },
-  { name: '精密模具加工厂', idType: '营业执照' as const, idNumber: '9132**********03', phone: '0512-66669999', email: '', wechat: '', contactPerson: '刘经理', creditScore: 70, creditGrade: 'B' as const, status: '在租中' as const, attachments: {}, notes: '' },
+  { name: '张伟', idType: '身份证' as const, idNumber: '3201**********1234', phone: '13800008888', email: '', wechat: '', contactPerson: '', creditScore: 85, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
+  { name: '李娜', idType: '身份证' as const, idNumber: '3202**********5678', phone: '13900009999', email: '', wechat: '', contactPerson: '', creditScore: 72, creditGrade: 'B' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
+  { name: '创新科技公司', idType: '营业执照' as const, idNumber: '9132**********01', phone: '0512-66668888', email: '', wechat: '', contactPerson: '王经理', creditScore: 90, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
+  { name: '长江机械制造公司', idType: '营业执照' as const, idNumber: '9132**********02', phone: '0512-66667777', email: '', wechat: '', contactPerson: '韩厂长', creditScore: 83, creditGrade: 'A' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
+  { name: '精密模具加工厂', idType: '营业执照' as const, idNumber: '9132**********03', phone: '0512-66669999', email: '', wechat: '', contactPerson: '刘经理', creditScore: 70, creditGrade: 'B' as const, status: '在租中' as const, attachments: {}, notes: '', gender: '', birthDate: '', ethnicity: '', idAddress: '', idIssuingAuthority: '', idValidFrom: '', idValidTo: '', idPhoto: '' },
 ];
 
 interface DemoContractDef {
@@ -356,5 +362,391 @@ export async function seedAllDemoData(): Promise<void> {
   }
 
   console.log(`[Seed] ${dunningCount} dunning tasks created`);
+
+  // 7. 门锁演示数据（4套：2 智能 + 2 传统）
+  const demoProperties = properties; // 复用前面创建的房源
+  const smartLock1 = await DoorLock.create({
+    propertyId: demoProperties[0].id, name: '301室智能锁',
+    category: '智能门锁', lockType: '指纹密码锁',
+    manufacturer: '涂鸦智能', model: 'T1 Pro', sn: 'SN-TUYA-2024001',
+    installDate: '2024-01-15', status: '在线',
+    deviceId: 'tuya-dev-301', battery: 85,
+    firmwareVersion: 'v2.3.1', ipAddress: '192.168.1.101',
+    lastOnlineAt: new Date(),
+    notes: '主卧入户智能锁',
+  } as any);
+
+  const smartLock2 = await DoorLock.create({
+    propertyId: demoProperties[1].id, name: '1503室智能锁',
+    category: '智能门锁', lockType: '蓝牙锁',
+    manufacturer: 'Aqara', model: 'N200', sn: 'SN-AQARA-2024002',
+    installDate: '2024-03-10', status: '在线',
+    deviceId: 'aqara-dev-1503', battery: 32,
+    firmwareVersion: 'v1.8.0', ipAddress: '192.168.1.203',
+    lastOnlineAt: new Date(Date.now() - 7200000),
+    notes: '蓝牙智能锁，低电量需关注',
+  } as any);
+
+  const tradLock1 = await DoorLock.create({
+    propertyId: demoProperties[0].id, name: '201室防盗锁',
+    category: '传统门锁', lockType: '防盗门锁',
+    manufacturer: '玥玛', model: 'YM-8801', sn: 'SN-YM-2024003',
+    installDate: '2024-01-10', status: '正常',
+    lockCylinder: 'C级', material: '不锈钢', keyType: '普通钥匙',
+    totalKeyCount: 3,
+    notes: '甲级防盗门锁，C级锁芯',
+  } as any);
+
+  const tradLock2 = await DoorLock.create({
+    propertyId: demoProperties[3].id, name: 'B栋厂房大门锁',
+    category: '传统门锁', lockType: '挂锁',
+    manufacturer: '金点原子', model: 'JY-660', sn: 'SN-JY-2024004',
+    installDate: '2024-02-20', status: '正常',
+    lockCylinder: 'B级', material: '铜', keyType: '普通钥匙',
+    totalKeyCount: 4,
+    notes: '厂房大门重型挂锁',
+  } as any);
+
+  // 智能锁密码
+  await DoorLockPassword.create({
+    lockId: smartLock1.id, password: '852046',
+    passwordType: '永久', purpose: '入住',
+    tenantId: tenants[0]?.id || null,
+    startTime: new Date('2024-01-01'),
+    isActive: true, maxUseCount: 0,
+    createdBy: 1, notes: '租客张伟入住密码',
+  } as any);
+
+  await DoorLockPassword.create({
+    lockId: smartLock1.id, password: '369715',
+    passwordType: '临时', purpose: '保洁',
+    startTime: new Date('2026-05-01'),
+    endTime: new Date('2026-06-01'),
+    isActive: true, maxUseCount: 0,
+    createdBy: 1, notes: '5月保洁临时密码',
+  } as any);
+
+  await DoorLockPassword.create({
+    lockId: smartLock2.id, password: '741203',
+    passwordType: '永久', purpose: '入住',
+    tenantId: tenants[1]?.id || null,
+    startTime: new Date('2024-02-01'),
+    isActive: true, maxUseCount: 0,
+    createdBy: 1, notes: '租客李娜入住密码',
+  } as any);
+
+  // 传统锁钥匙
+  await DoorLockKey.create({
+    lockId: tradLock1.id, keyCode: 'KEY-201-001',
+    keyStatus: '在库', createdBy: 1,
+  } as any);
+  await DoorLockKey.create({
+    lockId: tradLock1.id, keyCode: 'KEY-201-002',
+    keyStatus: '在库', createdBy: 1,
+  } as any);
+  await DoorLockKey.create({
+    lockId: tradLock1.id, keyCode: 'KEY-201-003',
+    keyStatus: '借出', holderType: '租客',
+    holderName: '张伟', holderPhone: '13800008888',
+    lendTime: new Date('2026-05-10'),
+    expectedReturnTime: new Date('2026-06-10'),
+    lendReason: '租客入住',
+    createdBy: 1,
+  } as any);
+
+  await DoorLockKey.create({
+    lockId: tradLock2.id, keyCode: 'KEY-B-001',
+    keyStatus: '在库', createdBy: 1,
+  } as any);
+  await DoorLockKey.create({
+    lockId: tradLock2.id, keyCode: 'KEY-B-002',
+    keyStatus: '在库', createdBy: 1,
+  } as any);
+  await DoorLockKey.create({
+    lockId: tradLock2.id, keyCode: 'KEY-B-003',
+    keyStatus: '借出', holderType: '管理员',
+    holderName: '王经理', holderPhone: '0512-66668888',
+    lendTime: new Date('2026-04-15'),
+    expectedReturnTime: new Date('2026-05-15'),
+    lendReason: '厂房巡检',
+    createdBy: 1,
+  } as any);
+  await DoorLockKey.create({
+    lockId: tradLock2.id, keyCode: 'KEY-B-004',
+    keyStatus: '借出', holderType: '维修',
+    holderName: '韩师傅', holderPhone: '13900000000',
+    lendTime: new Date('2026-05-12'),
+    expectedReturnTime: new Date('2026-05-20'),
+    lendReason: '设备维修',
+    createdBy: 1,
+  } as any);
+
+  // 操作日志
+  const logBaseTime = Date.now();
+  const logData = [
+    { lockId: smartLock1.id, operationType: '密码开锁', operatorName: '张伟', operatorType: '租客', result: '成功', detail: '密码开锁' },
+    { lockId: smartLock1.id, operationType: '指纹开锁', operatorName: '张伟', operatorType: '租客', result: '成功', detail: '指纹开锁' },
+    { lockId: smartLock1.id, operationType: '远程开锁', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '管理员远程开锁' },
+    { lockId: smartLock1.id, operationType: '密码开锁', operatorName: '保洁阿姨', operatorType: '保洁', result: '成功', detail: '保洁密码开锁' },
+    { lockId: smartLock1.id, operationType: '告警', operatorName: '', operatorType: '系统', result: '成功', detail: '电量低于20%告警' },
+    { lockId: smartLock2.id, operationType: '蓝牙开锁', operatorName: '李娜', operatorType: '租客', result: '成功', detail: '蓝牙开锁' },
+    { lockId: smartLock2.id, operationType: '密码开锁', operatorName: '李娜', operatorType: '租客', result: '成功', detail: '密码开锁' },
+    { lockId: smartLock2.id, operationType: '告警', operatorName: '', operatorType: '系统', result: '成功', detail: '电量低于30%告警' },
+    { lockId: tradLock1.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-201-003 给 张伟（租客）' },
+    { lockId: tradLock1.id, operationType: '钥匙开锁', operatorName: '张伟', operatorType: '租客', result: '成功', detail: '钥匙开锁' },
+    { lockId: tradLock2.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-B-003 给 王经理（管理员）' },
+    { lockId: tradLock2.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-B-004 给 韩师傅（维修）' },
+    { lockId: tradLock2.id, operationType: '钥匙开锁', operatorName: '韩师傅', operatorType: '维修', result: '成功', detail: '钥匙开锁 - 设备维修' },
+  ];
+
+  for (let i = 0; i < logData.length; i++) {
+    const l = logData[i];
+    await DoorLockLog.create({
+      lockId: l.lockId,
+      operationType: l.operationType,
+      operatorName: l.operatorName,
+      operatorType: l.operatorType,
+      result: l.result,
+      detail: l.detail,
+      createdAt: new Date(logBaseTime - (logData.length - i) * 86400000),
+    } as any);
+  }
+
+  console.log('[Seed] 4 door locks (2 smart + 2 traditional) created');
   console.log('[Seed] Demo data complete — 3 years of operational data ready');
+}
+
+// 门锁种子数据 — 独立于演示经营数据，可单独调用
+export async function seedDoorLocks(): Promise<void> {
+  const existing = await DoorLock.findOne();
+  if (existing) {
+    console.log('[Seed] Door locks already exist, skipping');
+    return;
+  }
+
+  console.log('[Seed] Creating door lock demo data...');
+
+  const properties = await Property.findAll({ limit: 10, raw: true });
+  const tenants = await Tenant.findAll({ limit: 10, raw: true });
+  if (properties.length === 0) {
+    console.log('[Seed] No properties found, skipping door lock seed');
+    return;
+  }
+
+  const smartLock1 = await DoorLock.create({
+    propertyId: properties[0].id, name: '301室智能锁',
+    category: '智能门锁', lockType: '指纹密码锁',
+    manufacturer: '涂鸦智能', model: 'T1 Pro', sn: 'SN-TUYA-2024001',
+    installDate: '2024-01-15', status: '在线',
+    deviceId: 'tuya-dev-301', battery: 85,
+    firmwareVersion: 'v2.3.1', ipAddress: '192.168.1.101',
+    lastOnlineAt: new Date(),
+    notes: '主卧入户智能锁',
+  } as any);
+
+  const smartLock2 = await DoorLock.create({
+    propertyId: properties[1]?.id || properties[0].id, name: '1503室智能锁',
+    category: '智能门锁', lockType: '蓝牙锁',
+    manufacturer: 'Aqara', model: 'N200', sn: 'SN-AQARA-2024002',
+    installDate: '2024-03-10', status: '在线',
+    deviceId: 'aqara-dev-1503', battery: 32,
+    firmwareVersion: 'v1.8.0', ipAddress: '192.168.1.203',
+    lastOnlineAt: new Date(Date.now() - 7200000),
+    notes: '蓝牙智能锁，低电量需关注',
+  } as any);
+
+  const tradLock1 = await DoorLock.create({
+    propertyId: properties[0].id, name: '201室防盗锁',
+    category: '传统门锁', lockType: '防盗门锁',
+    manufacturer: '玥玛', model: 'YM-8801', sn: 'SN-YM-2024003',
+    installDate: '2024-01-10', status: '正常',
+    lockCylinder: 'C级', material: '不锈钢', keyType: '普通钥匙',
+    totalKeyCount: 3,
+    notes: '甲级防盗门锁，C级锁芯',
+  } as any);
+
+  const tradLock2 = await DoorLock.create({
+    propertyId: properties[3]?.id || properties[0].id, name: 'B栋厂房大门锁',
+    category: '传统门锁', lockType: '挂锁',
+    manufacturer: '金点原子', model: 'JY-660', sn: 'SN-JY-2024004',
+    installDate: '2024-02-20', status: '正常',
+    lockCylinder: 'B级', material: '铜', keyType: '普通钥匙',
+    totalKeyCount: 4,
+    notes: '厂房大门重型挂锁',
+  } as any);
+
+  // 智能锁密码
+  await DoorLockPassword.create({
+    lockId: smartLock1.id, password: '852046',
+    passwordType: '永久', purpose: '入住',
+    tenantId: tenants[0]?.id || null,
+    startTime: new Date('2024-01-01'),
+    isActive: true, maxUseCount: 0,
+    createdBy: 1, notes: '租客入住密码',
+  } as any);
+
+  await DoorLockPassword.create({
+    lockId: smartLock1.id, password: '369715',
+    passwordType: '临时', purpose: '保洁',
+    startTime: new Date('2026-05-01'),
+    endTime: new Date('2026-06-01'),
+    isActive: true, maxUseCount: 0,
+    createdBy: 1, notes: '5月保洁临时密码',
+  } as any);
+
+  await DoorLockPassword.create({
+    lockId: smartLock2.id, password: '741203',
+    passwordType: '永久', purpose: '入住',
+    tenantId: tenants[1]?.id || null,
+    startTime: new Date('2024-02-01'),
+    isActive: true, maxUseCount: 0,
+    createdBy: 1, notes: '租客入住密码',
+  } as any);
+
+  // 传统锁钥匙
+  await DoorLockKey.create({ lockId: tradLock1.id, keyCode: 'KEY-201-001', keyStatus: '在库', createdBy: 1 } as any);
+  await DoorLockKey.create({ lockId: tradLock1.id, keyCode: 'KEY-201-002', keyStatus: '在库', createdBy: 1 } as any);
+  await DoorLockKey.create({
+    lockId: tradLock1.id, keyCode: 'KEY-201-003',
+    keyStatus: '借出', holderType: '租客',
+    holderName: tenants[0]?.name || '张伟', holderPhone: '13800008888',
+    lendTime: new Date('2026-05-10'),
+    expectedReturnTime: new Date('2026-06-10'),
+    lendReason: '租客入住', createdBy: 1,
+  } as any);
+
+  await DoorLockKey.create({ lockId: tradLock2.id, keyCode: 'KEY-B-001', keyStatus: '在库', createdBy: 1 } as any);
+  await DoorLockKey.create({ lockId: tradLock2.id, keyCode: 'KEY-B-002', keyStatus: '在库', createdBy: 1 } as any);
+  await DoorLockKey.create({
+    lockId: tradLock2.id, keyCode: 'KEY-B-003',
+    keyStatus: '借出', holderType: '管理员',
+    holderName: '王经理', holderPhone: '0512-66668888',
+    lendTime: new Date('2026-04-15'),
+    expectedReturnTime: new Date('2026-05-15'),
+    lendReason: '厂房巡检', createdBy: 1,
+  } as any);
+  await DoorLockKey.create({
+    lockId: tradLock2.id, keyCode: 'KEY-B-004',
+    keyStatus: '借出', holderType: '维修',
+    holderName: '韩师傅', holderPhone: '13900000000',
+    lendTime: new Date('2026-05-12'),
+    expectedReturnTime: new Date('2026-05-20'),
+    lendReason: '设备维修', createdBy: 1,
+  } as any);
+
+  // 操作日志
+  const logBaseTime = Date.now();
+  const logs = [
+    { lockId: smartLock1.id, operationType: '密码开锁', operatorName: tenants[0]?.name || '张伟', operatorType: '租客', result: '成功', detail: '密码开锁' },
+    { lockId: smartLock1.id, operationType: '指纹开锁', operatorName: tenants[0]?.name || '张伟', operatorType: '租客', result: '成功', detail: '指纹开锁' },
+    { lockId: smartLock1.id, operationType: '远程开锁', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '管理员远程开锁' },
+    { lockId: smartLock1.id, operationType: '密码开锁', operatorName: '保洁阿姨', operatorType: '保洁', result: '成功', detail: '保洁密码开锁' },
+    { lockId: smartLock1.id, operationType: '告警', operatorName: '', operatorType: '系统', result: '成功', detail: '电量低于20%告警' },
+    { lockId: smartLock2.id, operationType: '蓝牙开锁', operatorName: tenants[1]?.name || '李娜', operatorType: '租客', result: '成功', detail: '蓝牙开锁' },
+    { lockId: smartLock2.id, operationType: '密码开锁', operatorName: tenants[1]?.name || '李娜', operatorType: '租客', result: '成功', detail: '密码开锁' },
+    { lockId: smartLock2.id, operationType: '告警', operatorName: '', operatorType: '系统', result: '成功', detail: '电量低于30%告警' },
+    { lockId: tradLock1.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-201-003' },
+    { lockId: tradLock1.id, operationType: '钥匙开锁', operatorName: tenants[0]?.name || '张伟', operatorType: '租客', result: '成功', detail: '钥匙开锁' },
+    { lockId: tradLock2.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-B-003 给 王经理' },
+    { lockId: tradLock2.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-B-004 给 韩师傅' },
+    { lockId: tradLock2.id, operationType: '钥匙开锁', operatorName: '韩师傅', operatorType: '维修', result: '成功', detail: '钥匙开锁 - 设备维修' },
+  ];
+
+  for (let i = 0; i < logs.length; i++) {
+    const l = logs[i];
+    await DoorLockLog.create({
+      lockId: l.lockId, operationType: l.operationType,
+      operatorName: l.operatorName, operatorType: l.operatorType,
+      result: l.result, detail: l.detail,
+      createdAt: new Date(logBaseTime - (logs.length - i) * 86400000),
+    } as any);
+  }
+
+  console.log('[Seed] 4 door locks (2 smart + 2 traditional) with demo data created');
+}
+
+const DEFAULT_CLAUSES = [
+  { title: '房屋用途', content: '乙方承诺租赁物业仅用于生产经营用途，不得擅自改变房屋用途。如需变更，应提前30日书面通知甲方并征得甲方书面同意。', type: '标准', sortOrder: 1, isRequired: true },
+  { title: '转租限制', content: '未经甲方书面同意，乙方不得将租赁物业全部或部分转租、分租、转让、抵押或以其他方式处置给第三方。如乙方确需转租，须事先取得甲方书面同意，并按甲方要求补交转租相关费用。', type: '标准', sortOrder: 2, isRequired: true },
+  { title: '装修与改造', content: '乙方如需对租赁物业进行装修、改造或增设附属设施，须事先向甲方提交书面方案（含设计图纸和安全评估）并经甲方书面批准后方可实施。装修期间不得损坏房屋主体结构和承重墙，相关费用由乙方自行承担。', type: '标准', sortOrder: 3, isRequired: false },
+  { title: '安全消防责任', content: '乙方应遵守国家及地方消防安全法规，配备必要的消防器材，定期检查电气线路。因乙方原因造成的火灾、安全事故，由乙方承担全部法律责任和经济赔偿责任。乙方应指定专人负责日常安全检查。', type: '风险', sortOrder: 4, isRequired: true },
+  { title: '环境卫生', content: '乙方应保持租赁物业及周边区域清洁卫生，不得堆放易燃易爆、有毒有害等危险物品。生产经营产生的废弃物须按照环保部门规定分类妥善处理，不得随意倾倒排放。', type: '标准', sortOrder: 5, isRequired: false },
+  { title: '设备维护', content: '租赁期间，乙方应合理使用并妥善维护甲方提供的设备设施。因乙方使用不当造成损坏的，维修费用由乙方承担。日常易损件（灯泡、开关面板、水龙头垫圈等）更换由乙方负责，大型设备维修由甲方负责。', type: '标准', sortOrder: 6, isRequired: false },
+  { title: '水电费用', content: '租赁期间产生的水费、电费由乙方自行承担。乙方应按时向供水供电部门或甲方缴纳费用，不得拖欠。如因乙方欠费导致停水停电、影响生产经营的，由乙方自行承担全部责任和后果。', type: '标准', sortOrder: 7, isRequired: true },
+  { title: '违约责任', content: '乙方逾期支付租金的，每逾期一日应按当期应付租金的千分之五向甲方支付违约金。逾期超过30日的，甲方有权单方解除本合同并要求乙方赔偿全部损失（含租金损失、违约金及甲方追索费用等）。', type: '风险', sortOrder: 8, isRequired: true },
+  { title: '合同解除', content: '有下列情形之一的，甲方有权单方解除本合同：(1)乙方擅自转租、转让或抵押租赁物业的；(2)乙方逾期支付租金累计超过30日的；(3)乙方擅自改变房屋用途的；(4)乙方在租赁物业内从事违法活动的；(5)乙方严重损坏房屋主体结构且拒不修复的。', type: '风险', sortOrder: 9, isRequired: true },
+  { title: '争议解决', content: '本合同在履行过程中发生争议的，双方应首先友好协商解决；协商不成的，任何一方均可向物业所在地有管辖权的人民法院提起诉讼。本合同一式两份，甲乙双方各执一份，具有同等法律效力。', type: '标准', sortOrder: 10, isRequired: true },
+];
+
+export async function seedContractTemplates(): Promise<void> {
+  const existing = await ContractTemplate.findOne();
+  if (existing) {
+    console.log('[Seed] Contract templates already exist, skipping');
+    return;
+  }
+
+  console.log('[Seed] Creating contract templates with default clauses...');
+
+  const propertyTypes = ['厂房', '商铺', '住房'] as const;
+  const typeNames: Record<string, string> = { '厂房': '厂房租赁标准模板', '商铺': '商铺租赁标准模板', '住房': '住房租赁标准模板' };
+
+  for (const propType of propertyTypes) {
+    const template = await ContractTemplate.create({
+      name: typeNames[propType],
+      type: propType,
+      isDefault: true,
+      content: {} as any,
+      terms: {} as any,
+    });
+
+    for (const clause of DEFAULT_CLAUSES) {
+      await ContractClause.create({
+        templateId: template.id,
+        title: clause.title,
+        content: clause.content,
+        type: clause.type,
+        sortOrder: clause.sortOrder,
+        isRequired: clause.isRequired,
+      } as any);
+    }
+  }
+
+  console.log(`[Seed] 3 contract templates × ${DEFAULT_CLAUSES.length} clauses created`);
+}
+
+export async function seedIdCardReaders(): Promise<void> {
+  const { default: IdCardReader } = await import('../models/IdCardReader.js');
+  const count = await IdCardReader.count();
+  if (count > 0) {
+    console.log('[Seed] IdCardReaders already seeded — skipping');
+    return;
+  }
+
+  const readers = [
+    {
+      name: '前台读卡器',
+      brand: '华视' as const,
+      model: 'CVR-100UC',
+      interfaceType: 'USB' as const,
+      port: 'USB1',
+      status: '在线' as const,
+      firmwareVersion: 'V2.3.1',
+      lastReadAt: new Date(),
+    },
+    {
+      name: '办公室读卡器',
+      brand: '新中新' as const,
+      model: 'DKQ-A16D',
+      interfaceType: 'USB' as const,
+      port: 'USB2',
+      status: '未激活' as const,
+      firmwareVersion: 'V1.8.0',
+    },
+  ];
+
+  for (const r of readers) {
+    await IdCardReader.create(r as any);
+  }
+
+  console.log(`[Seed] ${readers.length} id card readers created`);
 }

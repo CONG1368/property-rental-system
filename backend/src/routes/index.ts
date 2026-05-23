@@ -22,6 +22,9 @@ import dictRoutes from './dicts.js';
 import auditLogRoutes from './auditLogs.js';
 import notificationRoutes from './notifications.js';
 import paymentCallbackRoutes from './paymentCallbacks.js';
+import doorLockRoutes from './doorLocks.js';
+import systemConfigRoutes from './systemConfigs.js';
+import idCardReaderRoutes from './idCardReaders.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { requireAdmin, requireRole } from '../middleware/requireRole.js';
 
@@ -42,6 +45,7 @@ router.use('/tenants', authMiddleware, requireRole('管理员', '收租主管', 
 router.use('/bills', authMiddleware, requireRole('管理员', '收租主管', '收租员', '总经理'), billRoutes);
 router.use('/payment-records', authMiddleware, requireRole('管理员', '收租主管', '收租员', '总经理'), paymentRecordRoutes);
 router.use('/dunning', authMiddleware, requireRole('管理员', '收租主管', '收租员', '总经理'), dunningRoutes);
+router.use('/door-locks', authMiddleware, requireRole('管理员', '收租主管', '收租员', '总经理'), doorLockRoutes);
 
 // 财务管理 — 财务主管/会计/出纳/管理员/总经理可访问
 router.use('/vouchers', authMiddleware, requireRole('管理员', '财务主管', '会计', '出纳', '总经理'), voucherRoutes);
@@ -65,6 +69,8 @@ router.use('/notifications', authMiddleware, notificationRoutes);
 router.use('/users', authMiddleware, requireAdmin, userRoutes);
 router.use('/dicts', authMiddleware, requireAdmin, dictRoutes);
 router.use('/audit-logs', authMiddleware, requireAdmin, auditLogRoutes);
+router.use('/system-configs', authMiddleware, requireAdmin, systemConfigRoutes);
+router.use('/id-card-readers', authMiddleware, requireRole('管理员'), idCardReaderRoutes);
 
 // 404 统一 JSON 响应
 router.use((_req, res) => {

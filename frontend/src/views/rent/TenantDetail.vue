@@ -1,6 +1,20 @@
 <template>
   <div class="tenant-detail">
-    <el-page-header @back="$router.back()" :title="tenant?.name || '租客详情'" />
+    <el-page-header @back="$router.back()" :title="tenant?.name || '租客详情'">
+      <template #content>
+        <el-dropdown @command="handlePrint" v-if="tenant" style="margin-left:16px">
+          <el-button type="primary" plain size="small">
+            <el-icon><Printer /></el-icon> 打印 <el-icon><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="native"><el-icon><Printer /></el-icon> 直接打印</el-dropdown-item>
+              <el-dropdown-item command="pdf"><el-icon><Download /></el-icon> 导出PDF</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </template>
+    </el-page-header>
     <el-card class="info-card" style="margin-top:16px">
       <template #header>
         <span>基本信息</span>
@@ -44,7 +58,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { ElMessage } from 'element-plus';
+import { Printer, ArrowDown, Download } from '@element-plus/icons-vue';
 import { getTenant } from '@/api/tenants';
+import request from '@/api/request';
+import { printDocument, formatDate } from '@/utils/print-service';
+import { buildTenantInfoHTML } from '@/components/print/TenantInfoPrint';
 
 const route = useRoute();
 const tenant = ref<any>(null);
@@ -55,4 +74,32 @@ onMounted(async () => {
     tenant.value = res.data;
   } catch {}
 });
+
+async function handlePrint(mode: string) {
+  if (!tenant.value) return;
+  let companyName = '物业租赁管理公司'; let companyLogo = '';
+  try {
+    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo' } });
+    const map: Record<string, string> = {};
+    (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
+    if (map['company_name_for_print']) companyName = map['company_name_for_print'];
+    if (map['company_logo']) companyLogo = map['company_logo'];
+  } catch { /* use defaults */ }
+  const html = buildTenantInfoHTML({
+    name: tenant.value.name, idType: tenant.value.idType, idNumber: tenant.value.idNumber,
+    phone: tenant.value.phone, email: tenant.value.email || '', wechat: tenant.value.wechat || '',
+    contactPerson: tenant.value.contactPerson || '',
+    creditScore: tenant.value.creditScore, creditGrade: tenant.value.creditGrade || '',
+    status: tenant.value.status || '', notes: tenant.value.notes || '',
+    contracts: (tenant.value.contracts || []).map((c: any) => ({
+      contractNo: c.contractNo, rentAmount: Number(c.rentAmount || 0),
+      startDate: c.startDate, endDate: c.endDate, status: c.status,
+    })),
+    companyName, companyLogo,
+  });
+  try {
+    await printDocument({ title: `租客信息_${tenant.value.name}`, paperSize: 'A4', htmlContent: html, mode: mode as any });
+    ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
+  } catch (e: any) { ElMessage.error(e.message || '打印失败'); }
+}
 </script>

@@ -9,9 +9,12 @@
       <el-col :span="4"><el-card><el-statistic title="180天内到期" :value="summary.expiring180" /></el-card></el-col>
       <el-col :span="4"><el-card><el-statistic title="365天内到期" :value="summary.expiring365" /></el-card></el-col>
     </el-row>
+    <el-alert v-if="!wsConnected" title="实时连接已断开，数据可能不是最新" type="warning" :closable="false" show-icon style="margin-bottom:12px">
+      <template #default><el-button size="small" @click="fetchAllData" :loading="loading">手动刷新</el-button></template>
+    </el-alert>
 
     <el-card>
-      <template #header><span>到期日历</span><el-select v-model="viewMonth" style="width:160px; margin-left:12px" @change="fetchData"><el-option v-for="m in months" :key="m" :label="m" :value="m" /></el-select></template>
+      <template #header><span>到期日历</span><el-select v-model="viewMonth" style="width:160px; margin-left:12px" @change="fetchMonthlyData"><el-option v-for="m in months" :key="m" :label="m" :value="m" /></el-select></template>
       <el-table :data="tableData" stripe v-loading="loading">
         <el-table-column prop="contractNo" label="合同编号" width="150" />
         <el-table-column label="房源" width="140"><template #default="{ row }">{{ row.property?.name || '-' }}</template></el-table-column>
@@ -36,18 +39,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import request from '@/api/request';
+import { useWebSocket } from '@/composables/useWebSocket';
 import dayjs from 'dayjs';
 
 const tableData = ref<any[]>([]); const loading = ref(false);
+const allContracts = ref<any[]>([]);
 const viewMonth = ref(dayjs().format('YYYY-MM'));
+const wsConnected = ref(true);
 
 const months = computed(() => {
   const now = dayjs(); const list: string[] = [];
-  // 过去36个月（约3年）
   for (let i = 36; i > 0; i--) { list.push(now.subtract(i, 'month').format('YYYY-MM')); }
-  // 当前月+未来11个月
   for (let i = 0; i < 12; i++) { list.push(now.add(i, 'month').format('YYYY-MM')); }
   return list;
 });
@@ -55,7 +59,8 @@ const months = computed(() => {
 const summary = computed(() => {
   const today = dayjs();
   let expired = 0, expiring7 = 0, expiring30 = 0, expiring90 = 0, expiring180 = 0, expiring365 = 0;
-  for (const c of tableData.value) {
+  const source = allContracts.value.length > 0 ? allContracts.value : tableData.value;
+  for (const c of source) {
     const remaining = dayjs(c.endDate).diff(today, 'day');
     if (remaining < 0) expired++;
     else if (remaining <= 7) { expiring7++; expiring30++; expiring90++; expiring180++; expiring365++; }
@@ -79,7 +84,7 @@ function tagByRemaining(endDate: string) {
   return 'info';
 }
 
-async function fetchData() {
+async function fetchMonthlyData() {
   loading.value = true;
   try {
     const [year, month] = viewMonth.value.split('-');
@@ -90,7 +95,36 @@ async function fetchData() {
   } catch { /* ignore */ } finally { loading.value = false; }
 }
 
-onMounted(() => { fetchData(); });
+async function fetchSummaryData() {
+  try {
+    const res = await request.get('/contracts', { params: { status: '执行中,到期提醒,已到期,已签订', pageSize: 500 } });
+    allContracts.value = res.data?.list || [];
+  } catch { /* ignore */ }
+}
+
+async function fetchAllData() {
+  await Promise.all([fetchMonthlyData(), fetchSummaryData()]);
+}
+
+const { on: wsOn, isConnected } = useWebSocket();
+
+watch(isConnected, (v) => { wsConnected.value = v; }, { immediate: true });
+
+let unsubContractChanged: (() => void) | null = null;
+
+onMounted(() => {
+  fetchAllData();
+  unsubContractChanged = wsOn('contract:status-changed', () => { fetchAllData(); });
+  const unsubCreated = wsOn('contract:created', () => { fetchAllData(); });
+  const unsubRenewed = wsOn('contract:renewed', () => { fetchAllData(); });
+  const unsubDeleted = wsOn('contract:deleted', () => { fetchAllData(); });
+  const orig = unsubContractChanged;
+  unsubContractChanged = () => { orig?.(); unsubCreated?.(); unsubRenewed?.(); unsubDeleted?.(); };
+});
+
+onUnmounted(() => {
+  unsubContractChanged?.();
+});
 </script>
 
 <style lang="scss" scoped>
