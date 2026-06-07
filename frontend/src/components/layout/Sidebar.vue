@@ -57,6 +57,18 @@
       <el-menu-item index="/contract/compliance">合规管理</el-menu-item>
     </el-sub-menu>
 
+    <el-sub-menu index="fire" v-if="canAccessFire">
+      <template #title>
+        <el-icon><Aim /></el-icon>
+        <span>消防管理</span>
+      </template>
+      <el-menu-item index="/fire/dashboard">消防看板</el-menu-item>
+      <el-menu-item index="/fire/inspections">检查记录</el-menu-item>
+      <el-menu-item index="/fire/equipment">器材台账</el-menu-item>
+      <el-menu-item index="/fire/violations">违规记录</el-menu-item>
+      <el-menu-item index="/fire/drills">演练记录</el-menu-item>
+    </el-sub-menu>
+
     <el-sub-menu index="system" v-if="canAccessSystem">
       <template #title>
         <el-icon><Setting /></el-icon>
@@ -73,7 +85,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { HomeFilled, Money, Notebook, DocumentChecked, Setting } from '@element-plus/icons-vue';
+import { HomeFilled, Money, Notebook, DocumentChecked, Setting, Aim } from '@element-plus/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
@@ -116,6 +128,9 @@ const canAccessFinance = computed(() =>
 const canAccessContract = computed(() =>
   ['管理员', '总经理', '合同主管', '法务'].includes(role.value)
 );
+const canAccessFire = computed(() =>
+  ['管理员', '总经理', '收租主管', '收租员', '合同主管'].includes(role.value)
+);
 const canAccessSystem = computed(() => role.value === '管理员');
 </script>
 
@@ -123,5 +138,13 @@ const canAccessSystem = computed(() => role.value === '管理员');
 .sidebar-menu {
   border-right: none;
   height: 100%;
+
+  :deep(.el-sub-menu__title) {
+    font-size: 14px;
+  }
+
+  :deep(.el-menu-item) {
+    font-size: 13px;
+  }
 }
 </style>

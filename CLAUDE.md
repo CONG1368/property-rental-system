@@ -44,6 +44,9 @@ cd frontend && npm run build   # vue-tsc + vite build 输出到 frontend/dist/
 
 # 打包 Electron 安装包
 npm run build:electron         # 先完成前后端构建，再运行此命令
+
+# 生成软件使用说明书 PDF（需先启动 dev 后端）
+node scripts/generate-manual-pdf.js
 ```
 
 **默认登录凭据：** `admin / admin123`（数据库首次启动自动创建）
@@ -78,11 +81,12 @@ npm run build:electron         # 先完成前后端构建，再运行此命令
 │       ├── router/            # 路由定义（hash 模式，token 导航守卫）
 │       ├── composables/       # Vue3 组合式函数（useWebSocket / useIdCardReader）
 │       ├── utils/             # 工具模块（打印服务/头像/凭证存储）
-│       ├── views/             # 页面组件（42个）
+│       ├── views/             # 页面组件（48+个）
 │       │   ├── dashboard/     # 首页概览
 │       │   ├── rent/          # 租赁管理（房源/租客/账单/门锁/催缴/房态看板）
 │       │   ├── finance/       # 财务管理（账套/科目/凭证/费用/税务/预算/报表/看板）
 │       │   ├── contract/      # 合同管理（列表/详情/起草/审批/看板/到期/续约/模板/合规）
+      │   ├── fire/          # 消防管理（看板/检查/器材/违规/演练）
 │       │   └── system/        # 系统设置（用户/打印设置/审计日志/身份证读卡器）
 │       └── api/request.ts     # Axios 实例（baseURL=/api，拦截器处理 token/401）
 ├── backend/                   # Express 后端（ESM 模块）
@@ -155,8 +159,8 @@ Phase 0: setupStartupLogging() + setupGlobalErrorHandlers()
 Phase 1: connectDatabase() → runAllMigrations() → sequelize.sync() → initAdminUser()
          迁移在 sync 前执行——先补旧表缺失列，再建新表
 Phase 2: HTTP + WebSocket 启动（端口 3001，登录立即可用）
-Phase 3: 后台种子数据（seedChartOfAccounts → seedAllDemoData → seedDoorLocks → seedContractTemplates → seedIdCardReaders）
-         幂等执行，失败仅告警不中断，下次重启重试
+Phase 3: 后台种子数据（seedChartOfAccounts → seedAllDemoData → seedDoorLocks → seedContractTemplates → seedIdCardReaders → seedFireSafety）
+         幂等执行，失败仅告警不中断，下次重启重试。seedDataReady 标志在 finally 中设为 true
 Phase 4: connectRedis()（可选，失败自动退化）
 ```
 
@@ -177,7 +181,7 @@ Phase 4: connectRedis()（可选，失败自动退化）
 `electron/main.ts`：
 
 1. `app.whenReady()` → `buildMenu()`（中文菜单栏，macOS/Windows 自适应）→ `spawnBackend()` → `createWindow()`
-2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/物业租赁综合管理系统/data/`，三通道并行检测后端就绪（stdout 多关键字 + 5s 兜底 + HTTP 健康检查轮询 `/api/health`，30s 安全超时）
+2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/物业租赁综合管理系统/data/`，三通道并行检测后端就绪（stdout 多关键字 + 5s 兜底 + HTTP 健康检查轮询 `/api/health`，**60s 安全超时**，适应首次安装建库+迁移+种子数据）
 3. IPC 通道：`get-app-version`、`get-backend-status`、`get-backend-url`、`print-html`、`save-file-dialog`、`open-file-dialog`、`read-id-card`
 4. 开发模式窗口加载 `http://localhost:5173`，生产模式加载 `file://` 协议
 5. 生产模式禁止开发者工具（拦截 `devtools-opened` 事件）
@@ -283,11 +287,13 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 
 | 维度 | 状态 |
 |------|------|
-| 后端路由 24 个模块 | 全部实现 |
-| 后端服务 20 个 | 17 完整 + 3 待第三方 SDK |
-| 前端页面 40 个 | 全部功能完整 |
-| 前后端 API 对齐 | 完全对齐 |
-| TS 编译 | 前后端均 0 错误 |
+| 后端路由 25+ 个模块 | 全部实现 |
+| 后端服务 22 个 | 17 完整 + 3 待第三方 SDK |
+| 前端页面 48+ 个 | 全部功能完整 |
+| 前端 TypeScript | 0 错误 |
+| 后端 TypeScript | 0 错误 |
+
+**已完成的完整新模块**：消防综合管理（4 模型 + 22 端点 + 6 页面）、条款批量导入（3 格式）、合同消防约定、合同起草附件上传。
 
 **仅剩的 3 项工作**（均需第三方服务账号，非代码缺陷）：
 
@@ -298,6 +304,57 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 | `services/notification.ts` 微信/邮件 | 微信公众号模板消息 / nodemailer SMTP |
 
 Mock 模式下这三项均可正常运行（写日志文件），不影响开发调试。
+
+### 消防综合管理模块
+
+**数据模型（4 张新表）**：`FireInspection`（消防检查记录，含 6 项检查维度和综合评分）、`FireEquipment`（消防器材台账，含状态跟踪和过期告警）、`FireViolation`（消防违规记录，含整改流程和罚款管理）、`FireDrill`（消防演练记录，含评分和改进措施）。
+
+所有模型通过 `Property.hasMany()` 关联到房源，关联定义在 `models/index.ts` 中。
+
+**路由**：`/api/fire-safety`（22 个端点），挂载于消防管理角色组（管理员/收租主管/收租员/合同主管/总经理），RBAC 中新增 `fire` 模块权限。
+
+**前端**：`views/fire/` 目录下 6 个页面 — `FireDashboard.vue`（综合看板，含 KPI 卡片、器材状态/检查结果/违规统计、过期器材和待整改列表）、`FireInspectionList.vue`（检查记录 CRUD + 弹窗表单，含 6 项检查 checkbox）、`FireInspectionDetail.vue`（检查详情 + 关联违规）、`FireEquipmentList.vue`（器材台账，过期/即将过期行颜色高亮）、`FireViolationList.vue`（违规记录 + 标记整改操作）、`FireDrillList.vue`（演练记录 CRUD）。
+
+**侧边栏**：新增"消防管理"菜单组（在合同管理和系统设置之间），`Sidebar.vue` 中 `canAccessFire` 控制可见性。
+
+**种子数据**：`seedFireSafety()` — 30+ 件器材、18 条检查记录、3 条违规、2 场演练，已在 `index.ts` Phase 3 中调用。
+
+### 合同消防约定（billingConfig.fireSafety）
+
+`billingConfig` JSON 中新增 `fireSafety` 动态结构：
+
+```typescript
+fireSafety: {
+  clauses: { title: string; content: string }[],  // 动态列表
+  restrictions: string[],                          // 动态列表
+  equipment: string[],                             // 动态列表
+  responsibilityParty: string,                    // 甲方/乙方/双方
+  inspectionFrequency: string,                    // 检查频率
+  violationPenalty: string,                       // 自由文本
+}
+```
+
+**同步位置**：ContractDraft.vue（表单+`buildBillingConfig`+编辑回填+模板加载）、ContractDetail.vue（展示+`handlePrint` 传参）、ContractPrint.ts（`buildFireSafetyHTML` 渲染）。
+
+### 条款批量导入
+
+**后端端点**：
+- `POST /api/contracts/extract-clause-text` — 上传 .docx/.pdf，用 `mammoth`/文本提取返回纯文本
+- `POST /api/contracts/import-clauses` — 两种模式：Excel 文件上传（自动解析列、匹配租客、追加条款到合同）或 JSON body（手动指定租客 ID 和条款列表）
+
+**前端**：`views/contract/ClauseImport.vue` — 三格式上传（Excel 表格预览自动匹配 / Word/PDF 文本提取后手动选租客）
+
+### 种子数据就绪机制
+
+`backend/src/index.ts` 导出 `seedDataReady` 标志，Phase 3 种子数据完成后设为 `true`。`/api/health` 端点返回 `seedReady` 字段，Electron IPC `get-backend-status` 返回 `{ ok, seedReady }`，Login.vue 轮询等待种子数据就绪后才允许登录（避免首次安装时空表查询导致"后端异常"）。
+
+### Axios 静默模式
+
+`request.ts` 支持 `silent: true` 配置项，非关键 API 调用可跳过 `ElMessage.error` toast。同时内置 3 秒相同错误消息去重。
+
+### PDF 打印修复（print-service.ts）
+
+`printPDF()` 改为按区块渲染：`extractBlocksHTML()` 将 HTML 按 `.section`/`.header-row`/`.sign-area` 边界拆分为独立 block，每个 block 独立 `html2canvas` 渲染后按序排入 PDF。不再使用整页截图为单张巨图后固定切割的方式，避免内容被拦腰切断。
 
 ### 门锁管理架构
 
@@ -543,7 +600,8 @@ off('room:status-changed', callback);
 | `verify-esm-build.js` | 验证后端编译产物中所有 ESM import 路径有效 |
 | `full-e2e-test.js` | 全量 E2E 测试（250+ 测试用例） |
 | `generate-icon.js` | 从 build/icon.png 生成各尺寸图标 |
-| `generate-manual-pdf.js` | 从 Markdown 生成说明书 PDF |
+| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（截图 base64 内嵌，跨平台可移植） |
+| `generate-proposal-pdf.js` | 从 Markdown 生成产品方案 PDF |
 | `kill-dev.ps1` | 清理占用开发端口的残留进程（`dev:clean` 调用） |
 | `installer.nsi` | NSIS 安装包脚本 |
 | `7za-wrapper.bat` | 7-Zip 便携版压缩包装器 |

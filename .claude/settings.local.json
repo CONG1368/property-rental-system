@@ -26,7 +26,8 @@
       "Bash(taskkill /F /PID 10444)",
       "Bash(taskkill /F /PID 15196)",
       "Bash(cmd.exe /c \"del /F E:\\\\物业租赁综合管理系统\\\\backend\\\\data\\\\database.sqlite\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(git clone *)"
     ]
   }
 }

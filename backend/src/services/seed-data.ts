@@ -669,14 +669,48 @@ const DEFAULT_CLAUSES = [
   { title: '房屋用途', content: '乙方承诺租赁物业仅用于生产经营用途，不得擅自改变房屋用途。如需变更，应提前30日书面通知甲方并征得甲方书面同意。', type: '标准', sortOrder: 1, isRequired: true },
   { title: '转租限制', content: '未经甲方书面同意，乙方不得将租赁物业全部或部分转租、分租、转让、抵押或以其他方式处置给第三方。如乙方确需转租，须事先取得甲方书面同意，并按甲方要求补交转租相关费用。', type: '标准', sortOrder: 2, isRequired: true },
   { title: '装修与改造', content: '乙方如需对租赁物业进行装修、改造或增设附属设施，须事先向甲方提交书面方案（含设计图纸和安全评估）并经甲方书面批准后方可实施。装修期间不得损坏房屋主体结构和承重墙，相关费用由乙方自行承担。', type: '标准', sortOrder: 3, isRequired: false },
-  { title: '安全消防责任', content: '乙方应遵守国家及地方消防安全法规，配备必要的消防器材，定期检查电气线路。因乙方原因造成的火灾、安全事故，由乙方承担全部法律责任和经济赔偿责任。乙方应指定专人负责日常安全检查。', type: '风险', sortOrder: 4, isRequired: true },
-  { title: '环境卫生', content: '乙方应保持租赁物业及周边区域清洁卫生，不得堆放易燃易爆、有毒有害等危险物品。生产经营产生的废弃物须按照环保部门规定分类妥善处理，不得随意倾倒排放。', type: '标准', sortOrder: 5, isRequired: false },
-  { title: '设备维护', content: '租赁期间，乙方应合理使用并妥善维护甲方提供的设备设施。因乙方使用不当造成损坏的，维修费用由乙方承担。日常易损件（灯泡、开关面板、水龙头垫圈等）更换由乙方负责，大型设备维修由甲方负责。', type: '标准', sortOrder: 6, isRequired: false },
-  { title: '水电费用', content: '租赁期间产生的水费、电费由乙方自行承担。乙方应按时向供水供电部门或甲方缴纳费用，不得拖欠。如因乙方欠费导致停水停电、影响生产经营的，由乙方自行承担全部责任和后果。', type: '标准', sortOrder: 7, isRequired: true },
-  { title: '违约责任', content: '乙方逾期支付租金的，每逾期一日应按当期应付租金的千分之五向甲方支付违约金。逾期超过30日的，甲方有权单方解除本合同并要求乙方赔偿全部损失（含租金损失、违约金及甲方追索费用等）。', type: '风险', sortOrder: 8, isRequired: true },
-  { title: '合同解除', content: '有下列情形之一的，甲方有权单方解除本合同：(1)乙方擅自转租、转让或抵押租赁物业的；(2)乙方逾期支付租金累计超过30日的；(3)乙方擅自改变房屋用途的；(4)乙方在租赁物业内从事违法活动的；(5)乙方严重损坏房屋主体结构且拒不修复的。', type: '风险', sortOrder: 9, isRequired: true },
-  { title: '争议解决', content: '本合同在履行过程中发生争议的，双方应首先友好协商解决；协商不成的，任何一方均可向物业所在地有管辖权的人民法院提起诉讼。本合同一式两份，甲乙双方各执一份，具有同等法律效力。', type: '标准', sortOrder: 10, isRequired: true },
+  /* fire safety */
+  { title: '消防安全责任主体', content: '乙方为承租区域的消防安全第一责任人，须严格遵守《中华人民共和国消防法》及地方消防安全管理规定。因乙方原因（含乙方员工、访客、承包商行为）导致的火灾事故，由乙方承担全部法律责任和经济赔偿责任（含第三方人身财产损失）。乙方法定代表人或指定负责人为消防安全管理人，须在合同签订后7日内向甲方书面报备。', type: '风险', sortOrder: 4, isRequired: true },
+  { title: '消防设施配备与维护', content: '乙方须按国家消防技术规范配备以下消防器材：(1)干粉灭火器（每50㎡至少1具4kg以上）；(2)独立式烟感火灾探测报警器；(3)应急照明灯及疏散指示标志。灭火器须每月自查一次并填写检查记录卡，每年送专业机构检修。甲方有权每季度检查消防设施完好情况，发现隐患乙方须在3日内完成整改并书面回复。', type: '风险', sortOrder: 5, isRequired: true },
+  { title: '装修与用电消防安全', content: '装修材料须达到GB 50222《建筑内部装修设计防火规范》B1级及以上防火标准，并提供材料防火检测报告。电气线路敷设须由持证电工施工，禁止私拉乱接电线。大功率电器（≥2kW）须单独回路并加装漏电保护装置。电气线路须每年由专业机构进行一次安全检测，检测报告提交甲方备案。严禁使用假冒伪劣或未取得3C认证的电气产品。', type: '风险', sortOrder: 6, isRequired: true },
+  { title: '易燃易爆及危险品管理', content: '严禁在租赁区域内储存、使用、生产易燃易爆危险化学品（含汽油、酒精、油漆、液化气、烟花爆竹等）。严禁电动车在室内停放或充电、严禁将电动车电池带入室内充电。如乙方生产经营确需使用少量危险化学品，须事先取得甲方书面同意并报当地应急管理部门备案，同时配备相应消防设施。违规存放的，甲方有权立即清除，清理费用由乙方承担；情节严重的甲方有权单方解除合同并不退还押金。', type: '风险', sortOrder: 7, isRequired: true },
+  { title: '消防通道与疏散管理', content: '乙方不得以任何形式占用、堵塞、封闭疏散通道、安全出口和消防车通道。不得遮挡、圈占、埋压消火栓、灭火器、手动报警按钮等消防设施设备。经营区域内疏散走道净宽度不得小于1.4米，安全出口1.5米范围内不得摆放任何物品。须保持常闭式防火门处于关闭状态，不得上锁。疏散指示标志和应急照明须保持完好有效，每月至少测试一次。', type: '风险', sortOrder: 8, isRequired: true },
+  { title: '消防检查与违规处罚', content: '甲方每季度至少进行一次消防安全检查，检查记录须双方签字确认。乙方须在接到整改通知后按期限完成整改；逾期未整改的，每项每日收取违约金200元，甲方可暂停物业服务直至整改完成。累计3次及以上未按要求整改的，甲方有权单方解除合同，乙方须承担因此产生的一切损失。乙方须每年至少组织一次消防疏散演练并留存记录备查。', type: '风险', sortOrder: 9, isRequired: true },
+  /* other */
+  { title: '环境卫生', content: '乙方应保持租赁物业及周边区域清洁卫生，不得堆放易燃易爆、有毒有害等危险物品。生产经营产生的废弃物须按照环保部门规定分类妥善处理，不得随意倾倒排放。', type: '标准', sortOrder: 10, isRequired: false },
+  { title: '设备维护', content: '租赁期间，乙方应合理使用并妥善维护甲方提供的设备设施。因乙方使用不当造成损坏的，维修费用由乙方承担。日常易损件（灯泡、开关面板、水龙头垫圈等）更换由乙方负责，大型设备维修由甲方负责。', type: '标准', sortOrder: 11, isRequired: false },
+  { title: '水电费用', content: '租赁期间产生的水费、电费由乙方自行承担。乙方应按时向供水供电部门或甲方缴纳费用，不得拖欠。如因乙方欠费导致停水停电、影响生产经营的，由乙方自行承担全部责任和后果。', type: '标准', sortOrder: 12, isRequired: true },
+  { title: '违约责任', content: '乙方逾期支付租金的，每逾期一日应按当期应付租金的千分之五向甲方支付违约金。逾期超过30日的，甲方有权单方解除本合同并要求乙方赔偿全部损失（含租金损失、违约金及甲方追索费用等）。', type: '风险', sortOrder: 13, isRequired: true },
+  { title: '合同解除', content: '有下列情形之一的，甲方有权单方解除本合同：(1)乙方擅自转租、转让或抵押租赁物业的；(2)乙方逾期支付租金累计超过30日的；(3)乙方擅自改变房屋用途的；(4)乙方在租赁物业内从事违法活动的；(5)乙方严重损坏房屋主体结构且拒不修复的。', type: '风险', sortOrder: 14, isRequired: true },
+  { title: '争议解决', content: '本合同在履行过程中发生争议的，双方应首先友好协商解决；协商不成的，任何一方均可向物业所在地有管辖权的人民法院提起诉讼。本合同一式两份，甲乙双方各执一份，具有同等法律效力。', type: '标准', sortOrder: 15, isRequired: true },
 ];
+
+const FIRE_SAFETY_DEFAULTS = {
+  responsibilityParty: '双方',
+  inspectionFrequency: '每季',
+  clauses: [
+    { title: '消防安全责任主体', content: '乙方为承租区域的消防安全第一责任人，须严格遵守《中华人民共和国消防法》及地方消防安全管理规定。因乙方原因导致的火灾事故，由乙方承担全部法律责任和经济赔偿责任。' },
+    { title: '消防设施配备与维护', content: '乙方须按消防规范配备灭火器、独立式烟感报警器等器材，每月自查一次并记录。甲方有权每季检查消防设施完好情况，发现隐患乙方须在3日内整改。' },
+    { title: '装修与用电消防安全', content: '装修材料须达到B1级及以上防火标准，电气线路须由持证电工施工，禁止私拉乱接电线。大功率电器须单独回路并加装漏电保护。' },
+    { title: '易燃易爆及危险品管理', content: '严禁在租赁区域内储存、使用易燃易爆危险品。违规存放的，甲方有权立即清除并要求乙方承担清理费用，情节严重的甲方有权单方解除合同。' },
+    { title: '消防通道与疏散管理', content: '不得以任何形式占用、堵塞、封闭消防通道和安全出口。不得遮挡消火栓、灭火器等消防设施。须保持疏散指示标志和应急照明完好有效。' },
+    { title: '消防检查与违规处罚', content: '甲方每季至少进行一次消防安全检查，检查记录双方签字确认。逾期未整改的，每项每日收取违约金200元；累计3次未整改的，甲方有权解除合同。' },
+  ],
+  restrictions: [
+    '禁止使用明火作业（如电焊、气割等，经甲方书面同意的除外）',
+    '禁止在租赁区域内存放汽油、酒精、油漆等易燃易爆物品',
+    '禁止电动车在室内停放或充电、禁止将电池带入室内充电',
+    '禁止擅自改变消防设施用途或拆除消防设备',
+  ],
+  equipment: [
+    '干粉灭火器（≥2具，每50㎡至少1具4kg以上）',
+    '独立式烟感火灾探测报警器',
+    '应急照明灯',
+    '疏散指示标志',
+    '消防水带',
+  ],
+  violationPenalty: '逾期未整改的，每项每日收取违约金200元；累计3次及以上未整改的，甲方有权单方解除合同。',
+};
 
 export async function seedContractTemplates(): Promise<void> {
   const existing = await ContractTemplate.findOne();
@@ -695,7 +729,7 @@ export async function seedContractTemplates(): Promise<void> {
       name: typeNames[propType],
       type: propType,
       isDefault: true,
-      content: {} as any,
+      content: { fireSafetyDefaults: FIRE_SAFETY_DEFAULTS } as any,
       terms: {} as any,
     });
 
@@ -749,4 +783,91 @@ export async function seedIdCardReaders(): Promise<void> {
   }
 
   console.log(`[Seed] ${readers.length} id card readers created`);
+}
+
+export async function seedFireSafety(): Promise<void> {
+  const { default: FireInspection } = await import('../models/FireInspection.js');
+  const { default: FireEquipment } = await import('../models/FireEquipment.js');
+  const { default: FireViolation } = await import('../models/FireViolation.js');
+  const { default: FireDrill } = await import('../models/FireDrill.js');
+  const { default: Property } = await import('../models/Property.js');
+
+  const existing = await FireInspection.findOne();
+  if (existing) { console.log('[Seed] Fire safety data already exists, skipping'); return; }
+
+  console.log('[Seed] Creating fire safety demo data...');
+  const properties = await Property.findAll({ limit: 6, raw: true });
+
+  // 器材 — 每房源5-6件
+  const equipmentData = [
+    { category: '灭火器', name: '干粉灭火器 MFZ/ABC4', model: 'MFZ/ABC4', quantity: 2, location: '走廊东侧', status: '正常', nextCheckDate: '2026-12-31' },
+    { category: '灭火器', name: '二氧化碳灭火器 MT/3', model: 'MT/3', quantity: 1, location: '配电房', status: '正常', nextCheckDate: '2026-09-15' },
+    { category: '烟感报警器', name: '独立式烟感火灾探测器', model: 'JTY-GD-802', quantity: 3, location: '天花板', status: '正常', nextCheckDate: '2026-08-01' },
+    { category: '应急照明', name: '双头应急照明灯', model: 'MJ-ZLZD-E18W', quantity: 2, location: '安全出口上方', status: '即将过期', nextCheckDate: '2026-07-01' },
+    { category: '疏散标志', name: 'LED安全出口指示牌', model: 'LED-101', quantity: 2, location: '走廊转角', status: '正常', nextCheckDate: '2027-01-01' },
+    { category: '消火栓', name: '室内消火栓 SN65', model: 'SN65', quantity: 1, location: '楼梯口', status: '正常', nextCheckDate: '2026-11-01' },
+    { category: '灭火器', name: '干粉灭火器 MFZ/ABC4', model: 'MFZ/ABC4-old', quantity: 1, location: '仓库', status: '已过期', nextCheckDate: '2025-06-01' },
+    { category: '防火门', name: '钢制乙级防火门', model: 'GFM-1021', quantity: 1, location: '楼梯间', status: '待维修', nextCheckDate: '2026-06-30' },
+  ];
+
+  for (const p of properties) {
+    const eqs = equipmentData.slice(0, 4 + (p.id % 3)); // 每房源4-6件
+    for (const e of eqs) {
+      await FireEquipment.create({
+        propertyId: (p as any).id, ...e,
+        purchaseDate: '2024-01-15', expiryDate: '2028-01-15',
+        lastCheckDate: '2026-03-01', manufacturer: '消防器材有限公司',
+      } as any);
+    }
+  }
+
+  // 检查记录 — 每房源2-3条
+  const now = new Date();
+  for (const p of properties) {
+    for (let i = 2; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      await FireInspection.create({
+        propertyId: (p as any).id, inspectorId: 1,
+        inspectionDate: d.toISOString().slice(0, 10),
+        type: i === 0 ? '季度检查' : '日常巡查',
+        result: i === 1 ? '限期整改' : '合格',
+        overallScore: i === 1 ? 72 : 95,
+        fireExtinguisherOk: i !== 1, smokeAlarmOk: true,
+        emergencyLightOk: i !== 1, escapeRouteOk: true,
+        electricalOk: true, flammableOk: i !== 1,
+        notes: i === 1 ? '灭火器过期需更换，应急灯故障需维修' : '',
+        nextInspectionDate: new Date(now.getFullYear(), now.getMonth() + 3, 1).toISOString().slice(0, 10),
+      } as any);
+    }
+  }
+
+  // 违规记录
+  const inspections = await FireInspection.findAll({ where: { result: '限期整改' }, limit: 3, raw: true });
+  for (const insp of inspections) {
+    await FireViolation.create({
+      propertyId: (insp as any).propertyId, inspectionId: (insp as any).id,
+      tenantId: null, violationDate: (insp as any).inspectionDate,
+      category: '器材缺失', severity: '一般隐患',
+      description: '灭火器已过有效期，应急照明灯故障不亮',
+      rectificationRequirement: '7日内更换过期灭火器并修复应急灯',
+      deadline: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+      status: '待整改', penaltyAmount: 0, penaltyStatus: '无罚款',
+      operatorId: 1,
+    } as any);
+  }
+
+  // 演练记录
+  for (const p of properties.slice(0, 2)) {
+    await FireDrill.create({
+      propertyId: (p as any).id,
+      drillDate: new Date(now.getFullYear(), now.getMonth() - 1, 15).toISOString().slice(0, 10),
+      type: '综合演练', organizer: '物业管理处',
+      participantCount: 25, duration: 45, evacuationTime: 180,
+      score: 88, summary: '全体人员有序疏散，灭火器使用规范，应急响应流程顺畅',
+      issues: '个别人员未按指定路线疏散，集合点清点人数耗时较长',
+      improvementPlan: '下次演练前增加疏散路线培训，设置专人负责人数清点',
+    } as any);
+  }
+
+  console.log('[Seed] Fire safety demo data created');
 }

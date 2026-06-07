@@ -147,17 +147,19 @@ let backendReady = false;
 // IPC 处理器
 ipcMain.handle('get-app-version', () => app.getVersion());
 
-// 真实后端状态检测 — 通过 HTTP 健康检查确认后端是否就绪
-ipcMain.handle('get-backend-status', async () => {
-  try {
-    const resp = await fetch('http://localhost:3001/api/health');
-    backendReady = resp.ok;
-    return backendReady;
-  } catch {
-    backendReady = false;
-    return false;
-  }
-});
+	// 真实后端状态检测 — 通过 HTTP 健康检查确认后端是否就绪（含种子数据状态）
+	ipcMain.handle('get-backend-status', async () => {
+	  try {
+	    const resp = await fetch('http://localhost:3001/api/health');
+	    if (!resp.ok) { backendReady = false; return { ok: false, seedReady: false }; }
+	    const body = await resp.json();
+	    backendReady = true;
+	    return { ok: true, seedReady: body?.data?.seedReady ?? false };
+	  } catch {
+	    backendReady = false;
+	    return { ok: false, seedReady: false };
+	  }
+	});
 
 ipcMain.handle('get-backend-url', () => 'http://localhost:3001');
 

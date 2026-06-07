@@ -12,12 +12,27 @@ import dayjs from 'dayjs';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import XLSX from 'xlsx';
+import mammoth from 'mammoth';
+
 
 const router = Router();
 
 // 合同文件上传
 const contractUploadDir = 'uploads/contracts';
 if (!fs.existsSync(contractUploadDir)) fs.mkdirSync(contractUploadDir, { recursive: true });
+const importUploadDir = 'uploads/imports';
+if (!fs.existsSync(importUploadDir)) fs.mkdirSync(importUploadDir, { recursive: true });
+const importUpload = multer({
+  dest: importUploadDir,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowed = ['.xlsx', '.xls', '.docx', '.pdf'];
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('仅支持 Excel/Word/PDF 格式'));
+  },
+});
 const contractUpload = multer({
   dest: contractUploadDir,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
@@ -254,6 +269,131 @@ router.delete('/:id', async (req: AuthRequest, res) => {
     broadcast('contract:deleted', { contractId: Number(req.params.id), contractNo: (contract as any).contractNo, timestamp: Date.now() });
     res.json({ code: 200, message: '合同已删除' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
+// POST /import-clauses — 批量导入条款（Excel自动匹配 / JSON手动模式）
+router.post('/import-clauses', (req: AuthRequest, res, next) => {
+  // 判断是文件上传还是JSON模式
+  if (req.headers['content-type']?.includes('multipart/form-data')) {
+    importUpload.single('file')(req, res, (err) => {
+      if (err) return res.status(400).json({ code: 400, message: err.message });
+      handleExcelImport(req, res);
+    });
+  } else {
+    handleJsonImport(req, res);
+  }
+});
+
+async function handleExcelImport(req: AuthRequest, res: any) {
+  try {
+    const file = (req as any).file;
+    if (!file) return res.status(400).json({ code: 400, message: '请上传文件' });
+    const wb = XLSX.readFile(file.path);
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+    if (rows.length === 0) return res.status(400).json({ code: 400, message: '文件中无数据' });
+
+    const result = { total: rows.length, matchedTenants: 0, unmatched: [] as string[], updatedContracts: 0, skippedNoContract: 0 };
+    for (const row of rows) {
+      const tenantName = row['租客姓名'] || row['name'] || '';
+      const tenantPhone = row['租客手机'] || row['phone'] || '';
+      const clauseTitle = row['条款标题'] || row['title'] || '';
+      const clauseContent = row['条款内容'] || row['content'] || '';
+      const sortOrder = parseInt(row['排序'] || row['sortOrder'] || '999');
+
+      if (!tenantName || !clauseTitle || !clauseContent) continue;
+
+      const where: any = { name: tenantName };
+      if (tenantPhone) where.phone = tenantPhone;
+      const tenant = await Tenant.findOne({ where });
+      if (!tenant) { result.unmatched.push(tenantName); continue; }
+      result.matchedTenants++;
+
+      const contracts = await Contract.findAll({
+        where: { tenantId: (tenant as any).id, status: { [Op.in]: ['执行中', '已签订'] } },
+      });
+      if (contracts.length === 0) { result.skippedNoContract++; continue; }
+
+      for (const c of contracts) {
+        const existing: any[] = Array.isArray((c as any).clauses) ? (c as any).clauses : [];
+        existing.push({ title: clauseTitle, content: clauseContent, sortOrder });
+        (c as any).clauses = existing;
+        (c as any).changed('clauses', true);
+        await c.save();
+        result.updatedContracts++;
+      }
+    }
+
+    try { fs.unlinkSync(file.path); } catch {}
+    res.json({ code: 200, data: result, message: `成功导入${result.updatedContracts}个合同，未匹配${result.unmatched.length}个租客` });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '导入失败' });
+  }
+}
+
+async function handleJsonImport(req: AuthRequest, res: any) {
+  try {
+    const { tenantIds, clauses } = req.body;
+    if (!Array.isArray(tenantIds) || tenantIds.length === 0) return res.status(400).json({ code: 400, message: '请提供租客ID列表' });
+    if (!Array.isArray(clauses) || clauses.length === 0) return res.status(400).json({ code: 400, message: '请提供条款列表' });
+
+    let updatedContracts = 0;
+    const skippedNoContract: number[] = [];
+
+    for (const tenantId of tenantIds) {
+      const contracts = await Contract.findAll({
+        where: { tenantId, status: { [Op.in]: ['执行中', '已签订'] } },
+      });
+      if (contracts.length === 0) { skippedNoContract.push(tenantId); continue; }
+
+      for (const c of contracts) {
+        const existing: any[] = Array.isArray((c as any).clauses) ? (c as any).clauses : [];
+        for (const clause of clauses) {
+          existing.push({ title: clause.title || '', content: clause.content || '', sortOrder: clause.sortOrder || 999 });
+        }
+        (c as any).clauses = existing;
+        (c as any).changed('clauses', true);
+        await c.save();
+        updatedContracts++;
+      }
+    }
+
+    res.json({
+      code: 200,
+      data: { updatedContracts, skippedTenantIds: skippedNoContract, totalClauses: clauses.length * updatedContracts },
+      message: `成功为${updatedContracts}个合同追加条款`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '导入失败' });
+  }
+}
+
+// POST /extract-clause-text — 提取 Word/PDF 文本
+router.post('/extract-clause-text', importUpload.single('file'), async (req: AuthRequest, res) => {
+  try {
+    const file = (req as any).file;
+    if (!file) return res.status(400).json({ code: 400, message: '请上传文件' });
+    const ext = path.extname(file.originalname).toLowerCase();
+    let text = '';
+
+    if (ext === '.docx') {
+      const result = await mammoth.extractRawText({ path: file.path });
+      text = result.value;
+    } else if (ext === '.pdf') {
+      const buf = fs.readFileSync(file.path);
+      const str = buf.toString('utf-8');
+      text = str.replace(/[^一-鿿　-〿＀-￯a-zA-Z0-9\s.,;:!?。，、\n\r]/g, ' ').replace(/\s{2,}/g, '\n').trim();
+      if (text.length < 50) text = '(此PDF为扫描件或图片格式，请使用OCR工具转换后重试)';
+    } else {
+      try { fs.unlinkSync(file.path); } catch {}
+      return res.status(400).json({ code: 400, message: '仅支持 .docx 和 .pdf 格式' });
+    }
+
+    try { fs.unlinkSync(file.path); } catch {}
+    res.json({ code: 200, data: { text: text.trim(), fileName: file.originalname, size: file.size } });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '文本提取失败' });
+  }
 });
 
 export default router;

@@ -11,9 +11,6 @@ export interface PrintOptions {
   mode?: PrintMode;
 }
 
-/**
- * 统一打印服务 — 支持系统原生打印（Electron）和 PDF 导出两种模式
- */
 export async function printDocument(options: PrintOptions): Promise<void> {
   if (options.mode === 'native') {
     return printNative(options.htmlContent, options.title);
@@ -21,22 +18,17 @@ export async function printDocument(options: PrintOptions): Promise<void> {
   return printPDF(options);
 }
 
-/** 获取当前运行环境 */
 export function isElectron(): boolean {
   return !!(window as any).electronAPI;
 }
 
-/** 弹出打印模式选择（桌面端有原生选项，浏览器只支持PDF） */
 export function showPrintMenu(options: PrintOptions): void {
   if (isElectron() && options.mode === undefined) {
-    // 直接调用，由页面层弹选择菜单
     throw new Error('print mode required');
   }
   const mode = isElectron() ? (options.mode || 'pdf') : 'pdf';
   printDocument({ ...options, mode });
 }
-
-// ====== PDF 导出 ======
 
 const PAPER_SIZES: Record<string, { pageW: number; pageH: number; orientation: 'portrait' | 'landscape' }> = {
   'A4': { pageW: 210, pageH: 297, orientation: 'portrait' },
@@ -48,56 +40,79 @@ async function printPDF(options: PrintOptions): Promise<void> {
   const { title, paperSize, htmlContent } = options;
   const size = PAPER_SIZES[paperSize] || PAPER_SIZES['A4'];
   const now = new Date().toISOString().slice(0, 10);
-
-  // 创建离屏渲染容器
-  const container = document.createElement('div');
-  container.innerHTML = htmlContent;
+  const margin = paperSize === '80mm' ? 4 : 8;
+  const usableW = size.pageW - margin * 2;
+  const usableH = size.pageH - margin * 2;
   const width = paperSize === '80mm' ? '302px' : '760px';
-  container.style.cssText = `position:fixed;left:-9999px;top:0;width:${width};font-family:"Microsoft YaHei","SimHei","PingFang SC",sans-serif;font-size:12px;color:#333;background:#fff;padding:16px;z-index:-1;`;
-  document.body.appendChild(container);
 
-  try {
-    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    document.body.removeChild(container);
+  const styleMatch = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+  const styleTag = styleMatch ? '<style>' + styleMatch[1] + '</style>' : '';
 
-    const imgData = canvas.toDataURL('image/png');
-    const margin = paperSize === '80mm' ? 4 : 8;
-    const usableW = size.pageW - margin * 2;
-    const usableH = size.pageH - margin * 2;
-    const imgW = usableW;
-    const imgH = (canvas.height * usableW) / canvas.width;
+  const blocksHTML = extractBlocksHTML(htmlContent);
 
-    const doc = new jsPDF({ orientation: size.orientation, unit: 'mm', format: paperSize === '80mm' ? [80, 297] : 'a4' });
+  const doc = new jsPDF({ orientation: size.orientation, unit: 'mm', format: paperSize === '80mm' ? [80, 297] : 'a4' });
+  let currentY = margin;
 
-    let heightLeft = imgH;
-    let position = margin;
-    let pageNum = 0;
+  for (let i = 0; i < blocksHTML.length; i++) {
+    const blockContainer = document.createElement('div');
+    blockContainer.innerHTML = styleTag + blocksHTML[i];
+    blockContainer.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + width + ';background:#fff;z-index:-1;';
+    document.body.appendChild(blockContainer);
 
-    doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
-    heightLeft -= usableH;
-    pageNum++;
+    try {
+      const canvas = await html2canvas(blockContainer, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      document.body.removeChild(blockContainer);
 
-    while (heightLeft > 0) {
-      doc.addPage();
-      position = -(usableH * pageNum) + margin;
-      doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
-      heightLeft -= usableH;
-      pageNum++;
+      const imgData = canvas.toDataURL('image/png');
+      const imgW = usableW;
+      const imgH = (canvas.height * usableW) / canvas.width;
+
+      if (i > 0 && currentY + imgH > margin + usableH) {
+        doc.addPage();
+        currentY = margin;
+      }
+
+      doc.addImage(imgData, 'PNG', margin, currentY, imgW, imgH);
+      currentY += imgH;
+    } catch {
+      if (document.body.contains(blockContainer)) document.body.removeChild(blockContainer);
+      throw new Error('PDF生成失败');
     }
-
-    doc.save(`${title}_${now}.pdf`);
-  } catch {
-    if (document.body.contains(container)) document.body.removeChild(container);
-    throw new Error('PDF生成失败');
   }
+
+  doc.save(title + '_' + now + '.pdf');
 }
 
-// ====== 原生打印（Electron） ======
+function extractBlocksHTML(html: string): string[] {
+  const blocks: string[] = [];
+  const pageMatch = html.match(/<div class="page"[^>]*>([\s\S]*?)<\/div>\s*(?:<\/body>|$)/);
+  if (!pageMatch) return [html];
+
+  const inner = pageMatch[1];
+  const splitRegex = /(<div class="(?:section|header-row|sign-area)"[^>]*>[\s\S]*?<\/div>\s*(?=<div class="(?:section|header-row|sign-area)"|$))/g;
+  let match;
+  let lastIndex = 0;
+
+  while ((match = splitRegex.exec(inner)) !== null) {
+    if (match.index > lastIndex) {
+      const before = inner.slice(lastIndex, match.index).trim();
+      if (before) blocks.push('<div class="page">' + before + '</div>');
+    }
+    blocks.push('<div class="page">' + match[1] + '</div>');
+    lastIndex = match.index + match[1].length;
+  }
+
+  if (lastIndex < inner.length) {
+    const after = inner.slice(lastIndex).trim();
+    if (after) blocks.push('<div class="page">' + after + '</div>');
+  }
+
+  return blocks.length > 0 ? blocks : [html];
+}
 
 async function printNative(htmlContent: string, title: string): Promise<void> {
   const api = (window as any).electronAPI;
-  if (!api?.printHTML) {
-    // 退化到 PDF 模式
+  if (!api || !api.printHTML) {
     return printPDF({ title, paperSize: 'A4', htmlContent, mode: 'pdf' });
   }
 
@@ -111,9 +126,6 @@ async function printNative(htmlContent: string, title: string): Promise<void> {
   }
 }
 
-// ====== 辅助工具 ======
-
-/** 将金额转为大写汉字 */
 export function toChineseAmount(n: number): string {
   if (n === 0) return '零元整';
   const units = ['', '拾', '佰', '仟', '万'];
@@ -155,7 +167,6 @@ export function toChineseAmount(n: number): string {
   return result;
 }
 
-/** 格式化日期 */
 export function formatDate(date: Date | string | null | undefined, fmt = 'YYYY-MM-DD'): string {
   if (!date) return '-';
   const d = new Date(date);

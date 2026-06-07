@@ -138,6 +138,43 @@
       </el-descriptions>
     </el-card>
 
+    <!-- 消防安全约定 -->
+    <el-card style="margin-top:16px" v-if="contract && (fireSafety.clauses?.length || fireSafety.restrictions?.length)">
+      <template #header><span>消防安全约定</span></template>
+      <el-descriptions :column="2" border size="small">
+        <el-descriptions-item label="消防责任方">{{ fireSafety.responsibilityParty || '--' }}</el-descriptions-item>
+        <el-descriptions-item label="检查频率">{{ fireSafety.inspectionFrequency || '--' }}</el-descriptions-item>
+      </el-descriptions>
+      <!-- 消防器材 -->
+      <div style="margin-top:12px" v-if="fireSafety.equipment?.length">
+        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">配备消防器材：</p>
+        <el-tag v-for="(e,i) in fireSafety.equipment" :key="i" size="small" type="success" style="margin-right:8px;margin-bottom:4px">{{ e }}</el-tag>
+      </div>
+      <!-- 禁止事项 -->
+      <div style="margin-top:12px" v-if="fireSafety.restrictions?.length">
+        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">禁止事项：</p>
+        <el-tag v-for="(r,i) in fireSafety.restrictions" :key="i" size="small" type="danger" style="margin-right:8px;margin-bottom:4px">{{ r }}</el-tag>
+      </div>
+      <!-- 消防条款 -->
+      <div style="margin-top:16px" v-if="fireSafety.clauses?.length">
+        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">消防安全条款：</p>
+        <el-timeline>
+          <el-timeline-item v-for="(c,i) in fireSafety.clauses" :key="i" :timestamp="'第'+(i+1)+'条'" placement="top">
+            <el-card shadow="hover" size="small">
+              <h4 style="margin:0 0 8px;color:#0A3D62">{{ c.title || '(无标题)' }}</h4>
+              <p style="margin:0;font-size:13px;color:#606266;white-space:pre-wrap">{{ c.content }}</p>
+            </el-card>
+          </el-timeline-item>
+        </el-timeline>
+      </div>
+      <!-- 违规处罚 -->
+      <div style="margin-top:12px" v-if="fireSafety.violationPenalty">
+        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 4px">违规处罚：</p>
+        <p style="font-size:13px;color:#e74c3c;margin:0;line-height:1.8">{{ fireSafety.violationPenalty }}</p>
+      </div>
+      <el-empty v-if="!fireSafety.clauses?.length && !fireSafety.restrictions?.length && !fireSafety.equipment?.length" description="暂无消防约定" :image-size="40" />
+    </el-card>
+
     <!-- 合同附件 -->
     <el-card style="margin-top:16px" v-if="contract">
       <template #header>
@@ -278,6 +315,7 @@ const paymentCycleLabel = computed(() => {
 });
 
 const bcDetail = computed(() => contract.value?.billingConfig || {});
+const fireSafety = computed(() => bcDetail.value.fireSafety || {});
 const taxType = computed(() => bcDetail.value.taxType || '含税');
 const taxRate = computed(() => bcDetail.value.taxRate ?? 5);
 const invoiceType = computed(() => bcDetail.value.invoiceType || '增值税普通发票');
@@ -385,6 +423,7 @@ async function handlePrint(mode: string) {
       terminationNotice: bc.terminationNotice ?? 30,
       renewalNotice: bc.renewalNotice ?? 30,
       subletAllowed: bc.subletAllowed ?? false,
+      fireSafety: fireSafety.value,
       ...info,
     });
     await printDocument({ title: `租赁合同_${contract.value.contractNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });

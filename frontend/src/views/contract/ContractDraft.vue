@@ -190,6 +190,75 @@
       </el-row>
     </el-card>
 
+    <!-- 消防安全约定 -->
+    <el-card style="margin-bottom:16px">
+      <template #header><span>消防安全约定</span></template>
+      <el-row :gutter="16">
+        <el-col :span="12">
+          <el-form-item label="消防责任方">
+            <el-radio-group v-model="fireResponsibilityParty" size="small">
+              <el-radio-button value="甲方">甲方</el-radio-button>
+              <el-radio-button value="乙方">乙方</el-radio-button>
+              <el-radio-button value="双方">双方</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="检查频率">
+            <el-select v-model="fireInspectionFrequency" size="small" style="width:100%">
+              <el-option label="每月" value="每月" />
+              <el-option label="每季" value="每季" />
+              <el-option label="每半年" value="每半年" />
+              <el-option label="每年" value="每年" />
+            </el-select>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <!-- 消防条款 -->
+      <div style="margin-top:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:bold;color:#303133">消防条款</span>
+          <el-button size="small" type="primary" text @click="addFireClause">+ 添加</el-button>
+        </div>
+        <div v-for="(c,i) in fireSafetyClauses" :key="i" style="margin-bottom:8px;padding:10px;border:1px solid #e0e0e0;border-radius:4px">
+          <div style="display:flex;gap:8px;margin-bottom:6px">
+            <el-input v-model="c.title" placeholder="条款标题" size="small" style="flex:1" />
+            <el-button size="small" type="danger" @click="removeFireClause(i)">删除</el-button>
+          </div>
+          <el-input v-model="c.content" type="textarea" :rows="2" placeholder="条款内容" size="small" />
+        </div>
+        <el-empty v-if="fireSafetyClauses.length === 0" description="暂无消防条款，点击添加" :image-size="30" />
+      </div>
+      <!-- 消防限制 -->
+      <div style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:bold;color:#303133">禁止事项</span>
+          <el-button size="small" type="danger" text @click="addFireRestriction">+ 添加</el-button>
+        </div>
+        <div v-for="(r,i) in fireSafetyRestrictions" :key="i" style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+          <el-input v-model="fireSafetyRestrictions[i]" placeholder="禁止事项内容" size="small" style="flex:1" />
+          <el-button size="small" type="danger" @click="removeFireRestriction(i)">删除</el-button>
+        </div>
+        <el-empty v-if="fireSafetyRestrictions.length === 0" description="暂无禁止事项，点击添加" :image-size="30" />
+      </div>
+      <!-- 消防器材 -->
+      <div style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:bold;color:#303133">消防器材要求</span>
+          <el-button size="small" type="success" text @click="addFireEquipment">+ 添加</el-button>
+        </div>
+        <div v-for="(e,i) in fireSafetyEquipment" :key="i" style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+          <el-input v-model="fireSafetyEquipment[i]" placeholder="器材名称，如：4kg干粉灭火器×2具" size="small" style="flex:1" />
+          <el-button size="small" type="danger" @click="removeFireEquipment(i)">删除</el-button>
+        </div>
+        <el-empty v-if="fireSafetyEquipment.length === 0" description="暂无消防器材要求，点击添加" :image-size="30" />
+      </div>
+      <!-- 违规处罚 -->
+      <el-form-item label="违规处罚措施" style="margin-top:16px">
+        <el-input v-model="fireViolationPenalty" type="textarea" :rows="2" placeholder="如：逾期未整改的，每项每日收取违约金200元；累计3次未整改的，甲方有权解除合同。" />
+      </el-form-item>
+    </el-card>
+
     <!-- 合同模板选择 -->
     <el-card style="margin-bottom:16px">
       <template #header><span>合同条款模板</span></template>
@@ -217,6 +286,31 @@
       <el-empty v-if="clauses.length === 0" description="暂无条款，请选择模板或手动添加" :image-size="40" />
     </el-card>
 
+    <!-- 合同附件（保存后可用） -->
+    <el-card style="margin-top:16px" v-if="savedContractId">
+      <template #header>
+        <span>合同附件</span>
+        <el-upload
+          :action="apiBaseURL + '/contracts/' + savedContractId + '/upload'"
+          :headers="uploadHeaders"
+          multiple
+          :show-file-list="false"
+          :on-success="onUploadSuccess"
+          :on-error="onUploadError"
+          :before-upload="() => { uploading = true }"
+          style="display:inline-block;margin-left:16px"
+        >
+          <el-button size="small" type="primary" :loading="uploading">上传文件</el-button>
+        </el-upload>
+        <span style="font-size:12px;color:#909399;margin-left:8px">PDF / Word / 图片 / Excel，单文件 ≤10MB</span>
+      </template>
+      <el-table :data="attachments" size="small" empty-text="暂无附件">
+        <el-table-column prop="name" label="文件名" min-width="200" show-overflow-tooltip />
+        <el-table-column label="大小" width="100"><template #default="{ row }">{{ formatFileSize(row.size) }}</template></el-table-column>
+        <el-table-column prop="uploadedAt" label="上传时间" width="170"><template #default="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template></el-table-column>
+      </el-table>
+    </el-card>
+
     <el-button type="primary" style="margin-top:16px" @click="handleSave">保存草稿</el-button>
     <el-button type="success" style="margin-top:16px" @click="handleSubmit">提交审批</el-button>
   </div>
@@ -231,11 +325,36 @@ import request from '@/api/request';
 
 const route = useRoute(); const router = useRouter();
 const isEdit = computed(() => !!route.params.id);
+const savedContractId = computed(() => route.params.id ? Number(route.params.id) : null);
 
 const properties = ref<any[]>([]);
 const tenants = ref<any[]>([]);
 const templates = ref<any[]>([]);
 const clauses = ref<{ title: string; content: string; sortOrder: number }[]>([]);
+
+// 附件上传
+const apiBaseURL = import.meta.env.PROD ? 'http://localhost:3001/api' : '/api';
+const uploadHeaders = computed(() => ({ Authorization: 'Bearer ' + localStorage.getItem('accessToken') }));
+const attachments = ref<any[]>([]);
+const uploading = ref(false);
+
+function formatFileSize(bytes: number) {
+  if (!bytes) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+async function fetchAttachments() {
+  if (!savedContractId.value) return;
+  try {
+    const res = await request.get('/contracts/' + savedContractId.value + '/files');
+    attachments.value = Array.isArray(res.data) ? res.data : [];
+  } catch { /* ignore */ }
+}
+
+function onUploadSuccess() { fetchAttachments(); ElMessage.success('上传成功'); }
+function onUploadError() { ElMessage.error('上传失败'); }
 
 const form = reactive({
   contractNo: 'HT-' + Date.now(),
@@ -270,6 +389,21 @@ const maintenanceParty = ref('甲方');
 const terminationNotice = ref(30);
 const renewalNotice = ref(30);
 const subletAllowed = ref(false);
+
+// 消防约定
+const fireSafetyClauses = ref<{ title: string; content: string }[]>([]);
+const fireSafetyRestrictions = ref<string[]>([]);
+const fireSafetyEquipment = ref<string[]>([]);
+const fireResponsibilityParty = ref('双方');
+const fireInspectionFrequency = ref('每季');
+const fireViolationPenalty = ref('');
+
+function addFireClause() { fireSafetyClauses.value.push({ title: '', content: '' }); }
+function removeFireClause(i: number) { fireSafetyClauses.value.splice(i, 1); }
+function addFireRestriction() { fireSafetyRestrictions.value.push(''); }
+function removeFireRestriction(i: number) { fireSafetyRestrictions.value.splice(i, 1); }
+function addFireEquipment() { fireSafetyEquipment.value.push(''); }
+function removeFireEquipment(i: number) { fireSafetyEquipment.value.splice(i, 1); }
 
 function onPaymentMethodChange(val: string) {
   if (val !== '银行汇款') {
@@ -339,6 +473,17 @@ async function onTemplateChange(templateId: number | null) {
     if (template.content?.defaultDeposit && !form.depositAmount) form.depositAmount = Number(template.content.defaultDeposit);
     if (template.content?.defaultPaymentCycle && form.paymentCycle === '月') form.paymentCycle = template.content.defaultPaymentCycle;
 
+    // 同步消防默认值
+    if (template.content?.fireSafetyDefaults) {
+      const fsd = template.content.fireSafetyDefaults;
+      if (fsd.clauses && fireSafetyClauses.value.length === 0) fireSafetyClauses.value = fsd.clauses.map((c: any) => ({ title: c.title || '', content: c.content || '' }));
+      if (fsd.restrictions && fireSafetyRestrictions.value.length === 0) fireSafetyRestrictions.value = [...fsd.restrictions];
+      if (fsd.equipment && fireSafetyEquipment.value.length === 0) fireSafetyEquipment.value = [...fsd.equipment];
+      if (fsd.responsibilityParty && fireResponsibilityParty.value === '双方') fireResponsibilityParty.value = fsd.responsibilityParty;
+      if (fsd.inspectionFrequency && fireInspectionFrequency.value === '每季') fireInspectionFrequency.value = fsd.inspectionFrequency;
+      if (fsd.violationPenalty && !fireViolationPenalty.value) fireViolationPenalty.value = fsd.violationPenalty;
+    }
+
     ElMessage.success(`已加载模板「${template.name}」(${templateClauses.length}条条款)`);
   } catch (e: any) {
     ElMessage.error('加载模板条款失败: ' + (e?.message || '未知错误'));
@@ -365,6 +510,14 @@ function buildBillingConfig() {
     terminationNotice: terminationNotice.value,
     renewalNotice: renewalNotice.value,
     subletAllowed: subletAllowed.value,
+    fireSafety: {
+      clauses: fireSafetyClauses.value,
+      restrictions: fireSafetyRestrictions.value.filter(r => r.trim()),
+      equipment: fireSafetyEquipment.value.filter(e => e.trim()),
+      responsibilityParty: fireResponsibilityParty.value,
+      inspectionFrequency: fireInspectionFrequency.value,
+      violationPenalty: fireViolationPenalty.value,
+    },
   };
 }
 
@@ -426,6 +579,25 @@ onMounted(async () => {
   } catch {}
   fetchTemplates();
 
+  // 新建合同：自动保存草稿以获得合同ID，使附件上传区立即可用
+  if (!isEdit.value) {
+    try {
+      const res = await request.post('/contracts', {
+        contractNo: form.contractNo,
+        propertyId: properties.value[0]?.id || 0,
+        tenantId: tenants.value[0]?.id || 0,
+        billingConfig: {}, clauses: [],
+        rentAmount: 0, depositAmount: 0,
+        paymentCycle: '月', billingMode: '固定',
+        startDate: form.startDate, endDate: form.endDate || new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
+      });
+      router.replace('/contract/draft/' + res.data.id);
+      return; // replace 触发组件重新挂载，走 isEdit 分支
+    } catch { /* 静默失败，用户可手动保存 */ }
+  }
+
+  fetchAttachments();
+
   if (isEdit.value) {
     try {
       const res = await request.get('/contracts/' + route.params.id);
@@ -473,6 +645,16 @@ onMounted(async () => {
       terminationNotice.value = bc.terminationNotice ?? 30;
       renewalNotice.value = bc.renewalNotice ?? 30;
       subletAllowed.value = bc.subletAllowed ?? false;
+      // 加载消防约定
+      if (bc.fireSafety) {
+        const fs = bc.fireSafety;
+        fireSafetyClauses.value = fs.clauses || [];
+        fireSafetyRestrictions.value = fs.restrictions || [];
+        fireSafetyEquipment.value = fs.equipment || [];
+        fireResponsibilityParty.value = fs.responsibilityParty || '双方';
+        fireInspectionFrequency.value = fs.inspectionFrequency || '每季';
+        fireViolationPenalty.value = fs.violationPenalty || '';
+      }
       let rawClauses = d.clauses;
       if (typeof rawClauses === 'string') {
         try { rawClauses = JSON.parse(rawClauses); } catch { rawClauses = []; }

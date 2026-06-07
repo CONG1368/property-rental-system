@@ -2,8 +2,13 @@
   <div class="home-dashboard">
     <h2 class="page-title">首页概览</h2>
 
+    <!-- 数据加载中 -->
+    <div v-if="dashboardLoading" style="text-align:center;padding:40px;color:#909399;">
+      <div style="font-size:13px;margin-top:8px;">正在加载首页数据...</div>
+    </div>
+
     <!-- KPI 卡片 -->
-    <el-row :gutter="16" class="kpi-row">
+    <el-row v-show="!dashboardLoading" :gutter="16" class="kpi-row">
       <el-col :span="6" v-for="kpi in kpis" :key="kpi.label">
         <div class="kpi-card" @click="goPage(kpi.link)" :title="kpi.label + ' — 点击查看详情'">
           <div class="kpi-top">
@@ -116,6 +121,7 @@ function goPage(path: string) {
 }
 
 // ---- KPI ----
+const dashboardLoading = ref(true);
 const kpis = ref([
   { label: '房源总数', value: '--', color: '#0A3D62', icon: '🏠', link: '/rent/properties', trend: 0, percent: 0 },
   { label: '在租合同', value: '--', color: '#00B894', icon: '👥', link: '/contract/list', trend: 0, percent: 0 },
@@ -191,11 +197,14 @@ onMounted(async () => {
   }, 1000);
 });
 
+let dashboardRetried = false;
+
 async function loadDashboardData() {
+  dashboardLoading.value = true;
   try {
     const [rentRes, overviewRes] = await Promise.all([
-      request.get('/dashboard/rent', { params: { trendMonths: 36 } }),
-      request.get('/dashboard/overview'),
+      request.get('/dashboard/rent', { params: { trendMonths: 36 }, silent: true } as any),
+      request.get('/dashboard/overview', { silent: true } as any),
     ]);
     const d = rentRes.data;
     const o = overviewRes.data;
@@ -221,14 +230,21 @@ async function loadDashboardData() {
       ...s, count: s.count || 0, color: dunningStats.value[i]?.color || '#999',
     }));
 
-    // 完整趋势数据（含逾期率，默认36月）
     const overdueTrend = d.overdueTrend || [];
     fullTrend.value = trend.map((t: any) => {
       const o = overdueTrend.find((ot: any) => ot.period === t.period);
       return { period: t.period, due: t.due, collected: t.collected, rate: o?.rate || 0 };
     });
+    dashboardRetried = false;
   } catch (e: any) {
     console.error('[首页] 看板数据加载失败:', e?.message || e);
+    if (!dashboardRetried) {
+      dashboardRetried = true;
+      setTimeout(() => loadDashboardData(), 2000);
+      return;
+    }
+  } finally {
+    dashboardLoading.value = false;
   }
 }
 

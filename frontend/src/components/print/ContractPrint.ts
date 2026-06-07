@@ -39,6 +39,14 @@ interface ContractPrintData {
   renewalNotice?: number;
   subletAllowed?: boolean;
   clauses?: { title: string; content: string; sortOrder: number }[];
+  fireSafety?: {
+    clauses?: { title: string; content: string }[];
+    restrictions?: string[];
+    equipment?: string[];
+    responsibilityParty?: string;
+    inspectionFrequency?: string;
+    violationPenalty?: string;
+  };
 }
 
 // 付款周期 → 月数映射
@@ -64,6 +72,51 @@ function deduplicateClauses(clauses: { title: string; content: string; sortOrder
     seen.add(key);
     return true;
   });
+}
+
+
+function buildFireSafetyHTML(data: ContractPrintData): string {
+  const fs = data.fireSafety;
+  if (!fs) return '';
+  
+  let html = '<div class="section page-break-inside:avoid" style="page-break-inside:avoid"><h3>消防安全约定</h3>';
+  
+  // 责任方 + 检查频率
+  html += '<table><tr><td style="padding:5px 10px;border:1px solid #ddd;background:#f9fafb;width:120px">消防责任方</td><td style="padding:5px 10px;border:1px solid #ddd">' + (fs.responsibilityParty || '--') + '</td>';
+  html += '<td style="padding:5px 10px;border:1px solid #ddd;background:#f9fafb;width:120px">检查频率</td><td style="padding:5px 10px;border:1px solid #ddd">' + (fs.inspectionFrequency || '--') + '</td></tr></table>';
+  
+  // 消防器材
+  if (fs.equipment && fs.equipment.length > 0) {
+    html += '<p style="margin:10px 0 4px;font-weight:bold">配备消防器材：</p>';
+    html += '<p style="margin:4px 0 4px 12px;line-height:1.8">' + fs.equipment.map(function(e) { return e; }).join('；') + '</p>';
+  }
+  
+  // 消防限制
+  if (fs.restrictions && fs.restrictions.length > 0) {
+    html += '<p style="margin:10px 0 4px;font-weight:bold">禁止事项：</p>';
+    for (var i = 0; i < fs.restrictions.length; i++) {
+      html += '<p style="margin:2px 0 2px 24px;line-height:1.6">' + (i + 1) + '. ' + fs.restrictions[i] + '</p>';
+    }
+  }
+  
+  // 消防条款
+  if (fs.clauses && fs.clauses.length > 0) {
+    html += '<p style="margin:10px 0 4px;font-weight:bold">消防安全条款：</p>';
+    for (var i = 0; i < fs.clauses.length; i++) {
+      var c = fs.clauses[i];
+      html += '<p style="margin:4px 0 2px 12px;font-weight:bold">' + (i + 1) + '. ' + c.title + '</p>';
+      html += '<p style="margin:0 0 8px 24px;color:#555;line-height:1.7">' + c.content + '</p>';
+    }
+  }
+  
+  // 违规处罚
+  if (fs.violationPenalty) {
+    html += '<p style="margin:10px 0 4px;font-weight:bold">违规处罚：</p>';
+    html += '<p style="margin:2px 0 2px 12px;line-height:1.8">' + fs.violationPenalty + '</p>';
+  }
+  
+  html += '</div>';
+  return html;
 }
 
 export function buildContractHTML(data: ContractPrintData): string {
@@ -143,7 +196,7 @@ export function buildContractHTML(data: ContractPrintData): string {
 <meta charset="utf-8">
 <style>
   * { box-sizing: border-box; }
-  body { font-family: "SimSun", "宋体", serif; font-size: 13px; line-height: 1.8; color: #333; margin: 0; padding: 0; }
+  body, .page { font-family: "SimSun", "宋体", serif; font-size: 13px; line-height: 1.8; color: #333; margin: 0; padding: 0; }
   .page { max-width: 680px; margin: 0 auto; padding: 30px 20px 40px; }
   h3 { font-size: 14px; margin: 18px 0 10px; color: #0A3D62; border-bottom: 1px solid #e8e8e8; padding-bottom: 4px; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -152,7 +205,7 @@ export function buildContractHTML(data: ContractPrintData): string {
   .sign-area { display: flex; margin-top: 50px; font-size: 13px; page-break-inside: avoid; }
   .sign-col { flex: 1; padding: 0 20px; text-align: center; }
   @media print {
-    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body, .page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .page { padding: 20px 16px 30px; }
   }
   @page { margin: 18mm 15mm 22mm 15mm; }
@@ -260,6 +313,7 @@ export function buildContractHTML(data: ContractPrintData): string {
       </div>
     </div>`}
 
+  ${buildFireSafetyHTML(data)}
 
   <div class="sign-area">
     <div class="sign-col">

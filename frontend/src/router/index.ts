@@ -106,6 +106,43 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/rent/DoorLockDetail.vue'),
         meta: { title: '门锁详情', hidden: true },
       },
+      // ====== 消防管理 ======
+      {
+        path: 'fire/dashboard',
+        name: 'FireDashboard',
+        component: () => import('@/views/fire/FireDashboard.vue'),
+        meta: { title: '消防看板', icon: 'Aim' },
+      },
+      {
+        path: 'fire/inspections',
+        name: 'FireInspectionList',
+        component: () => import('@/views/fire/FireInspectionList.vue'),
+        meta: { title: '检查记录', icon: 'Checked' },
+      },
+      {
+        path: 'fire/inspections/:id',
+        name: 'FireInspectionDetail',
+        component: () => import('@/views/fire/FireInspectionDetail.vue'),
+        meta: { title: '检查详情', hidden: true },
+      },
+      {
+        path: 'fire/equipment',
+        name: 'FireEquipmentList',
+        component: () => import('@/views/fire/FireEquipmentList.vue'),
+        meta: { title: '器材台账', icon: 'TakeawayBox' },
+      },
+      {
+        path: 'fire/violations',
+        name: 'FireViolationList',
+        component: () => import('@/views/fire/FireViolationList.vue'),
+        meta: { title: '违规记录', icon: 'WarningFilled' },
+      },
+      {
+        path: 'fire/drills',
+        name: 'FireDrillList',
+        component: () => import('@/views/fire/FireDrillList.vue'),
+        meta: { title: '演练记录', icon: 'Bell' },
+      },
       // ====== 财务报表 ======
       {
         path: 'finance/books',
@@ -222,6 +259,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/contract/ComplianceReport.vue'),
         meta: { title: '合规管理', icon: 'Warning' },
       },
+      {
+        path: 'contract/clause-import',
+        name: 'ClauseImport',
+        component: () => import('@/views/contract/ClauseImport.vue'),
+        meta: { title: '条款批量导入', icon: 'Upload' },
+      },
       // ====== 系统设置 ======
       {
         path: 'system/users',
@@ -261,6 +304,7 @@ const routeRoleMap: Record<string, string[]> = {
   'rent': ['管理员', '总经理', '收租主管', '收租员'],
   'finance': ['管理员', '总经理', '财务主管', '会计', '出纳'],
   'contract': ['管理员', '总经理', '合同主管', '法务'],
+  'fire': ['管理员', '总经理', '收租主管', '收租员', '合同主管'],
   'system': ['管理员'],
 };
 
@@ -305,6 +349,7 @@ router.beforeEach((to, _from, next) => {
     const moduleKey = to.path.startsWith('/rent') ? 'rent' :
       to.path.startsWith('/finance') ? 'finance' :
       to.path.startsWith('/contract') ? 'contract' :
+      to.path.startsWith('/fire') ? 'fire' :
       to.path.startsWith('/system') ? 'system' : '';
     if (moduleKey && routeRoleMap[moduleKey]) {
       // 从 JWT 解析角色（正确处理 UTF-8）
