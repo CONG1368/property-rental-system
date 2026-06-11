@@ -13,7 +13,15 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import XLSX from 'xlsx';
+import ContractTemplate from '../models/ContractTemplate.js';
+import ContractClause from '../models/ContractClause.js';
 import mammoth from 'mammoth';
+
+function decodeFilename(name: string): string {
+  const buf = Buffer.from(name, 'latin1');
+  const decoded = buf.toString('utf8');
+  return decoded.includes('�') ? name : decoded;
+}
 
 
 const router = Router();
@@ -25,17 +33,15 @@ const importUploadDir = 'uploads/imports';
 if (!fs.existsSync(importUploadDir)) fs.mkdirSync(importUploadDir, { recursive: true });
 const importUpload = multer({
   dest: importUploadDir,
-  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowed = ['.xlsx', '.xls', '.docx', '.pdf'];
+    const allowed = ['.xlsx', '.xls', '.docx', '.doc', '.pdf'];
     if (allowed.includes(ext)) cb(null, true);
     else cb(new Error('仅支持 Excel/Word/PDF 格式'));
   },
 });
 const contractUpload = multer({
   dest: contractUploadDir,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const allowed = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.xls', '.xlsx'];
@@ -56,14 +62,16 @@ router.post('/:id/upload', contractUpload.array('files', 10), async (req: AuthRe
     // 保存文件记录到合同的 billingConfig（复用JSON字段存储附件列表）
     const existingFiles = (contract as any).billingConfig?.attachments || [];
     const newFiles = files.map(f => ({
-      name: f.originalname,
+      name: decodeFilename(f.originalname),
       path: f.path,
       size: f.size,
       uploadedAt: new Date().toISOString(),
     }));
     const billingConfig = (contract as any).billingConfig || {};
     billingConfig.attachments = [...existingFiles, ...newFiles];
-    await contract.update({ billingConfig } as any);
+    (contract as any).billingConfig = billingConfig;
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
     res.json({ code: 200, data: newFiles, message: `成功上传 ${files.length} 个文件` });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
@@ -113,6 +121,10 @@ router.get('/', async (req: AuthRequest, res) => {
 router.post('/', async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.create({ ...req.body, createdBy: req.userId });
+    // 条款已写入合同时，清除该租客的待处理条款
+    if (req.body.tenantId && req.body.clauses && Array.isArray(req.body.clauses) && req.body.clauses.length > 0) {
+      await Tenant.update({ pendingClauses: [] } as any, { where: { id: req.body.tenantId } });
+    }
     broadcast('contract:created', { contractId: contract.id, contractNo: (contract as any).contractNo, timestamp: Date.now() });
     res.json({ code: 200, data: contract, message: '合同创建成功' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
@@ -147,11 +159,30 @@ router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
-    await contract.update(req.body);
+    // SQLite JSON 字段必须用 .changed() 模式，不能走 update()
+    if (req.body.clauses !== undefined) {
+      (contract as any).clauses = req.body.clauses;
+      (contract as any).changed('clauses', true);
+    }
+    if (req.body.billingConfig !== undefined) {
+      (contract as any).billingConfig = req.body.billingConfig;
+      (contract as any).changed('billingConfig', true);
+    }
+    // 处理标量字段
+    Object.keys(req.body).forEach(key => {
+      if (key !== 'clauses' && key !== 'billingConfig') {
+        (contract as any)[key] = req.body[key];
+      }
+    });
+    await contract.save();
+    // 条款已写入合同时，清除该租客的待处理条款
+    const hasClauses = req.body.clauses && Array.isArray(req.body.clauses) && req.body.clauses.length > 0;
+    if (hasClauses && (req.body.tenantId || (contract as any).tenantId)) {
+      await Tenant.update({ pendingClauses: [] } as any, { where: { id: req.body.tenantId || (contract as any).tenantId } });
+    }
     res.json({ code: 200, data: contract, message: '合同更新成功' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
-
 // ====== 状态流转（统一使用 transitionContract，并同步创建/更新 Approval 记录） ======
 
 // 提交审批 → 创建审批记录
@@ -293,7 +324,7 @@ async function handleExcelImport(req: AuthRequest, res: any) {
     const rows: any[] = XLSX.utils.sheet_to_json(sheet);
     if (rows.length === 0) return res.status(400).json({ code: 400, message: '文件中无数据' });
 
-    const result = { total: rows.length, matchedTenants: 0, unmatched: [] as string[], updatedContracts: 0, skippedNoContract: 0 };
+    const result: any = { total: rows.length, matchedTenants: 0, unmatched: [] as string[], updatedContracts: 0, skippedNoContract: 0, pendingTenants: 0, _clauses: [] as any[] };
     for (const row of rows) {
       const tenantName = row['租客姓名'] || row['name'] || '';
       const tenantPhone = row['租客手机'] || row['phone'] || '';
@@ -310,9 +341,27 @@ async function handleExcelImport(req: AuthRequest, res: any) {
       result.matchedTenants++;
 
       const contracts = await Contract.findAll({
-        where: { tenantId: (tenant as any).id, status: { [Op.in]: ['执行中', '已签订'] } },
+        where: { tenantId: (tenant as any).id, status: { [Op.in]: ['起草中', '审批中', '已驳回', '已签订', '执行中', '到期提醒', '已到期'] } },
       });
-      if (contracts.length === 0) { result.skippedNoContract++; continue; }
+      if (contracts.length === 0) {
+        // 无合同：存储待处理条款到租客，合同起草时自动加载
+        const pending: any[] = Array.isArray((tenant as any).pendingClauses) ? (tenant as any).pendingClauses : [];
+        pending.push({ title: clauseTitle, content: clauseContent, sortOrder });
+        (tenant as any).pendingClauses = pending;
+        (tenant as any).changed('pendingClauses', true);
+        await tenant.save();
+        result.skippedNoContract++;
+        result.pendingTenants++;
+        continue;
+      }
+
+      // 同时存储到 pendingClauses，确保新建合同时也能加载
+      const pending: any[] = Array.isArray((tenant as any).pendingClauses) ? (tenant as any).pendingClauses : [];
+      pending.push({ title: clauseTitle, content: clauseContent, sortOrder });
+      (tenant as any).pendingClauses = pending;
+      (tenant as any).changed('pendingClauses', true);
+      await tenant.save();
+      result.pendingTenants++;
 
       for (const c of contracts) {
         const existing: any[] = Array.isArray((c as any).clauses) ? (c as any).clauses : [];
@@ -325,7 +374,13 @@ async function handleExcelImport(req: AuthRequest, res: any) {
     }
 
     try { fs.unlinkSync(file.path); } catch {}
-    res.json({ code: 200, data: result, message: `成功导入${result.updatedContracts}个合同，未匹配${result.unmatched.length}个租客` });
+    if (result._clauses && result._clauses.length > 0) await syncToTemplate(result._clauses, { propertyType: req.body.propertyType || undefined });
+    const msgParts: string[] = [];
+    if (result.updatedContracts > 0) msgParts.push(`${result.updatedContracts} 个合同已更新条款`);
+    if (result.pendingTenants > 0) msgParts.push(`${result.pendingTenants} 个租客条款已暂存（起草合同时自动加载）`);
+    if (result.unmatched.length > 0) msgParts.push(`${result.unmatched.length} 个租客未匹配`);
+    if (result.skippedNoContract - result.pendingTenants > 0) msgParts.push(`${result.skippedNoContract - result.pendingTenants} 个跳过`);
+    res.json({ code: 200, data: result, message: msgParts.join('；') || '导入完成' });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message || '导入失败' });
   }
@@ -338,13 +393,41 @@ async function handleJsonImport(req: AuthRequest, res: any) {
     if (!Array.isArray(clauses) || clauses.length === 0) return res.status(400).json({ code: 400, message: '请提供条款列表' });
 
     let updatedContracts = 0;
+    let pendingTenants = 0;
     const skippedNoContract: number[] = [];
 
     for (const tenantId of tenantIds) {
       const contracts = await Contract.findAll({
-        where: { tenantId, status: { [Op.in]: ['执行中', '已签订'] } },
+        where: { tenantId, status: { [Op.in]: ['起草中', '审批中', '已驳回', '已签订', '执行中', '到期提醒', '已到期'] } },
       });
-      if (contracts.length === 0) { skippedNoContract.push(tenantId); continue; }
+      if (contracts.length === 0) {
+        const tenant = await Tenant.findByPk(tenantId);
+        if (tenant) {
+          const pending: any[] = Array.isArray((tenant as any).pendingClauses) ? (tenant as any).pendingClauses : [];
+          for (const clause of clauses) {
+            pending.push({ title: clause.title || '', content: clause.content || '', sortOrder: clause.sortOrder || 999 });
+          }
+          (tenant as any).pendingClauses = pending;
+          (tenant as any).changed('pendingClauses', true);
+          await tenant.save();
+          pendingTenants++;
+        }
+        skippedNoContract.push(tenantId);
+        continue;
+      }
+
+      // 同时存储到 pendingClauses，确保新建合同时也能加载
+      const tenant = await Tenant.findByPk(tenantId);
+      if (tenant) {
+        const pending: any[] = Array.isArray((tenant as any).pendingClauses) ? (tenant as any).pendingClauses : [];
+        for (const clause of clauses) {
+          pending.push({ title: clause.title || '', content: clause.content || '', sortOrder: clause.sortOrder || 999 });
+        }
+        (tenant as any).pendingClauses = pending;
+        (tenant as any).changed('pendingClauses', true);
+        await tenant.save();
+        pendingTenants++;
+      }
 
       for (const c of contracts) {
         const existing: any[] = Array.isArray((c as any).clauses) ? (c as any).clauses : [];
@@ -358,13 +441,63 @@ async function handleJsonImport(req: AuthRequest, res: any) {
       }
     }
 
+    // 同步条款到模板
+    if (clauses && Array.isArray(clauses) && clauses.length > 0) await syncToTemplate(clauses, { templateId: req.body.templateId || undefined, propertyType: req.body.propertyType || undefined });
+    const msgParts: string[] = [];
+    if (updatedContracts > 0) msgParts.push(`${updatedContracts} 个合同已更新条款`);
+    if (pendingTenants > 0) msgParts.push(`${pendingTenants} 个租客条款已暂存（起草合同时自动加载）`);
+    if (skippedNoContract.length - pendingTenants > 0) msgParts.push(`${skippedNoContract.length - pendingTenants} 个租客跳过`);
     res.json({
       code: 200,
-      data: { updatedContracts, skippedTenantIds: skippedNoContract, totalClauses: clauses.length * updatedContracts },
-      message: `成功为${updatedContracts}个合同追加条款`,
+      data: { updatedContracts, skippedTenantIds: skippedNoContract, pendingTenants, totalClauses: clauses.length * updatedContracts + pendingTenants * clauses.length },
+      message: msgParts.join('；') || '导入完成',
     });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message || '导入失败' });
+  }
+}
+
+// 按业态获取模板名称
+function getTemplateNameByType(propertyType: string) {
+  const map: Record<string, string> = { '公寓': '常用条款模板-公寓', '厂房': '常用条款模板-厂房', '商铺': '常用条款模板-商铺' };
+  return map[propertyType] || '常用条款模板-通用';
+}
+
+// 将导入的条款同步到「常用条款模板」供 ContractDraft 模板选择
+// templateId: 指定模板ID；propertyType: 按业态自动匹配模板（公寓/厂房/商铺）
+async function syncToTemplate(clauses: { title: string; content: string; sortOrder: number }[], opts?: { templateId?: number; propertyType?: string }) {
+  if (!clauses || clauses.length === 0) return;
+  try {
+    let templateId = opts?.templateId;
+    if (!templateId) {
+      const templateName = getTemplateNameByType(opts?.propertyType || '通用');
+      let template = await ContractTemplate.findOne({ where: { name: templateName } });
+      if (!template) {
+        template = await ContractTemplate.create({
+          name: templateName,
+          type: opts?.propertyType || '厂房',
+          isDefault: false,
+          content: { isAuto: true },
+        } as any);
+      }
+      templateId = (template as any).id;
+    }
+    const existing = await ContractClause.findAll({ where: { templateId } });
+    const existingKeys = new Set(existing.map((e: any) => `${e.title}|||${e.content}`));
+    let added = 0;
+    for (const clause of clauses) {
+      const key = `${clause.title||''}|||${clause.content||''}`;
+      if (!existingKeys.has(key)) {
+        await ContractClause.create({
+          templateId, title: clause.title, content: clause.content,
+          sortOrder: clause.sortOrder || 999, type: '标准', isRequired: false,
+        } as any);
+        added++;
+      }
+    }
+    if (added > 0) console.log(`[Import] ${added} 条新条款同步到模板#${templateId}`);
+  } catch (err: any) {
+    console.warn('[Import] 条款同步到模板失败:', err.message);
   }
 }
 
@@ -377,20 +510,48 @@ router.post('/extract-clause-text', importUpload.single('file'), async (req: Aut
     let text = '';
 
     if (ext === '.docx') {
-      const result = await mammoth.extractRawText({ path: file.path });
-      text = result.value;
+      try {
+        const result = await mammoth.extractRawText({ path: file.path });
+        text = result.value;
+        if (!text || text.trim().length === 0) text = '(此 .docx 文件无法提取文本内容，可能为空文档或加密文件)';
+      } catch {
+        text = '(此 .docx 文件解析失败，请检查文件是否损坏或为加密文档，建议用 Word 另存后重试)';
+      }
+    } else if (ext === '.doc') {
+      try {
+        const WordExtractor = (await import('word-extractor')).default;
+        const extractor = new WordExtractor();
+        const doc = await extractor.extract(file.path);
+        text = doc.getBody();
+      } catch {
+        try {
+          const result = await mammoth.extractRawText({ path: file.path });
+          text = result.value;
+        } catch {
+          text = '(此 .doc 文件无法解析，建议用 Word 另存为 .docx 格式后重试)';
+        }
+      }
     } else if (ext === '.pdf') {
-      const buf = fs.readFileSync(file.path);
-      const str = buf.toString('utf-8');
-      text = str.replace(/[^一-鿿　-〿＀-￯a-zA-Z0-9\s.,;:!?。，、\n\r]/g, ' ').replace(/\s{2,}/g, '\n').trim();
-      if (text.length < 50) text = '(此PDF为扫描件或图片格式，请使用OCR工具转换后重试)';
+      try {
+        const { PDFParse } = await import('pdf-parse');
+        const dataBuffer = fs.readFileSync(file.path);
+        const buf = new Uint8Array(dataBuffer.buffer, dataBuffer.byteOffset, dataBuffer.byteLength);
+        const parser = new PDFParse(buf);
+        const result = await parser.getText();
+        text = result.text || '';
+        // 移除 pdf-parse v2 的页面分隔符（如 "-- 1 of 5 --"），避免纯图片 PDF 误判为有文本
+        const contentText = text.replace(/^\s*--\s*\d+\s+of\s+\d+\s*--\s*$/gm, '').trim();
+        if (contentText.length < 50) text = '(此PDF为扫描件或图片格式，文本量过少，请使用OCR工具转换后重试)';
+      } catch {
+        text = '(PDF解析失败，可能为扫描件或加密文档，请使用OCR工具转换后重试)';
+      }
     } else {
       try { fs.unlinkSync(file.path); } catch {}
-      return res.status(400).json({ code: 400, message: '仅支持 .docx 和 .pdf 格式' });
+      return res.status(400).json({ code: 400, message: '仅支持 .docx、.doc 和 .pdf 格式' });
     }
 
     try { fs.unlinkSync(file.path); } catch {}
-    res.json({ code: 200, data: { text: text.trim(), fileName: file.originalname, size: file.size } });
+    res.json({ code: 200, data: { text: text.trim(), fileName: decodeFilename(file.originalname), size: file.size } });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message || '文本提取失败' });
   }

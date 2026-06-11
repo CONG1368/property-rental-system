@@ -60,20 +60,47 @@ async function printPDF(options: PrintOptions): Promise<void> {
     document.body.appendChild(blockContainer);
 
     try {
-      const canvas = await html2canvas(blockContainer, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+      const canvas = await html2canvas(blockContainer, { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' });
       document.body.removeChild(blockContainer);
 
-      const imgData = canvas.toDataURL('image/png');
       const imgW = usableW;
       const imgH = (canvas.height * usableW) / canvas.width;
+      const maxBlockH = usableH * 0.95;
 
-      if (i > 0 && currentY + imgH > margin + usableH) {
-        doc.addPage();
-        currentY = margin;
+      if (imgH > maxBlockH) {
+        // 超长区块按页切片，避免内容挤压
+        const slicePixelH = Math.round(maxBlockH * canvas.width / imgW);
+        const sliceCount = Math.ceil(canvas.height / slicePixelH);
+
+        for (let s = 0; s < sliceCount; s++) {
+          const srcY = s * slicePixelH;
+          const srcH = Math.min(slicePixelH, canvas.height - srcY);
+          const sliceImgH = srcH * usableW / canvas.width;
+
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = srcH;
+          const ctx = sliceCanvas.getContext('2d')!;
+          ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+
+          if (currentY + sliceImgH > margin + usableH) {
+            doc.addPage();
+            currentY = margin;
+          }
+
+          const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+          doc.addImage(sliceData, 'JPEG', margin, currentY, imgW, sliceImgH);
+          currentY += sliceImgH;
+        }
+      } else {
+        if (i > 0 && currentY + imgH > margin + usableH) {
+          doc.addPage();
+          currentY = margin;
+        }
+
+        doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, currentY, imgW, imgH);
+        currentY += imgH;
       }
-
-      doc.addImage(imgData, 'PNG', margin, currentY, imgW, imgH);
-      currentY += imgH;
     } catch {
       if (document.body.contains(blockContainer)) document.body.removeChild(blockContainer);
       throw new Error('PDF生成失败');
@@ -85,27 +112,36 @@ async function printPDF(options: PrintOptions): Promise<void> {
 
 function extractBlocksHTML(html: string): string[] {
   const blocks: string[] = [];
-  const pageMatch = html.match(/<div class="page"[^>]*>([\s\S]*?)<\/div>\s*(?:<\/body>|$)/);
-  if (!pageMatch) return [html];
+  const container = document.createElement('div');
+  container.innerHTML = html;
 
-  const inner = pageMatch[1];
-  const splitRegex = /(<div class="(?:section|header-row|sign-area)"[^>]*>[\s\S]*?<\/div>\s*(?=<div class="(?:section|header-row|sign-area)"|$))/g;
-  let match;
-  let lastIndex = 0;
+  const pageEl = container.querySelector('.page');
+  if (!pageEl) return [html];
 
-  while ((match = splitRegex.exec(inner)) !== null) {
-    if (match.index > lastIndex) {
-      const before = inner.slice(lastIndex, match.index).trim();
-      if (before) blocks.push('<div class="page">' + before + '</div>');
+  const blockClasses = ['section', 'header-row', 'sign-area'];
+  let current: HTMLElement[] = [];
+
+  function flush() {
+    if (current.length === 0) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'page';
+    current.forEach(c => wrapper.appendChild(c.cloneNode(true)));
+    blocks.push(wrapper.outerHTML);
+    current = [];
+  }
+
+  for (const child of Array.from(pageEl.children)) {
+    const el = child as HTMLElement;
+    const isBlock = blockClasses.some(cls => el.classList.contains(cls));
+    if (isBlock) {
+      flush();
+      current.push(el);
+      flush();
+    } else {
+      current.push(el);
     }
-    blocks.push('<div class="page">' + match[1] + '</div>');
-    lastIndex = match.index + match[1].length;
   }
-
-  if (lastIndex < inner.length) {
-    const after = inner.slice(lastIndex).trim();
-    if (after) blocks.push('<div class="page">' + after + '</div>');
-  }
+  flush();
 
   return blocks.length > 0 ? blocks : [html];
 }
