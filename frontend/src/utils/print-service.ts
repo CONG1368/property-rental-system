@@ -12,6 +12,7 @@ export interface PrintOptions {
 }
 
 // 文字PDF导出（Electron printToPDF，生成真正的文字PDF而非截图）
+// 页面尺寸由HTML内 @page CSS 决定，preferCSSPageSize 自动适配
 export async function exportTextPDF(title: string, htmlContent: string): Promise<void> {
   const api = (window as any).electronAPI;
   if (!api || !api.exportPDF) {
@@ -31,6 +32,11 @@ export async function printDocument(options: PrintOptions): Promise<void> {
   if (options.mode === 'native') {
     return printNative(options.htmlContent, options.title);
   }
+  // PDF导出统一走 printToPDF 文字引擎，Electron 内原生文字PDF
+  if (isElectron()) {
+    return exportTextPDF(options.title, options.htmlContent);
+  }
+  // 非Electron回退
   return printPDF(options);
 }
 

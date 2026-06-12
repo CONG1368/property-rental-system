@@ -9,8 +9,7 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="native"><el-icon><Printer /></el-icon> 直接打印</el-dropdown-item>
-              <el-dropdown-item command="pdf"><el-icon><Download /></el-icon> 导出图片PDF</el-dropdown-item>
-              <el-dropdown-item command="text"><el-icon><Document /></el-icon> 导出文字PDF</el-dropdown-item>
+              <el-dropdown-item command="pdf"><el-icon><Document /></el-icon> 导出PDF</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -238,9 +237,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Printer, ArrowDown, Download, Document } from '@element-plus/icons-vue';
+import { Printer, ArrowDown, Document } from '@element-plus/icons-vue';
 import request, { apiBaseURL } from '@/api/request';
-import { printDocument, isElectron, formatDate, exportTextPDF } from '@/utils/print-service';
+import { printDocument, isElectron, formatDate } from '@/utils/print-service';
 import { buildContractHTML } from '@/components/print/ContractPrint';
 
 const route = useRoute();
@@ -429,13 +428,8 @@ async function handlePrint(mode: string) {
       fireSafety: fireSafety.value,
       ...info,
     });
-    if (mode === 'text') {
-      await exportTextPDF(`租赁合同_${contract.value.contractNo}`, html);
-      ElMessage.success('文字PDF导出成功');
-    } else {
-      await printDocument({ title: `租赁合同_${contract.value.contractNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });
-      ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
-    }
+    await printDocument({ title: `租赁合同_${contract.value.contractNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });
+    ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
   } catch (e: any) { ElMessage.error(e.message || '打印失败'); }
 }
 
