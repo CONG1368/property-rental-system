@@ -11,6 +11,22 @@ export interface PrintOptions {
   mode?: PrintMode;
 }
 
+// 文字PDF导出（Electron printToPDF，生成真正的文字PDF而非截图）
+export async function exportTextPDF(title: string, htmlContent: string): Promise<void> {
+  const api = (window as any).electronAPI;
+  if (!api || !api.exportPDF) {
+    // 非Electron环境回退到截图PDF
+    return printPDF({ title, paperSize: 'A4', htmlContent, mode: 'pdf' });
+  }
+  try {
+    const result = await api.exportPDF(htmlContent, title);
+    if (!result.success) throw new Error(result.error || '导出失败');
+    // 用户取消保存对话框不算错误
+  } catch (e: any) {
+    throw new Error(e.message || 'PDF导出失败');
+  }
+}
+
 export async function printDocument(options: PrintOptions): Promise<void> {
   if (options.mode === 'native') {
     return printNative(options.htmlContent, options.title);

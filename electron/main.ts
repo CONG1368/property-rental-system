@@ -183,6 +183,45 @@ ipcMain.handle('open-file-dialog', async (_event, options: any) => {
   return result;
 });
 
+// 文字PDF导出（Electron printToPDF → 真正的文字PDF，非截图）
+ipcMain.handle('export-pdf', async (_event, html: string, title: string) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'property-export-'));
+  const tmpFile = path.join(tmpDir, `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`);
+  // 直接写入完整HTML文档（含合同模板的 <!DOCTYPE html><style>@page...），不额外包裹
+  fs.writeFileSync(tmpFile, html, 'utf-8');
+
+  const exportWin = new BrowserWindow({
+    width: 860, height: 600, show: false,
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+
+  try {
+    await exportWin.loadFile(tmpFile);
+    const data = await exportWin.webContents.printToPDF({
+      printBackground: true,
+      preferCSSPageSize: true,
+    });
+
+    const result = await dialog.showSaveDialog(mainWindow!, {
+      title: '导出文字PDF',
+      defaultPath: `${title}.pdf`,
+      filters: [{ name: 'PDF文件', extensions: ['pdf'] }],
+    });
+
+    if (!result.canceled && result.filePath) {
+      fs.writeFileSync(result.filePath, data);
+    }
+
+    exportWin.close();
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch { /* ignore */ }
+    return { success: true, filePath: result.canceled ? null : result.filePath };
+  } catch (err: any) {
+    exportWin.close();
+    try { fs.rmSync(tmpDir, { recursive: true }); } catch { /* ignore */ }
+    return { success: false, error: err.message };
+  }
+});
+
 // HTML 原生打印（临时文件渲染 → 弹出系统打印对话框）
 ipcMain.handle('print-html', async (_event, html: string, title: string) => {
   return new Promise((resolve) => {
