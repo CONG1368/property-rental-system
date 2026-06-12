@@ -10,10 +10,24 @@ import FireViolation from '../models/FireViolation.js';
 import FireDrill from '../models/FireDrill.js';
 import Property from '../models/Property.js';
 
+function decodeFilename(name: string): string {
+  const buf = Buffer.from(name, 'latin1');
+  const decoded = buf.toString('utf8');
+  return decoded.includes('�') ? name : decoded;
+}
+
 const router = Router();
 const uploadDir = 'uploads/fire';
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-const upload = multer({ dest: uploadDir, limits: { fileSize: 10 * 1024 * 1024 } });
+const upload = multer({
+  dest: uploadDir,
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowed = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.xls', '.xlsx'];
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('仅支持 PDF/DOC/DOCX/图片/Excel 格式'));
+  },
+});
 
 // ====== 综合看板 ======
 router.get('/dashboard', async (_req: AuthRequest, res) => {
@@ -128,7 +142,7 @@ router.post('/inspections/:id/upload', upload.array('files', 10), async (req: Au
     if (!insp) return res.status(404).json({ code: 404, message: '检查记录不存在' });
     const files = (req as any).files || [];
     const existing = ((insp as any).attachments || []) as any[];
-    const newFiles = files.map((f: any) => ({ name: f.originalname, path: f.path, size: f.size, uploadedAt: new Date().toISOString() }));
+    const newFiles = files.map((f: any) => ({ name: decodeFilename(f.originalname), path: f.path, size: f.size, uploadedAt: new Date().toISOString() }));
     (insp as any).attachments = [...existing, ...newFiles];
     (insp as any).changed('attachments', true);
     await insp.save();

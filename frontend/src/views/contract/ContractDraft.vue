@@ -293,7 +293,9 @@
         <el-upload
           :action="apiBaseURL + '/contracts/' + savedContractId + '/upload'"
           :headers="uploadHeaders"
+          name="files"
           multiple
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
           :show-file-list="false"
           :on-success="onUploadSuccess"
           :on-error="onUploadError"
@@ -302,7 +304,7 @@
         >
           <el-button size="small" type="primary" :loading="uploading">上传文件</el-button>
         </el-upload>
-        <span style="font-size:12px;color:#909399;margin-left:8px">PDF / Word / 图片 / Excel，单文件 ≤10MB</span>
+        <span style="font-size:12px;color:#909399;margin-left:8px">PDF / Word / 图片 / Excel</span>
       </template>
       <el-table :data="attachments" size="small" empty-text="暂无附件">
         <el-table-column prop="name" label="文件名" min-width="200" show-overflow-tooltip />
@@ -321,7 +323,7 @@ import { ref, computed, reactive, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Delete } from '@element-plus/icons-vue';
-import request from '@/api/request';
+import request, { apiBaseURL } from '@/api/request';
 
 const route = useRoute(); const router = useRouter();
 const isEdit = computed(() => !!route.params.id);
@@ -333,7 +335,6 @@ const templates = ref<any[]>([]);
 const clauses = ref<{ title: string; content: string; sortOrder: number }[]>([]);
 
 // 附件上传
-const apiBaseURL = import.meta.env.PROD ? 'http://localhost:3001/api' : '/api';
 const uploadHeaders = computed(() => ({ Authorization: 'Bearer ' + localStorage.getItem('accessToken') }));
 const attachments = ref<any[]>([]);
 const uploading = ref(false);
@@ -349,12 +350,21 @@ async function fetchAttachments() {
   if (!savedContractId.value) return;
   try {
     const res = await request.get('/contracts/' + savedContractId.value + '/files');
-    attachments.value = Array.isArray(res.data) ? res.data : [];
+    attachments.value = res.data?.list || [];
   } catch { /* ignore */ }
 }
 
-function onUploadSuccess() { fetchAttachments(); ElMessage.success('上传成功'); }
-function onUploadError() { ElMessage.error('上传失败'); }
+function onUploadSuccess(res: any) {
+  uploading.value = false;
+  if (res.code === 200) {
+    ElMessage.success(`成功上传 ${res.data?.length ?? ''} 个文件`);
+    fetchAttachments();
+  }
+}
+function onUploadError(err: any) {
+  uploading.value = false;
+  ElMessage.error(err?.message || '上传失败');
+}
 
 const form = reactive({
   contractNo: 'HT-' + Date.now(),
@@ -419,6 +429,11 @@ function addFeeItem() {
 
 const selectedProperty = computed(() => properties.value.find(p => p.id === form.propertyId));
 
+// 监听租客切换 → 自动加载待处理条款（来自条款批量导入）
+watch(() => form.tenantId, () => {
+  loadPendingClausesForCurrentTenant();
+});
+
 function onPropertyChange(propId: number | null) {
   if (propId) {
     const p = properties.value.find(p => p.id === propId);
@@ -431,7 +446,7 @@ function onPropertyChange(propId: number | null) {
       }
       // 自动匹配模板类型
       if (!form.templateId && p.type) {
-        const match = templates.value.find((t: any) => t.type === p.type);
+        const propType = p.type; const targetName = `常用条款模板-`; const match = templates.value.find((t: any) => (t as any).isDefault && t.type === propType) || templates.value.find((t: any) => t.name === targetName) || templates.value.find((t: any) => t.type === propType);
         if (match) { form.templateId = match.id; onTemplateChange(match.id); }
       }
     }
@@ -442,6 +457,26 @@ async function fetchTemplates() {
   try {
     const res = await request.get('/contract-templates');
     templates.value = res.data?.list || [];
+  } catch { /* ignore */ }
+}
+
+async function loadPendingClausesForCurrentTenant() {
+  const tenantId = form.tenantId;
+  if (!tenantId) return;
+  try {
+    const res = await request.get('/tenants/' + tenantId);
+    let raw = res.data?.pendingClauses || [];
+    if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { raw = []; } }
+    const pending: any[] = Array.isArray(raw) ? raw : [];
+    if (pending.length === 0) return;
+    const existingKeys = new Set(clauses.value.map(c => `${c.title}|||${c.content}`));
+    const newClauses = pending.filter((c: any) => !existingKeys.has(`${c.title||''}|||${c.content||''}`));
+    if (newClauses.length > 0) {
+      clauses.value.push(...newClauses.map((c: any) => ({
+        title: c.title || '', content: c.content || '', sortOrder: c.sortOrder || clauses.value.length,
+      })));
+      ElMessage.success(`已自动加载 ${newClauses.length} 条待处理条款（来自批量导入）`);
+    }
   } catch { /* ignore */ }
 }
 
@@ -483,6 +518,9 @@ async function onTemplateChange(templateId: number | null) {
       if (fsd.inspectionFrequency && fireInspectionFrequency.value === '每季') fireInspectionFrequency.value = fsd.inspectionFrequency;
       if (fsd.violationPenalty && !fireViolationPenalty.value) fireViolationPenalty.value = fsd.violationPenalty;
     }
+
+    // 模板加载后，追加该租客的待处理条款
+    await loadPendingClausesForCurrentTenant();
 
     ElMessage.success(`已加载模板「${template.name}」(${templateClauses.length}条条款)`);
   } catch (e: any) {
@@ -664,6 +702,8 @@ onMounted(async () => {
         content: c.content || '',
         sortOrder: c.sortOrder || 0,
       }));
+      // 加载合同数据后，追加该租客的待处理条款
+      await loadPendingClausesForCurrentTenant();
     } catch (e: any) {
       ElMessage.error(e?.response?.data?.message || '加载合同数据失败');
     }

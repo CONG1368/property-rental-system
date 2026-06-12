@@ -54,6 +54,7 @@
       <el-menu-item index="/contract/expiry">到期管理</el-menu-item>
       <el-menu-item index="/contract/renewals">续约管理</el-menu-item>
       <el-menu-item index="/contract/templates">模板管理</el-menu-item>
+      <el-menu-item index="/contract/clause-import">条款导入</el-menu-item>
       <el-menu-item index="/contract/compliance">合规管理</el-menu-item>
     </el-sub-menu>
 

@@ -11,6 +11,7 @@ interface TenantAttributes {
   idAddress: string; idIssuingAuthority: string;
   idValidFrom: string; idValidTo: string;
   idPhoto: string;
+  pendingClauses?: { title: string; content: string; sortOrder: number }[];
   createdAt?: Date; updatedAt?: Date;
 }
 
@@ -41,6 +42,7 @@ Tenant.init({
   idValidFrom: { type: DataTypes.STRING(10), defaultValue: '' },
   idValidTo: { type: DataTypes.STRING(10), defaultValue: '' },
   idPhoto: { type: DataTypes.TEXT, defaultValue: '' },
+  pendingClauses: { type: DataTypes.JSON, defaultValue: [] },
 }, { sequelize, tableName: 'tenants', indexes: [{ fields: ['phone'] }, { fields: ['creditGrade'] }, { fields: ['name'] }] });
 
 export default Tenant;

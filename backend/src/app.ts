@@ -36,7 +36,7 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true }));
 // 静态文件 — 上传的头像、合同附件
 app.use('/uploads', express.static(config.upload.dir));

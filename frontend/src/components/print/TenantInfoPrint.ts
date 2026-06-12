@@ -69,7 +69,7 @@ export function buildTenantInfoHTML(data: TenantPrintData): string {
           <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.creditGrade || '-'}</td></tr>
     </table>
 
-    ${data.notes ? `<p style="font-size:13px;margin:8px 0 16px"><b>备注：</b>${data.notes}</p>` : ''}
+    ${data.notes ? `<div style="font-size:13px;margin:8px 0 16px"><b>备注：</b>${data.notes.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter((p: string) => p.trim()).map((p: string) => `<p style="margin:3px 0;text-indent:2em;line-height:1.8">${p}</p>`).join('')}</div>` : ''}
 
     <h3 style="font-size:14px;margin:16px 0 8px;color:#0A3D62">关联合同</h3>
     <table style="width:100%;border-collapse:collapse;font-size:12px">

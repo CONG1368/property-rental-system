@@ -21,7 +21,7 @@
         <el-col :span="8" style="margin-top:8px"><el-tag :type="data.flammableOk ? 'success' : 'danger'">{{ data.flammableOk ? '√' : '×' }} 易燃易爆管理</el-tag></el-col>
       </el-row>
 
-      <div style="margin-top:16px" v-if="data.notes"><p style="font-weight:bold;margin:0 0 4px">备注：</p><p style="margin:0;color:#606266">{{ data.notes }}</p></div>
+      <div style="margin-top:16px" v-if="data.notes"><p style="font-weight:bold;margin:0 0 4px">备注：</p><p style="margin:0;color:#606266;white-space:pre-wrap">{{ data.notes }}</p></div>
 
       <el-divider content-position="left" v-if="data.violations?.length">关联违规记录</el-divider>
       <el-table :data="data.violations" size="small" v-if="data.violations?.length">

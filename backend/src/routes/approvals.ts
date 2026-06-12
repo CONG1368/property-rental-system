@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import Approval from '../models/Approval.js';
 import Contract from '../models/Contract.js';
+import Tenant from '../models/Tenant.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { transitionContract } from '../services/contract-workflow.js';
 
@@ -18,7 +19,11 @@ router.get('/', async (req: AuthRequest, res) => {
     if (contractId) where.contractId = Number(contractId);
     const approvals = await Approval.findAll({
       where,
-      include: [{ model: Contract, as: 'contract', attributes: ['id', 'contractNo', 'rentAmount', 'startDate', 'endDate', 'status'] }],
+      include: [{
+        model: Contract, as: 'contract',
+        attributes: ['id', 'contractNo', 'rentAmount', 'depositAmount', 'startDate', 'endDate', 'status', 'paymentCycle', 'clauses', 'billingConfig', 'tenantId'],
+        include: [{ model: Tenant, as: 'tenant', attributes: ['id', 'name'] }],
+      }],
       order: [['createdAt', 'DESC']],
     });
     res.json({ code: 200, data: { list: approvals } });

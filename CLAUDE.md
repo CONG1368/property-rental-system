@@ -51,6 +51,8 @@ node scripts/generate-manual-pdf.js
 
 **默认登录凭据：** `admin / admin123`（数据库首次启动自动创建）
 
+**版本号**：仅根目录 `package.json` 中的 `version` 字段决定打包版本号。发版前先修改此字段，然后执行 `npm run build` 全量构建。构建产物输出到 `release/` 目录（NSIS exe + zip + blockmap）。
+
 ## 技术栈
 
 | 层 | 技术 | 关键版本 |
@@ -58,7 +60,8 @@ node scripts/generate-manual-pdf.js
 | 前端框架 | Vue 3 Composition API (`<script setup lang="ts">`) | 3.4 |
 | UI 库 | Element Plus + @element-plus/icons-vue | 2.5 |
 | 图表 | ECharts 5 + vue-echarts 6 | - |
-| PDF | jspdf 4 + jspdf-autotable 5 + html2canvas 1 | 打印/导出 |
+| PDF 导出 | Electron printToPDF（文字PDF，主路径）+ html2canvas/jspdf（截图回退） | 打印/导出 |
+| 文档解析 | mammoth (.docx) + word-extractor (.doc) + pdf-parse v2 (.pdf) | 条款文本提取 |
 | 状态管理 | Pinia | 2.1 |
 | 路由 | Vue Router 4 (hash 模式) | 4.3 |
 | HTTP 客户端 | Axios (拦截器自动附加 Bearer token + 401 自动刷新) | - |
@@ -86,7 +89,7 @@ node scripts/generate-manual-pdf.js
 │       │   ├── rent/          # 租赁管理（房源/租客/账单/门锁/催缴/房态看板）
 │       │   ├── finance/       # 财务管理（账套/科目/凭证/费用/税务/预算/报表/看板）
 │       │   ├── contract/      # 合同管理（列表/详情/起草/审批/看板/到期/续约/模板/合规）
-      │   ├── fire/          # 消防管理（看板/检查/器材/违规/演练）
+│       │   ├── fire/          # 消防管理（看板/检查/器材/违规/演练）
 │       │   └── system/        # 系统设置（用户/打印设置/审计日志/身份证读卡器）
 │       └── api/request.ts     # Axios 实例（baseURL=/api，拦截器处理 token/401）
 ├── backend/                   # Express 后端（ESM 模块）
@@ -140,7 +143,41 @@ total.value = res.data.total;      // ✓ 正确
 
 非 200 的 code 会被拦截器自动弹出 `ElMessage.error` 并 reject Promise，业务层只需 `catch` 空处理或自定义错误提示。
 
-**API baseURL 策略**：开发模式 Vite proxy 转发 `/api` → `localhost:3001`，生产模式（Electron 打包）直连 `http://localhost:3001/api`。401 响应触发自动 token 刷新，刷新失败清空登录态跳转 `/login`。登录/刷新接口的 401 直接透传（避免死循环）。
+**API baseURL 策略**：开发模式 Vite proxy 转发 `/api` → `localhost:3001`，生产模式（Electron 打包）直连 `http://localhost:3001/api`。`request.ts` 中导出 `apiBaseURL`，供所有需要手动构造 URL 的场景使用。401 响应触发自动 token 刷新，刷新失败清空登录态跳转 `/login`。登录/刷新接口的 401 直接透传（避免死循环）。
+
+**生产环境 URL 硬编码陷阱（重要）**：Electron 打包后前端通过 `file://` 协议加载，**所有相对路径 URL（如 `/api/...`）会解析为 `file:///api/...` 而失败**。任何原生 `fetch` 调用必须使用动态 `apiBaseURL`：
+
+```typescript
+import request, { apiBaseURL } from '@/api/request';
+
+// ✓ 正确：使用 apiBaseURL（dev=/api, prod=http://localhost:3001/api）
+const resp = await fetch(`${apiBaseURL}/contracts/extract-clause-text`, { ... });
+
+// ✗ 错误：硬编码相对路径在生产环境失败
+const resp = await fetch('/api/contracts/extract-clause-text', { ... });
+```
+
+影响的调用方式：原生 `fetch`、`el-upload` 的 `:action` prop、`new WebSocket()` URL。Axios 实例（`request.post/get/...`）不受影响——其 `baseURL` 已配置为 `apiBaseURL`。
+
+当前已验证安全的文件：`health.ts`（已处理 PROD 判断）、`useWebSocket.ts`（已处理 PROD 判断）、`TopNav.vue`（导入 apiBaseURL）、`ContractDetail.vue`（导入 apiBaseURL）、`ClauseImport.vue`（已修复）、`ContractDraft.vue`（已修复，移除本地重复定义）。
+
+**Axios FormData 上传注意**：axios 1.6+ 检测到 FormData 时会自动覆盖默认 `Content-Type`。但如果遇到 multer 收不到文件（返回"请上传文件"），**改用原生 fetch**：
+
+```typescript
+// 推荐：原生 fetch（避免 axios Content-Type 冲突）
+import { apiBaseURL } from '@/api/request';
+const fd = new FormData(); fd.append('file', file);
+const token = localStorage.getItem('accessToken');
+const resp = await fetch(`${apiBaseURL}/contracts/extract-clause-text`, {
+  method: 'POST',
+  headers: token ? { Authorization: 'Bearer ' + token } : {},
+  body: fd,
+});
+const data = await resp.json();
+
+// 备选：axios（通常可用）
+const res = await request.post('/endpoint', fd);
+```
 
 ### 前端请求 API 模块位置
 
@@ -149,6 +186,16 @@ total.value = res.data.total;      // ✓ 正确
 ### 数据库 — SQLite 优先
 
 默认使用 SQLite（零配置），`.env` 中设置 `DB_DIALECT=mysql` 可切换到 MySQL。启动时自动建库、建表、创建管理员和标准会计科目（26个科目）。不依赖 Sequelize migrations。
+
+**Sequelize JSON 字段更新陷阱**：SQLite 上 Sequelize 的 `instance.update()` 无法检测 JSON 字段变更（内部引用比较失败）。更新 JSON 字段必须用以下模式：
+
+```typescript
+(instance as any).jsonField = newValue;
+(instance as any).changed('jsonField', true);
+await instance.save();
+```
+
+项目中 `contracts.ts` 的 `clauses` 字段已使用此模式（`.changed('clauses', true)` + `.save()`），是参考范例。`instance.update({ jsonField })` 在 SQLite 上静默失败——数据不报错但不持久化。
 
 ### 启动初始化流程
 
@@ -173,8 +220,28 @@ Phase 4: connectRedis()（可选，失败自动退化）
 ### 文件上传配置
 
 - 上传目录：`backend/uploads/`（可通过 `UPLOAD_DIR` 环境变量覆盖）
-- 大小限制：单文件 ≤ 10MB
-- 允许类型：JPEG / PNG / PDF / Word / Excel（见 `config/index.ts`）
+- 大小限制：**仅用户头像上传限制 2MB**（`routes/users.ts`），其余上传区（合同附件、消防检查附件、房源导入、条款导入等）均无文件大小限制
+- multer 实例在各路由文件中独立定义，`fileFilter` 按路由各自配置允许的文件扩展名。**所有 multer 实例都必须有 fileFilter**（安全要求），防火墙安全：`contracts.ts`（条款导入 + 合同附件）、`fireSafety.ts`（消防附件）、`properties.ts`（房源导入仅 .xlsx/.xls）、`users.ts`（头像 2MB）
+- `config/index.ts` 中的 `upload.allowedTypes` 为历史遗留，未被实际引用
+- **重要**：前端 `el-upload` 必须通过 `name` prop 指定字段名，必须与后端 multer `.array('xxx')` / `.single('xxx')` 的字段名完全一致，否则 multer 返回 `Unexpected field`。后端当前使用：`files`（合同/消防附件）、`avatar`（头像）、`file`（房源导入/条款导入/文本提取）
+
+**中文文件名编码修复**：multer/busboy 解析 `Content-Disposition` 头的非 ASCII 文件名时可能按 Latin-1 解码，导致 UTF-8 中文变成乱码。修复方法：
+
+```typescript
+function decodeFilename(name: string): string {
+  const buf = Buffer.from(name, 'latin1');
+  const decoded = buf.toString('utf8');
+  return decoded.includes('�') ? name : decoded;
+}
+// 使用: name: decodeFilename(f.originalname)
+```
+
+所有使用 `f.originalname` 存储文件名的地方都需要此修复（当前已修复：`contracts.ts` 和 `fireSafety.ts` 的附件上传端点）。纯 ASCII 文件名无损通过。
+
+**el-upload 组件注意事项**：
+- `before-upload` 中设置的 `uploading` ref 必须在 `on-success` 和 `on-error` 回调中都复位 `false`，否则按钮一直转圈
+- `on-success` 收到的 `res` 是原始 HTTP 响应 body（不经 Axios 拦截器），直接是 `{ code, data, message }` 对象
+- 文件上传 URL 使用完整路径（如 `` :action="apiBaseURL + '/contracts/' + id + '/upload'" ``），需手动传递 `Authorization` header
 
 ### Electron 主进程生命周期
 
@@ -182,7 +249,7 @@ Phase 4: connectRedis()（可选，失败自动退化）
 
 1. `app.whenReady()` → `buildMenu()`（中文菜单栏，macOS/Windows 自适应）→ `spawnBackend()` → `createWindow()`
 2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/物业租赁综合管理系统/data/`，三通道并行检测后端就绪（stdout 多关键字 + 5s 兜底 + HTTP 健康检查轮询 `/api/health`，**60s 安全超时**，适应首次安装建库+迁移+种子数据）
-3. IPC 通道：`get-app-version`、`get-backend-status`、`get-backend-url`、`print-html`、`save-file-dialog`、`open-file-dialog`、`read-id-card`
+3. IPC 通道：`get-app-version`、`get-backend-status`、`get-backend-url`、`export-pdf`、`print-html`、`save-file-dialog`、`open-file-dialog`、`read-id-card`
 4. 开发模式窗口加载 `http://localhost:5173`，生产模式加载 `file://` 协议
 5. 生产模式禁止开发者工具（拦截 `devtools-opened` 事件）
 
@@ -339,10 +406,30 @@ fireSafety: {
 ### 条款批量导入
 
 **后端端点**：
-- `POST /api/contracts/extract-clause-text` — 上传 .docx/.pdf，用 `mammoth`/文本提取返回纯文本
-- `POST /api/contracts/import-clauses` — 两种模式：Excel 文件上传（自动解析列、匹配租客、追加条款到合同）或 JSON body（手动指定租客 ID 和条款列表）
+- `POST /api/contracts/extract-clause-text` — 上传 .docx/.doc/.pdf，用 `mammoth`（.docx）、`word-extractor`（.doc）、`pdf-parse` v2（.pdf）提取纯文本。三种格式均有 try/catch 保护，解析失败返回友好提示而非 500 错误。**重要**：此端点使用原生 `fetch` 而非 axios（axios 默认 `Content-Type: application/json` 会与 FormData multipart 冲突导致 multer 收不到文件）。
 
-**前端**：`views/contract/ClauseImport.vue` — 三格式上传（Excel 表格预览自动匹配 / Word/PDF 文本提取后手动选租客）
+**pdf-parse v2 API 注意**：当前安装版本 2.4.5（mehmet-kozan），与 v1（modesty）API 完全不同：
+```typescript
+// v2 正确用法（contracts.ts 当前实现）
+const { PDFParse } = await import('pdf-parse');
+const buf = new Uint8Array(dataBuffer.buffer, dataBuffer.byteOffset, dataBuffer.byteLength); // 必须 Uint8Array
+const parser = new PDFParse(buf);
+const result = await parser.getText();  // 返回 { pages, text, total }
+text = result.text || '';
+
+// v2 返回的 text 包含页面分隔符（"-- 1 of 5 --"），需过滤后再判断是否为扫描件
+const contentText = text.replace(/^\s*--\s*\d+\s+of\s+\d+\s*--\s*$/gm, '').trim();
+if (contentText.length < 50) { /* 扫描件提示 */ }
+```
+- `POST /api/contracts/import-clauses` — 两种模式：Excel 文件上传或 JSON body。支持 `templateId` / `propertyType` 参数，导入后自动同步条款到模板。
+
+**智能拆分**：`ClauseImport.vue` 的 `smartSplit()` 采用四级回退匹配：第X条/款/章/节 → 中文数字编号（一、二、）→ 阿拉伯数字编号（1. / (1)）→ 空行段落拆分 → 单行拆分。
+
+**待处理条款桥接机制（pendingClauses）**：导入条款时**无论租客是否已有合同**，都同时存入 `tenant.pendingClauses`（确保新建合同时也能自动加载）。ContractDraft.vue 的 `loadPendingClausesForCurrentTenant()` 在编辑初始化、租客切换、模板加载后三个时机调用。**注意**：API 返回 `pendingClauses` 可能是 JSON 字符串，前端需 `JSON.parse` 处理。
+
+**条款模板同步（syncToTemplate）**：导入条款时自动按业态创建 `常用条款模板-{公寓/厂房/商铺}`，`content.isAuto: true` 标记。TemplateList.vue 对自动模板显示「自动」标签。ContractDraft 选择房源时自动匹配：默认模板 > 常用条款模板（该业态）> 同类型模板。
+
+**前端**：`ClauseImport.vue` — 侧边栏「合同管理→条款导入」入口。上传区支持拖拽+点击。Word/PDF 上传后自动触发智能拆分。模板选择下拉可指定同步目标。
 
 ### 种子数据就绪机制
 
@@ -352,9 +439,58 @@ fireSafety: {
 
 `request.ts` 支持 `silent: true` 配置项，非关键 API 调用可跳过 `ElMessage.error` toast。同时内置 3 秒相同错误消息去重。
 
-### PDF 打印修复（print-service.ts）
+### PDF 导出引擎（print-service.ts）
 
-`printPDF()` 改为按区块渲染：`extractBlocksHTML()` 将 HTML 按 `.section`/`.header-row`/`.sign-area` 边界拆分为独立 block，每个 block 独立 `html2canvas` 渲染后按序排入 PDF。不再使用整页截图为单张巨图后固定切割的方式，避免内容被拦腰切断。
+PDF 导出采用双层策略，Electron 环境优先走原生文字引擎：
+
+**主路径 — printToPDF 文字引擎**（`exportTextPDF()`）：
+```
+buildContractHTML() → Electron IPC 'export-pdf' → BrowserWindow 渲染
+→ webContents.printToPDF({ preferCSSPageSize: true }) → 保存对话框 → 文字 PDF
+```
+- 输出真正的文字 PDF（可选中、可搜索、体积小）
+- 页面尺寸由 HTML 内 `@page` CSS 决定（A4/A4-landscape/80mm），`preferCSSPageSize: true` 自动适配
+- `printDocument({ mode: 'pdf' })` 在 `isElectron()` 时自动走此路径
+- 非 Electron 环境（浏览器 dev 模式）回退到截图 PDF
+
+**回退路径 — html2canvas 截图**（`printPDF()`，内部函数）：
+- 仅当 `electronAPI.exportPDF` 不可用时触发（浏览器 dev 模式）
+- `extractBlocksHTML()` 按 `.section`/`.header-row`/`.sign-area` 边界拆分 HTML 为独立 block
+- 每个 block 独立 `html2canvas` 渲染（scale 1.5），超长 block 按页均分切片
+- `printNative()`（原生打印）也走 Electron IPC `print-html` → `webContents.print()` 弹出系统对话框
+
+**IPC 通道**（`electron/main.ts`）：
+- `export-pdf`：临时文件 → 隐藏 BrowserWindow → `printToPDF()` → 保存对话框
+- `print-html`：临时文件 → 隐藏 BrowserWindow → `webContents.print()` → 系统打印对话框
+
+**前端 API**（`preload.ts` → `env.d.ts`）：
+```typescript
+window.electronAPI.exportPDF(html: string, title: string): Promise<{ success: boolean; filePath?: string | null; error?: string }>
+window.electronAPI.printHTML(html: string, title: string): Promise<{ success: boolean; failureReason?: string }>
+```
+
+**ContractPrint.ts**（合同打印模板）采用正式法律合同排版：双横线装饰标题、双方当事人两列表格对比、统一表格边框 `#999` 实线、签章区竖线分隔、章节中文数字编号（一~七）、页脚含合同编号和签订日期。`billingConfig.fireSafety` 消防约定通过 `buildFireSafetyHTML()` 渲染为独立区块。
+
+**打印模板多行文本处理（重要）**：HTML 中 `\n` 换行符会被折叠为空格，导致多段落文本挤在一起。`ContractPrint.ts` 提供了两个工具函数：
+
+```typescript
+// 统一换行符处理（兼容 \r\n / \r / \n），返回非空行数组
+function normLines(text: string): string[] {
+  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(p => p.trim());
+}
+// 将多行文本渲染为独立 <p> 段落，带 text-indent:2em 和 margin:2px 0
+function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
+  const lines = normLines(text);
+  if (lines.length === 0) return '';
+  return lines.map(p => `<p style="text-indent:2em;margin:2px 0;${extraStyle}">${p}</p>`).join('');
+}
+```
+
+- **段落文本**（条款 content、备注 notes、消防违规处罚等）：使用 `wrapTextAsParagraphs(text, extraStyle)`，自动拆分+段落化
+- **表格单元格**：`td()` 辅助函数已内置 `normLines(value).join('<br>')`，多行值自动处理
+- **屏幕端展示**：Vue 模板中使用 `white-space:pre-wrap` 保留换行
+
+已修复/验证的文件：`ContractPrint.ts`（合同条款、消防条款、其他约定、td()）、`TenantInfoPrint.ts`（备注 含 `\r\n` 兼容+行高）、`TenantDetail.vue`（页面备注）、`ReportCenter.vue`（报表单元格）、`ContractDetail.vue`（条款内容+消防违规处罚）、`FireInspectionDetail.vue`（备注）、`ContractApproval.vue`（条款内容）。
 
 ### 门锁管理架构
 
@@ -444,6 +580,7 @@ fireSafety: {
 | `properties` | `buildingOrder` | INTEGER (默认0) |
 | `properties` | `floorOrder` | INTEGER (默认0) |
 | `tenants` | `gender` / `birthDate` / `ethnicity` / `idAddress` / `idIssuingAuthority` / `idValidFrom` / `idValidTo` / `idPhoto` | VARCHAR/TEXT (8列) |
+| `tenants` | `pendingClauses` | TEXT (默认'[]') |
 
 **新增迁移步骤**：在 `MIGRATION_DEFINITIONS` 数组中添加新条目即可，重启后自动应用。
 
@@ -516,42 +653,30 @@ off('room:status-changed', callback);
 3. 通过 `useWebSocket()` 的 `on('room:status-changed')` 和 `on('room:batch-status-changed')` 监听变更，自动刷新看板数据
 4. `RoomDashboard` 使用 `vue-echarts` 渲染图表，单独调用 `GET /properties/rooms/stats` 和 `GET /properties/rooms/analytics`
 
-**状态颜色映射**（RoomCard.vue 中的 CSS class 名）：
-
-| 状态 | CSS class | 背景色 | 边框色 |
-|------|-----------|--------|--------|
-| 空置 | `status-vacant` | #f0f9eb | #c2e7b0 |
-| 已锁定 | `status-locked` | #f5f7fa | #d3d6db |
-| 已预订 | `status-reserved` | #fef3e6 | #f5dab1 |
-| 已出租 | `status-rented` | #ecf5ff | #b3d8ff |
-| 退租中 | `status-exiting` | #fdf6ec | #fae2b4 |
-| 待保洁 | `status-cleaning` | #f4f0fe | #d9cff5 |
-| 待验收 | `status-inspecting` | #e8f8f0 | #b7e4d0 |
-| 维修中 | `status-maintenance` | #fef0f0 | #fbc4c4 |
-| 已冻结 | `status-frozen` | #e9e9eb | #c8c9cc |
+**状态颜色映射**：定义在 `RoomCard.vue` 的 9 个 `status-*` CSS class 中（空置/已锁定/已预订/已出租/退租中/待保洁/待验收/维修中/已冻结），颜色见组件源码。
 
 ### 打印功能架构
 
-**打印服务**：`frontend/src/utils/print-service.ts` — 统一封装两种打印模式：
-- `native`：调用 `window.electronAPI.printHTML(html)` → Electron 主进程开隐藏 `BrowserWindow` 渲染 → `webContents.print()` 弹出系统打印对话框
-- `pdf`：html2canvas 截图 → jspdf 生成 PDF 下载（复用 `ReportCenter.vue` 已有模式）
+**打印服务**：`frontend/src/utils/print-service.ts` — 统一封装三种打印模式：
+- `native`：调用 `window.electronAPI.printHTML(html)` → Electron 开隐藏 BrowserWindow → `webContents.print()` 弹出系统打印对话框
+- `pdf`（Electron）：`printDocument()` → `exportTextPDF()` → IPC `export-pdf` → `printToPDF()` 生成真正文字 PDF
+- `pdf`（浏览器回退）：`printDocument()` → `printPDF()` → html2canvas + jsPDF 截图方案
+- 页面尺寸由 HTML 模板内 `@page` CSS 决定，`preferCSSPageSize: true` 自动适配
 
-支持 3 种纸张规格：`A4`（竖版 210×297mm）、`A4-landscape`（横版 297×210mm）、`80mm`（热敏小票，宽 80mm 高自适应）。
-
-**打印模板**：`frontend/src/components/print/` 下 5 个纯函数（数据→HTML 字符串，内联 CSS 保证截图一致性）：
+**打印模板**：`frontend/src/components/print/` 下 5 个纯函数（数据→HTML 字符串，内联 CSS）：
 - `ContractPrint.ts` — 租赁合同（法律标准格式 + 双方签章位 + 公司 Logo）
 - `TenantInfoPrint.ts` — 租客信息表 + 关联合同列表
 - `BillPrint.ts` — 账单明细（费用分项表 + 金额大写）
 - `ReceiptPrint.ts` — 收款收据（80mm 热敏小票格式）
 - `ContractBatchPrint.ts` — 合同批量汇总表
 
-**打印入口**：合同详情页（头部打印按钮，状态为执行中/已签订/已到期时可用）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
+**打印入口**：合同详情页（头部打印下拉：直接打印 / 导出PDF）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
 
 **打印设置**：`PrintSettings.vue`（`/system/print-settings`）— 配置公司全称/Logo/电子签章/证件类型/证件号码/联系电话（6 个 system_configs key），实时预览合同抬头。Base64 存储图片。
 
 **后端 API**：`/api/system-configs`（admin 权限）— `GET /keys?keys=k1,k2` 批量查询配置、`PUT /:key` 保存单个配置（upsert 模式）。
 
-**Electron IPC**：`main.ts` 注册 7 个 IPC handler（`print-html` 开隐藏窗口渲染 HTML 后调用系统打印；`read-id-card` 预留给硬件 SDK；`save-file-dialog`/`open-file-dialog` 文件对话框等）。`preload.ts` 通过 `contextBridge.exposeInMainWorld('electronAPI', {...})` 暴露到渲染进程。
+**Electron IPC**：`main.ts` 注册 8 个 IPC handler：`export-pdf`（文字PDF导出+保存对话框）、`print-html`（系统打印对话框）、`read-id-card`（预留硬件SDK）、`save-file-dialog`/`open-file-dialog`（文件对话框）、`get-app-version`/`get-backend-status`/`get-backend-url`（状态查询）。`preload.ts` 通过 `contextBridge.exposeInMainWorld('electronAPI', {...})` 暴露到渲染进程。
 
 ### 身份证读卡器模块
 
@@ -586,6 +711,12 @@ off('room:status-changed', callback);
 | 附件 | `attachments[]` | `{ name, path, size, uploadedAt }` |
 
 **注意**：新增 billingConfig 字段时，必须同步修改 3 个位置：ContractDraft.vue（表单+变量+`buildBillingConfig`+编辑回填）、ContractPrint.ts（`ContractPrintData` 接口+打印内容）、ContractDetail.vue（展示+`handlePrint` 传参）。
+
+### 合同审批页（ContractApproval.vue）
+
+审批列表支持**展开行**查看合同详情：点击展开图标 → `onExpandChange` 懒加载合同数据（`GET /contracts/:id`）→ 展示合同基本信息、全部条款（卡片式布局，兼容 JSON 字符串自动解析）、消防安全约定。
+
+`GET /api/approvals` 返回的合同数据现在包含 `clauses`、`billingConfig` 和 Tenant 关联（`include: [{ model: Tenant, as: 'tenant' }]`），使审批页可直接显示租客名称。
 
 ### 已知孤立文件
 

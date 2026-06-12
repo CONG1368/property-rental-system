@@ -106,6 +106,7 @@
             <el-upload
               :action="apiBaseURL + '/users/' + authStore.user?.id + '/avatar'"
               :headers="uploadHeaders"
+              name="avatar"
               :show-file-list="false"
               :on-success="onAvatarUploaded"
               :on-error="onAvatarError"
@@ -209,7 +210,6 @@ function triggerLogoUpload() { logoInput.value?.click(); }
 function onLogoSelected(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0];
   if (!file) return;
-  if (file.size > 500 * 1024) { ElMessage.error('Logo 图片不能超过 500KB'); return; }
   const reader = new FileReader();
   reader.onload = () => {
     sysLogo.value = reader.result as string;
@@ -288,7 +288,7 @@ function onAvatarUploaded(res: any) {
     ElMessage.success('头像上传成功');
   }
 }
-function onAvatarError() { ElMessage.error('头像上传失败，请检查格式和大小'); }
+function onAvatarError(err: any) { ElMessage.error(err?.message || '头像上传失败，请检查格式和大小'); }
 
 async function handleSaveProfile() {
   if (profileForm.password && profileForm.password !== profileForm.confirmPwd) { ElMessage.error('两次密码不一致'); return; }

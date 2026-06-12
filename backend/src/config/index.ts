@@ -42,7 +42,6 @@ export const config = {
 
   upload: {
     dir: process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads'),
-    maxSize: 10 * 1024 * 1024,
     allowedTypes: [
       'image/jpeg', 'image/png', 'application/pdf',
       'application/msword',

@@ -7,12 +7,20 @@ import RoomStatusLog from '../models/RoomStatusLog.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { Op, fn, col, literal } from 'sequelize';
 import multer from 'multer';
+import path from 'path';
 import * as XLSX from 'xlsx';
 import { transitionRoomStatus, getValidTransitions, ROOM_STATUSES } from '../services/room-status-workflow.js';
 import { broadcast } from '../websocket/index.js';
 
 const router = Router();
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({
+  dest: 'uploads/',
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (['.xls', '.xlsx'].includes(ext)) cb(null, true);
+    else cb(new Error('仅支持 Excel (.xlsx/.xls) 格式'));
+  },
+});
 
 // ==================== 固定路径路由（必须在 /:id 之前） ====================
 

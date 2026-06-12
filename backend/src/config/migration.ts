@@ -43,6 +43,7 @@ const MIGRATION_DEFINITIONS: ColumnMigration[] = [
       { name: 'idValidFrom', sqliteType: 'VARCHAR(10)', defaultValue: "''" },
       { name: 'idValidTo', sqliteType: 'VARCHAR(10)', defaultValue: "''" },
       { name: 'idPhoto', sqliteType: 'TEXT', defaultValue: "''" },
+      { name: 'pendingClauses', sqliteType: 'TEXT', defaultValue: "'[]'" },
     ],
   },
 ];
