@@ -68,11 +68,11 @@ async function printPDF(options: PrintOptions): Promise<void> {
       const maxBlockH = usableH * 0.95;
 
       if (imgH > maxBlockH) {
-        // 超长区块按页切片，避免内容挤压
-        const slicePixelH = Math.round(maxBlockH * canvas.width / imgW);
-        const sliceCount = Math.ceil(canvas.height / slicePixelH);
+        // 超长区块按页均分切片，避免最后一页内容过少（翻页异常）
+        const pagesNeeded = Math.ceil(imgH / maxBlockH);
+        const slicePixelH = Math.ceil(canvas.height / pagesNeeded);
 
-        for (let s = 0; s < sliceCount; s++) {
+        for (let s = 0; s < pagesNeeded; s++) {
           const srcY = s * slicePixelH;
           const srcH = Math.min(slicePixelH, canvas.height - srcY);
           const sliceImgH = srcH * usableW / canvas.width;
