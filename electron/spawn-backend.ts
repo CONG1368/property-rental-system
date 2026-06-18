@@ -166,15 +166,15 @@ export function spawnBackend(): Promise<void> {
       }
     });
 
-    // 安全超时 — 30 秒后强制 resolve（首次安装需建库/迁移/同步30张表/种子数据）
+    // 安全超时 — 60 秒后强制 resolve（首次安装需建库/迁移/同步30张表/种子数据）
     setTimeout(() => {
       if (!resolved) {
-        console.log('[Backend] Safety timeout reached, backend may still be initializing');
+        console.log('[Backend] Safety timeout (60s) reached, backend may still be initializing');
         clearTimeout(healthPollFallback);
         resolved = true;
         resolve();
       }
-    }, 30000);
+    }, 60000);
   });
 }
 

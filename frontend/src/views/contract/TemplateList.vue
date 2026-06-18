@@ -14,7 +14,12 @@
 
     <el-table :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
       <el-table-column type="selection" width="45" />
-      <el-table-column prop="name" label="模板名称" width="200" />
+      <el-table-column label="模板名称" width="220">
+        <template #default="{ row }">
+          {{ row.name }}
+          <el-tag size="small" type="info" v-if="row.content?.isAuto" style="margin-left:4px">自动</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="type" label="适用业态" width="120"><template #default="{ row }"><el-tag size="small">{{ row.type }}</el-tag></template></el-table-column>
       <el-table-column label="条款数" width="100"><template #default="{ row }">{{ row.clauses?.length || 0 }}</template></el-table-column>
       <el-table-column prop="createdAt" label="创建时间" width="170"><template #default="{ row }">{{ row.createdAt?.slice(0, 16)?.replace('T', ' ') }}</template></el-table-column>

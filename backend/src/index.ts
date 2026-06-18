@@ -8,6 +8,8 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 
+export let seedDataReady = false;
+
 // ====== 文件日志系统 ======
 // 启动时创建日志文件，Tea（分流）模式——同时输出到控制台和日志文件
 let logStream: fs.WriteStream | null = null;
@@ -138,16 +140,19 @@ async function start() {
   // Phase 3：后台初始化种子数据（幂等，已有数据自动跳过）
   console.log('[Seed] Starting background data initialization...');
   try {
-    const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates, seedIdCardReaders } = await import('./services/seed-data.js');
+    const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates, seedIdCardReaders, seedFireSafety } = await import('./services/seed-data.js');
     await seedChartOfAccounts();
     await seedAllDemoData();
     await seedDoorLocks();
     await seedContractTemplates();
     await seedIdCardReaders();
+    await seedFireSafety();
     console.log('[Seed] All seed data ready');
   } catch (err: any) {
     console.error('[Seed] Data initialization error:', err.message);
     console.error('[Seed] Server is running — seed data will be retried on next restart');
+  } finally {
+    seedDataReady = true;
   }
 
   // Phase 4：Redis（可选，失败自动退化）

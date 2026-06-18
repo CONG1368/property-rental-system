@@ -2,14 +2,14 @@
   <div class="contract-detail">
     <el-page-header @back="$router.back()" :title="'合同详情 - ' + contract?.contractNo">
       <template #content>
-        <el-dropdown @command="handlePrint" v-if="contract && ['执行中','已签订','已到期'].includes(contract.status)" style="margin-left:16px">
+        <el-dropdown @command="handlePrint" v-if="contract && ['起草中','审批中','已驳回','已签订','执行中','到期提醒','已到期'].includes(contract.status)" style="margin-left:16px">
           <el-button type="primary" plain size="small">
             <el-icon><Printer /></el-icon> 打印 <el-icon><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="native"><el-icon><Printer /></el-icon> 直接打印</el-dropdown-item>
-              <el-dropdown-item command="pdf"><el-icon><Download /></el-icon> 导出PDF</el-dropdown-item>
+              <el-dropdown-item command="pdf"><el-icon><Document /></el-icon> 导出PDF</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -90,7 +90,7 @@
       <el-descriptions :column="3" border>
         <el-descriptions-item label="月租金">¥{{ Number(contract.rentAmount || 0).toFixed(2) }}（大写：{{ chineseRent }}）</el-descriptions-item>
         <el-descriptions-item label="付款周期">{{ paymentCycleLabel }}</el-descriptions-item>
-        <el-descriptions-item label="每期应交租金" :span="1">
+        <el-descriptions-item label="首期应交租金" :span="1">
           <span style="font-weight:bold;color:#0A3D62;font-size:16px">¥{{ periodRent.toFixed(2) }}</span>
           <span style="font-size:12px;color:#909399">（大写：{{ chinesePeriodRent }}）</span>
         </el-descriptions-item>
@@ -99,10 +99,10 @@
           <el-descriptions-item v-for="fi in feeItemList" :key="fi.name" :label="fi.name">
             ¥{{ Number(fi.amount).toFixed(2) }} {{ fi.unit || '' }}
           </el-descriptions-item>
-          <el-descriptions-item label="每期费用合计">
+          <el-descriptions-item label="首期费用合计">
             <span style="font-weight:bold;color:#e67e22">¥{{ periodFeeTotal.toFixed(2) }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="每期应付总计" :span="1">
+          <el-descriptions-item label="首期应付总计" :span="1">
             <span style="font-weight:bold;color:#d35400;font-size:16px">¥{{ periodTotal.toFixed(2) }}</span>
             <span style="font-size:12px;color:#909399">（大写：{{ chinesePeriodTotal }}）</span>
           </el-descriptions-item>
@@ -138,6 +138,43 @@
       </el-descriptions>
     </el-card>
 
+    <!-- 消防安全约定 -->
+    <el-card style="margin-top:16px" v-if="contract && (fireSafety.clauses?.length || fireSafety.restrictions?.length)">
+      <template #header><span>消防安全约定</span></template>
+      <el-descriptions :column="2" border size="small">
+        <el-descriptions-item label="消防责任方">{{ fireSafety.responsibilityParty || '--' }}</el-descriptions-item>
+        <el-descriptions-item label="检查频率">{{ fireSafety.inspectionFrequency || '--' }}</el-descriptions-item>
+      </el-descriptions>
+      <!-- 消防器材 -->
+      <div style="margin-top:12px" v-if="fireSafety.equipment?.length">
+        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">配备消防器材：</p>
+        <el-tag v-for="(e,i) in fireSafety.equipment" :key="i" size="small" type="success" style="margin-right:8px;margin-bottom:4px">{{ e }}</el-tag>
+      </div>
+      <!-- 禁止事项 -->
+      <div style="margin-top:12px" v-if="fireSafety.restrictions?.length">
+        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">禁止事项：</p>
+        <el-tag v-for="(r,i) in fireSafety.restrictions" :key="i" size="small" type="danger" style="margin-right:8px;margin-bottom:4px">{{ r }}</el-tag>
+      </div>
+      <!-- 消防条款 -->
+      <div style="margin-top:16px" v-if="fireSafety.clauses?.length">
+        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">消防安全条款：</p>
+        <el-timeline>
+          <el-timeline-item v-for="(c,i) in fireSafety.clauses" :key="i" :timestamp="'第'+(i+1)+'条'" placement="top">
+            <el-card shadow="hover" size="small">
+              <h4 style="margin:0 0 8px;color:#0A3D62">{{ c.title || '(无标题)' }}</h4>
+              <p style="margin:0;font-size:13px;color:#606266;white-space:pre-wrap">{{ c.content }}</p>
+            </el-card>
+          </el-timeline-item>
+        </el-timeline>
+      </div>
+      <!-- 违规处罚 -->
+      <div style="margin-top:12px" v-if="fireSafety.violationPenalty">
+        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 4px">违规处罚：</p>
+        <p style="font-size:13px;color:#e74c3c;margin:0;line-height:1.8;white-space:pre-wrap">{{ fireSafety.violationPenalty }}</p>
+      </div>
+      <el-empty v-if="!fireSafety.clauses?.length && !fireSafety.restrictions?.length && !fireSafety.equipment?.length" description="暂无消防约定" :image-size="40" />
+    </el-card>
+
     <!-- 合同附件 -->
     <el-card style="margin-top:16px" v-if="contract">
       <template #header>
@@ -145,7 +182,9 @@
         <el-upload
           :action="apiBaseURL + '/contracts/' + contract.id + '/upload'"
           :headers="uploadHeaders"
+          name="files"
           multiple
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
           :show-file-list="false"
           :on-success="onUploadSuccess"
           :on-error="onUploadError"
@@ -153,7 +192,7 @@
         >
           <el-button size="small" type="primary">上传文件</el-button>
         </el-upload>
-        <span style="font-size:12px;color:#909399;margin-left:8px">支持 PDF/DOC/DOCX/图片/Excel，单文件≤10MB</span>
+        <span style="font-size:12px;color:#909399;margin-left:8px">支持 PDF/DOC/DOCX/图片/Excel</span>
       </template>
       <el-table :data="attachments" size="small" empty-text="暂无附件">
         <el-table-column prop="name" label="文件名" min-width="200" show-overflow-tooltip />
@@ -198,7 +237,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Printer, ArrowDown, Download } from '@element-plus/icons-vue';
+import { Printer, ArrowDown, Document } from '@element-plus/icons-vue';
 import request, { apiBaseURL } from '@/api/request';
 import { printDocument, isElectron, formatDate } from '@/utils/print-service';
 import { buildContractHTML } from '@/components/print/ContractPrint';
@@ -278,6 +317,7 @@ const paymentCycleLabel = computed(() => {
 });
 
 const bcDetail = computed(() => contract.value?.billingConfig || {});
+const fireSafety = computed(() => bcDetail.value.fireSafety || {});
 const taxType = computed(() => bcDetail.value.taxType || '含税');
 const taxRate = computed(() => bcDetail.value.taxRate ?? 5);
 const invoiceType = computed(() => bcDetail.value.invoiceType || '增值税普通发票');
@@ -312,7 +352,7 @@ function onUploadSuccess(res: any) {
     fetchAttachments();
   }
 }
-function onUploadError() { ElMessage.error('文件上传失败'); }
+function onUploadError(err: any) { ElMessage.error(err?.message || '文件上传失败'); }
 
 async function fetchAttachments() {
   if (!contract.value?.id) return;
@@ -385,6 +425,7 @@ async function handlePrint(mode: string) {
       terminationNotice: bc.terminationNotice ?? 30,
       renewalNotice: bc.renewalNotice ?? 30,
       subletAllowed: bc.subletAllowed ?? false,
+      fireSafety: fireSafety.value,
       ...info,
     });
     await printDocument({ title: `租赁合同_${contract.value.contractNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });

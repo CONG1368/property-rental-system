@@ -26,7 +26,25 @@
       "Bash(taskkill /F /PID 10444)",
       "Bash(taskkill /F /PID 15196)",
       "Bash(cmd.exe /c \"del /F E:\\\\物业租赁综合管理系统\\\\backend\\\\data\\\\database.sqlite\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(git clone *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:3001/api/health)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_network_requests",
+      "Bash(curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"admin123\"}')",
+      "Bash(curl -s -H \"Authorization: Bearer $\\(curl -s -X POST http://localhost:3001/api/auth/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"admin123\"}')",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); contracts=data['data']['list']; [print\\(f'ID:{c[\\\\\"id\\\\\"]} No:{c[\\\\\"contractNo\\\\\"]} Status:{c[\\\\\"status\\\\\"]} Tenant:{c.get\\(\\\\\"tenantName\\\\\",\\\\\"-\\\\\"\\)}'\\) for c in contracts]\")",
+      "Bash(curl -s -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoi566h55CG5ZGYIiwiZGlzcGxheU5hbWUiOiLns7vnu5_nrqHnkIblkZgiLCJpYXQiOjE3ODA5ODY3OTcsImV4cCI6MTc4MTAwMTE5N30.f9ENSsra9kvNt_FECM4hc4grABxnw2anVH-k3NyAQX8' 'http://localhost:3001/api/contracts?page=1&pageSize=20')",
+      "Bash(python -c ' *)",
+      "Bash(curl -s -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoi566h55CG5ZGYIiwiZGlzcGxheU5hbWUiOiLns7vnu5_nrqHnkIblkZgiLCJpYXQiOjE3ODA5ODY3OTcsImV4cCI6MTc4MTAwMTE5N30.f9ENSsra9kvNt_FECM4hc4grABxnw2anVH-k3NyAQX8' http://localhost:3001/api/contracts/1)"
     ]
   }
 }

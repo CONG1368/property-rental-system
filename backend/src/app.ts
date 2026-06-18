@@ -26,12 +26,17 @@ app.use((req, res, next) => {
 });
 
 // 健康检查 — 供 Electron 主进程和前端轮询后端就绪状态（在路由挂载前，无需认证）
-app.get('/api/health', (_req, res) => {
-  res.json({ code: 200, data: { status: 'ok', uptime: process.uptime() } });
+app.get('/api/health', async (_req, res) => {
+  let seedReady = false;
+  try {
+    const { seedDataReady } = await import('./index.js');
+    seedReady = seedDataReady;
+  } catch {}
+  res.json({ code: 200, data: { status: 'ok', uptime: process.uptime(), seedReady } });
 });
 
 app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true }));
 // 静态文件 — 上传的头像、合同附件
 app.use('/uploads', express.static(config.upload.dir));

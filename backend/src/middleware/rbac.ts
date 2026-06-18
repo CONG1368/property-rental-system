@@ -5,12 +5,12 @@ type PermissionAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'e
 
 const rolePermissions: Record<string, Record<string, PermissionAction[]>> = {
   '管理员': { '*': ['create', 'read', 'update', 'delete', 'approve', 'export'] },
-  '收租主管': { 'rent': ['create', 'read', 'update', 'delete', 'approve', 'export'], 'tenant': ['create', 'read', 'update', 'delete', 'export'], 'contract': ['read'] },
-  '收租员': { 'rent': ['create', 'read', 'update', 'export'], 'tenant': ['create', 'read', 'update'] },
+  '收租主管': { 'rent': ['create', 'read', 'update', 'delete', 'approve', 'export'], 'tenant': ['create', 'read', 'update', 'delete', 'export'], 'contract': ['read'], 'fire': ['create', 'read', 'update', 'delete', 'export'] },
+  '收租员': { 'rent': ['create', 'read', 'update', 'export'], 'tenant': ['create', 'read', 'update'], 'fire': ['create', 'read', 'update'] },
   '财务主管': { 'finance': ['create', 'read', 'update', 'delete', 'approve', 'export'], 'reports': ['read', 'export'] },
   '会计': { 'finance': ['create', 'read', 'update', 'export'], 'reports': ['read'] },
   '出纳': { 'finance': ['read', 'update'], 'rent': ['read'] },
-  '合同主管': { 'contract': ['create', 'read', 'update', 'delete', 'approve', 'export'], 'tenant': ['read'] },
+  '合同主管': { 'contract': ['create', 'read', 'update', 'delete', 'approve', 'export'], 'tenant': ['read'], 'fire': ['read'] },
   '法务': { 'contract': ['read', 'approve'], 'compliance': ['read', 'update', 'approve', 'export'] },
   '总经理': { '*': ['read', 'approve', 'export'] },
 };

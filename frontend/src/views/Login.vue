@@ -16,12 +16,12 @@
       </div>
 
       <!-- 后端状态指示（Electron 环境自动检测） -->
-      <div v-if="showBackendStatus" class="backend-status" :class="backendReady ? 'ready' : 'waiting'">
+      <div v-if="showBackendStatus" class="backend-status" :class="backendReady && seedDataReady ? 'ready' : 'waiting'">
         <el-icon :size="16">
-          <Loading v-if="!backendReady" class="is-loading" />
+          <Loading v-if="!backendReady || !seedDataReady" class="is-loading" />
           <CircleCheck v-else />
         </el-icon>
-        <span>{{ backendReady ? '服务已就绪' : '服务启动中，请稍候...' }}</span>
+        <span>{{ !backendReady ? '服务启动中，请稍候...' : !seedDataReady ? '正在初始化演示数据，请稍候...' : '服务已就绪' }}</span>
       </div>
 
       <!-- 错误提示 -->
@@ -52,11 +52,11 @@
           <el-button
             type="primary"
             :loading="loading"
-            :disabled="!backendReady && showBackendStatus"
+            :disabled="(!backendReady || !seedDataReady) && showBackendStatus"
             class="login-btn"
             @click="handleLogin"
           >
-            {{ loading ? '登录中...' : (!backendReady && showBackendStatus ? '等待服务启动...' : '登 录') }}
+            {{ loading ? '登录中...' : (!backendReady && showBackendStatus ? '等待服务启动...' : !seedDataReady && showBackendStatus ? '等待数据初始化...' : '登 录') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -88,6 +88,7 @@ const appVersion = ref('1.0.2');
 // 后端状态检测（Electron 环境）
 const showBackendStatus = ref(false);
 const backendReady = ref(false);
+const seedDataReady = ref(false);
 let statusPollTimer: ReturnType<typeof setInterval> | null = null;
 
 const form = reactive({ username: '', password: '' });
@@ -118,14 +119,16 @@ function redirectByRole() {
 async function checkBackendStatus() {
   if (!window.electronAPI) return;
   try {
-    const ok = await window.electronAPI.getBackendStatus();
-    backendReady.value = ok;
-    if (ok && statusPollTimer) {
+    const status = await window.electronAPI.getBackendStatus();
+    backendReady.value = status.ok;
+    seedDataReady.value = status.seedReady;
+    if (status.ok && status.seedReady && statusPollTimer) {
       clearInterval(statusPollTimer);
       statusPollTimer = null;
     }
   } catch {
     backendReady.value = false;
+    seedDataReady.value = false;
   }
 }
 
@@ -142,7 +145,7 @@ onMounted(() => {
   if (window.electronAPI) {
     showBackendStatus.value = true;
     checkBackendStatus();
-    if (!backendReady.value) {
+    if (!backendReady.value || !seedDataReady.value) {
       statusPollTimer = setInterval(checkBackendStatus, 2000);
     }
   }

@@ -38,11 +38,11 @@ function handleFileChange(uploadFile: any) {
   file.value = uploadFile.raw;
   const reader = new FileReader();
   reader.onload = (e) => {
-    const wb = XLSX.read(e.target?.result, { type: 'binary' });
+    const wb = XLSX.read(e.target?.result, { type: 'array' });
     const ws = wb.Sheets[wb.SheetNames[0]];
     previewData.value = XLSX.utils.sheet_to_json(ws);
   };
-  reader.readAsBinaryString(file.value!);
+  reader.readAsArrayBuffer(file.value!);
 }
 
 async function handleImport() {

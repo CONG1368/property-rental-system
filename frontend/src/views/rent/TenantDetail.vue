@@ -30,7 +30,9 @@
         <el-descriptions-item label="微信">{{ tenant.wechat }}</el-descriptions-item>
         <el-descriptions-item label="信用评分">{{ tenant.creditScore }}分 ({{ tenant.creditGrade }}级)</el-descriptions-item>
         <el-descriptions-item label="联系人">{{ tenant.contactPerson }}</el-descriptions-item>
-        <el-descriptions-item label="备注">{{ tenant.notes }}</el-descriptions-item>
+        <el-descriptions-item label="备注">
+          <span style="white-space:pre-wrap">{{ tenant.notes }}</span>
+        </el-descriptions-item>
       </el-descriptions>
     </el-card>
 

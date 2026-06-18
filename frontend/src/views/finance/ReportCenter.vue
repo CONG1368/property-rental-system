@@ -136,7 +136,7 @@
                 <span v-else-if="col === '户数'">{{ row[col] }}</span>
                 <span v-else>¥{{ row[col].toFixed(2) }}</span>
               </template>
-              <span v-else>{{ row[col] }}</span>
+              <span v-else style="white-space:pre-wrap">{{ row[col] }}</span>
             </template>
           </el-table-column>
         </el-table>
@@ -157,8 +157,7 @@ import { Document } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
 import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { exportTextPDF } from '@/utils/print-service';
 
 // ---- 周期选项 ----
 const currentYear = new Date().getFullYear();
@@ -302,7 +301,7 @@ function handleExport() {
   ElMessage.success('Excel导出成功');
 }
 
-// ---- PDF 导出（html2canvas 截图方案，利用浏览器原生中文渲染） ----
+// ---- PDF 导出（Electron printToPDF 文字引擎） ----
 async function handleExportPDF() {
   const title = currentReport.value?.title || '报表';
   const now = new Date().toISOString().slice(0, 10);
@@ -313,48 +312,22 @@ async function handleExportPDF() {
       ? `周期：${customDateRange.value[0]} ~ ${customDateRange.value[1]}`
       : `周期：${reportPeriod.value} (${({ month: '月度', quarter: '季度', 'half-year': '半年', year: '年度' } as any)[reportPeriodType.value]})`;
 
-    const html = buildReportHTML(title, rangeLabel, now);
+    const bodyHTML = buildReportHTML(title, rangeLabel, now);
+    // 包装为完整 HTML 文档，@page 设为 A4 横向
+    const html = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>${title}</title>
+<style>
+  @page { size: A4 landscape; margin: 8mm; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; font-size: 12px; color: #333; background: #fff; padding: 16px; }
+  h2 { color: #0A3D62; }
+  table { border-collapse: collapse; width: 100%; }
+  th { background: #f5f7fa; border: 1px solid #dcdfe6; padding: 6px 8px; text-align: left; font-weight: 600; }
+  td { border: 1px solid #dcdfe6; padding: 5px 8px; }
+  h4 { color: #0A3D62; }
+  .total-row td { font-weight: bold; background: #ecf5ff; }
+</style></head><body>${bodyHTML}</body></html>`;
 
-    // 创建离屏渲染容器
-    const container = document.createElement('div');
-    container.innerHTML = html;
-    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:760px;font-family:"Microsoft YaHei","SimHei","PingFang SC",sans-serif;font-size:12px;color:#333;background:#fff;padding:16px;z-index:-1;';
-    document.body.appendChild(container);
-
-    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    document.body.removeChild(container);
-
-    // 生成 PDF
-    const imgData = canvas.toDataURL('image/png');
-    const pageW = 297; // A4 横向 mm
-    const pageH = 210;
-    const margin = 8;
-    const usableW = pageW - margin * 2;
-    const usableH = pageH - margin * 2;
-    const imgW = usableW;
-    const imgH = (canvas.height * usableW) / canvas.width;
-
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-    let heightLeft = imgH;
-    let position = margin;
-    let pageNum = 0;
-
-    // 首页
-    doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
-    heightLeft -= usableH;
-    pageNum++;
-
-    // 后续页面
-    while (heightLeft > 0) {
-      doc.addPage();
-      position = -(usableH * pageNum) + margin;
-      doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
-      heightLeft -= usableH;
-      pageNum++;
-    }
-
-    doc.save(`${title}_${now}.pdf`);
+    await exportTextPDF(`${title}_${now}`, html);
     ElMessage.success('PDF导出成功');
   } catch (e) {
     ElMessage.error('PDF导出失败');
@@ -408,7 +381,7 @@ function formatCellValue(v: any, col: string): string {
     if (col === '户数') return String(v);
     return v.toFixed(2);
   }
-  return v != null ? String(v) : '';
+  return v != null ? String(v).replace(/\n/g, '<br>') : '';
 }
 
 function buildTableHTML(sectionTitle: string, data: any[], keys: string[], headers: string[], isCurrency: boolean): string {

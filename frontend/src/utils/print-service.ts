@@ -11,32 +11,46 @@ export interface PrintOptions {
   mode?: PrintMode;
 }
 
-/**
- * 统一打印服务 — 支持系统原生打印（Electron）和 PDF 导出两种模式
- */
+// 文字PDF导出（Electron printToPDF，生成真正的文字PDF而非截图）
+// 页面尺寸由HTML内 @page CSS 决定，preferCSSPageSize 自动适配
+export async function exportTextPDF(title: string, htmlContent: string): Promise<void> {
+  const api = (window as any).electronAPI;
+  if (!api || !api.exportPDF) {
+    // 非Electron环境回退到截图PDF
+    return printPDF({ title, paperSize: 'A4', htmlContent, mode: 'pdf' });
+  }
+  try {
+    const result = await api.exportPDF(htmlContent, title);
+    if (!result.success) throw new Error(result.error || '导出失败');
+    // 用户取消保存对话框不算错误
+  } catch (e: any) {
+    throw new Error(e.message || 'PDF导出失败');
+  }
+}
+
 export async function printDocument(options: PrintOptions): Promise<void> {
   if (options.mode === 'native') {
     return printNative(options.htmlContent, options.title);
   }
+  // PDF导出统一走 printToPDF 文字引擎，Electron 内原生文字PDF
+  if (isElectron()) {
+    return exportTextPDF(options.title, options.htmlContent);
+  }
+  // 非Electron回退
   return printPDF(options);
 }
 
-/** 获取当前运行环境 */
 export function isElectron(): boolean {
   return !!(window as any).electronAPI;
 }
 
-/** 弹出打印模式选择（桌面端有原生选项，浏览器只支持PDF） */
 export function showPrintMenu(options: PrintOptions): void {
   if (isElectron() && options.mode === undefined) {
-    // 直接调用，由页面层弹选择菜单
     throw new Error('print mode required');
   }
   const mode = isElectron() ? (options.mode || 'pdf') : 'pdf';
   printDocument({ ...options, mode });
 }
-
-// ====== PDF 导出 ======
 
 const PAPER_SIZES: Record<string, { pageW: number; pageH: number; orientation: 'portrait' | 'landscape' }> = {
   'A4': { pageW: 210, pageH: 297, orientation: 'portrait' },
@@ -48,56 +62,115 @@ async function printPDF(options: PrintOptions): Promise<void> {
   const { title, paperSize, htmlContent } = options;
   const size = PAPER_SIZES[paperSize] || PAPER_SIZES['A4'];
   const now = new Date().toISOString().slice(0, 10);
-
-  // 创建离屏渲染容器
-  const container = document.createElement('div');
-  container.innerHTML = htmlContent;
+  const margin = paperSize === '80mm' ? 4 : 8;
+  const usableW = size.pageW - margin * 2;
+  const usableH = size.pageH - margin * 2;
   const width = paperSize === '80mm' ? '302px' : '760px';
-  container.style.cssText = `position:fixed;left:-9999px;top:0;width:${width};font-family:"Microsoft YaHei","SimHei","PingFang SC",sans-serif;font-size:12px;color:#333;background:#fff;padding:16px;z-index:-1;`;
-  document.body.appendChild(container);
 
-  try {
-    const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    document.body.removeChild(container);
+  const styleMatch = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+  const styleTag = styleMatch ? '<style>' + styleMatch[1] + '</style>' : '';
 
-    const imgData = canvas.toDataURL('image/png');
-    const margin = paperSize === '80mm' ? 4 : 8;
-    const usableW = size.pageW - margin * 2;
-    const usableH = size.pageH - margin * 2;
-    const imgW = usableW;
-    const imgH = (canvas.height * usableW) / canvas.width;
+  const blocksHTML = extractBlocksHTML(htmlContent);
 
-    const doc = new jsPDF({ orientation: size.orientation, unit: 'mm', format: paperSize === '80mm' ? [80, 297] : 'a4' });
+  const doc = new jsPDF({ orientation: size.orientation, unit: 'mm', format: paperSize === '80mm' ? [80, 297] : 'a4' });
+  let currentY = margin;
 
-    let heightLeft = imgH;
-    let position = margin;
-    let pageNum = 0;
+  for (let i = 0; i < blocksHTML.length; i++) {
+    const blockContainer = document.createElement('div');
+    blockContainer.innerHTML = styleTag + blocksHTML[i];
+    blockContainer.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + width + ';background:#fff;z-index:-1;';
+    document.body.appendChild(blockContainer);
 
-    doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
-    heightLeft -= usableH;
-    pageNum++;
+    try {
+      const canvas = await html2canvas(blockContainer, { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' });
+      document.body.removeChild(blockContainer);
 
-    while (heightLeft > 0) {
-      doc.addPage();
-      position = -(usableH * pageNum) + margin;
-      doc.addImage(imgData, 'PNG', margin, position, imgW, imgH);
-      heightLeft -= usableH;
-      pageNum++;
+      const imgW = usableW;
+      const imgH = (canvas.height * usableW) / canvas.width;
+      const maxBlockH = usableH * 0.95;
+
+      if (imgH > maxBlockH) {
+        // 超长区块按页均分切片，避免最后一页内容过少（翻页异常）
+        const pagesNeeded = Math.ceil(imgH / maxBlockH);
+        const slicePixelH = Math.ceil(canvas.height / pagesNeeded);
+
+        for (let s = 0; s < pagesNeeded; s++) {
+          const srcY = s * slicePixelH;
+          const srcH = Math.min(slicePixelH, canvas.height - srcY);
+          const sliceImgH = srcH * usableW / canvas.width;
+
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = srcH;
+          const ctx = sliceCanvas.getContext('2d')!;
+          ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+
+          if (currentY + sliceImgH > margin + usableH) {
+            doc.addPage();
+            currentY = margin;
+          }
+
+          const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+          doc.addImage(sliceData, 'JPEG', margin, currentY, imgW, sliceImgH);
+          currentY += sliceImgH;
+        }
+      } else {
+        if (i > 0 && currentY + imgH > margin + usableH) {
+          doc.addPage();
+          currentY = margin;
+        }
+
+        doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, currentY, imgW, imgH);
+        currentY += imgH;
+      }
+    } catch {
+      if (document.body.contains(blockContainer)) document.body.removeChild(blockContainer);
+      throw new Error('PDF生成失败');
     }
-
-    doc.save(`${title}_${now}.pdf`);
-  } catch {
-    if (document.body.contains(container)) document.body.removeChild(container);
-    throw new Error('PDF生成失败');
   }
+
+  doc.save(title + '_' + now + '.pdf');
 }
 
-// ====== 原生打印（Electron） ======
+function extractBlocksHTML(html: string): string[] {
+  const blocks: string[] = [];
+  const container = document.createElement('div');
+  container.innerHTML = html;
+
+  const pageEl = container.querySelector('.page');
+  if (!pageEl) return [html];
+
+  const blockClasses = ['section', 'header-row', 'sign-area'];
+  let current: HTMLElement[] = [];
+
+  function flush() {
+    if (current.length === 0) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'page';
+    current.forEach(c => wrapper.appendChild(c.cloneNode(true)));
+    blocks.push(wrapper.outerHTML);
+    current = [];
+  }
+
+  for (const child of Array.from(pageEl.children)) {
+    const el = child as HTMLElement;
+    const isBlock = blockClasses.some(cls => el.classList.contains(cls));
+    if (isBlock) {
+      flush();
+      current.push(el);
+      flush();
+    } else {
+      current.push(el);
+    }
+  }
+  flush();
+
+  return blocks.length > 0 ? blocks : [html];
+}
 
 async function printNative(htmlContent: string, title: string): Promise<void> {
   const api = (window as any).electronAPI;
-  if (!api?.printHTML) {
-    // 退化到 PDF 模式
+  if (!api || !api.printHTML) {
     return printPDF({ title, paperSize: 'A4', htmlContent, mode: 'pdf' });
   }
 
@@ -111,9 +184,6 @@ async function printNative(htmlContent: string, title: string): Promise<void> {
   }
 }
 
-// ====== 辅助工具 ======
-
-/** 将金额转为大写汉字 */
 export function toChineseAmount(n: number): string {
   if (n === 0) return '零元整';
   const units = ['', '拾', '佰', '仟', '万'];
@@ -155,7 +225,6 @@ export function toChineseAmount(n: number): string {
   return result;
 }
 
-/** 格式化日期 */
 export function formatDate(date: Date | string | null | undefined, fmt = 'YYYY-MM-DD'): string {
   if (!date) return '-';
   const d = new Date(date);

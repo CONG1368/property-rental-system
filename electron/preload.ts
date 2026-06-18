@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileDialog: (options: any) => ipcRenderer.invoke('open-file-dialog', options),
   saveFileDialog: (options: any) => ipcRenderer.invoke('save-file-dialog', options),
   printHTML: (html: string, title: string) => ipcRenderer.invoke('print-html', html, title),
+  exportPDF: (html: string, title: string) => ipcRenderer.invoke('export-pdf', html, title),
   saveFile: (options: any) => ipcRenderer.invoke('save-file-dialog', options),
   readIdCard: (provider: string, port: string) => ipcRenderer.invoke('read-id-card', provider, port),
   onMenuNavigate: (callback: (path: string) => void) => {

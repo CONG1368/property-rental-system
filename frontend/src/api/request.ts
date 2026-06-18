@@ -19,22 +19,33 @@ request.interceptors.request.use((config: any) => {
   return config;
 });
 
+// 错误消息去重 — 相同消息 3 秒内不重复弹出
+let lastErrorMsg = '';
+let lastErrorTime = 0;
+function showErrorOnce(msg: string) {
+  if (msg !== lastErrorMsg || Date.now() - lastErrorTime > 3000) {
+    lastErrorMsg = msg;
+    lastErrorTime = Date.now();
+    ElMessage.error(msg);
+  }
+}
+
 request.interceptors.response.use(
   (response: AxiosResponse) => {
     if (response.data.code !== 200 && response.data.code !== undefined) {
-      ElMessage.error(response.data.message || '请求失败');
+      if (!(response.config as any).silent) {
+        showErrorOnce(response.data.message || '请求失败');
+      }
       return Promise.reject(new Error(response.data.message));
     }
     return response.data;
   },
   async (error) => {
     if (error.response?.status === 401) {
-      // 登录/刷新接口的 401 直接透传，避免死循环（刷新接口失败不应再次刷新）
       const isAuthRequest = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/refresh');
       if (isAuthRequest) {
         return Promise.reject(error);
       }
-      // 非登录接口 401：尝试刷新 token，失败则清空登录态回到登录页
       const refreshToken = localStorage.getItem('refreshToken');
       if (refreshToken) {
         try {
@@ -56,7 +67,9 @@ request.interceptors.response.use(
       window.location.hash = '#/login';
       return Promise.reject(error);
     }
-    ElMessage.error(error.response?.data?.message || '网络错误');
+    if (!(error.config as any)?.silent) {
+      showErrorOnce(error.response?.data?.message || '网络错误');
+    }
     return Promise.reject(error);
   }
 );

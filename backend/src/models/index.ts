@@ -26,6 +26,10 @@ import DoorLockLog from './DoorLockLog.js';
 import RoomStatusLog from './RoomStatusLog.js';
 import IdCardReader from './IdCardReader.js';
 import IdCardReadLog from './IdCardReadLog.js';
+import FireInspection from './FireInspection.js';
+import FireEquipment from './FireEquipment.js';
+import FireViolation from './FireViolation.js';
+import FireDrill from './FireDrill.js';
 
 // ====== 房源 <-> 合同 ======
 Property.hasMany(Contract, { foreignKey: 'propertyId', as: 'contracts' });
@@ -144,6 +148,28 @@ User.hasMany(DoorLockLog, { foreignKey: 'operatorId', as: 'lockLogs' });
 IdCardReader.hasMany(IdCardReadLog, { foreignKey: 'readerId', as: 'readLogs' });
 IdCardReadLog.belongsTo(IdCardReader, { foreignKey: 'readerId', as: 'reader' });
 
+// ====== 房源 <-> 消防检查/器材/违规/演练 ======
+Property.hasMany(FireInspection, { foreignKey: 'propertyId', as: 'fireInspections' });
+FireInspection.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Property.hasMany(FireEquipment, { foreignKey: 'propertyId', as: 'fireEquipment' });
+FireEquipment.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Property.hasMany(FireViolation, { foreignKey: 'propertyId', as: 'fireViolations' });
+FireViolation.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Property.hasMany(FireDrill, { foreignKey: 'propertyId', as: 'fireDrills' });
+FireDrill.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+
+// ====== 租客 <-> 消防违规 ======
+Tenant.hasMany(FireViolation, { foreignKey: 'tenantId', as: 'fireViolations' });
+FireViolation.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+
+// ====== 用户 <-> 消防检查 ======
+User.hasMany(FireInspection, { foreignKey: 'inspectorId', as: 'fireInspections' });
+FireInspection.belongsTo(User, { foreignKey: 'inspectorId', as: 'inspector' });
+
+// ====== 检查记录 <-> 违规 ======
+FireInspection.hasMany(FireViolation, { foreignKey: 'inspectionId', as: 'violations' });
+FireViolation.belongsTo(FireInspection, { foreignKey: 'inspectionId', as: 'inspection' });
+
 export {
   User, Property, Tenant, Contract, Bill, PaymentRecord,
   Voucher, VoucherEntry, AccountBook, ChartOfAccount,
@@ -151,4 +177,5 @@ export {
   ContractChange, ContractLog, Approval, DunningTask,
   Notification, AuditLog, DoorLock, DoorLockPassword,
   DoorLockKey, DoorLockLog, RoomStatusLog, IdCardReader, IdCardReadLog,
+  FireInspection, FireEquipment, FireViolation, FireDrill,
 };

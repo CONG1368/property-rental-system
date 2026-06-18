@@ -56,11 +56,31 @@ router.get('/income-trend', async (_req: AuthRequest, res) => {
   try {
     const trend: any[] = [];
     const now = new Date();
+    const firstIncomeMonth = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const incomeStart = `${firstIncomeMonth.getFullYear()}-${String(firstIncomeMonth.getMonth() + 1).padStart(2, '0')}`;
+    const incomeEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const allIncomeBills = await Bill.findAll({
+      where: { period: { [Op.between]: [incomeStart, incomeEnd] } },
+      attributes: ['period', 'status', 'totalAmount'],
+      raw: true,
+    });
+    const incomeGrouped: Record<string, { due: number; collected: number }> = {};
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      incomeGrouped[`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`] = { due: 0, collected: 0 };
+    }
+    for (const b of allIncomeBills as any[]) {
+      const g = incomeGrouped[b.period];
+      if (g) {
+        g.due += Number(b.totalAmount);
+        if (b.status === '已缴') g.collected += Number(b.totalAmount);
+      }
+    }
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const bills = await Bill.findAll({ where: { period }, attributes: ['status', 'totalAmount'], raw: true });
-      trend.push({ period, due: bills.reduce((s, b) => s + Number(b.totalAmount), 0), collected: bills.filter(b => b.status === '已缴').reduce((s, b) => s + Number(b.totalAmount), 0) });
+      const g = incomeGrouped[period] || { due: 0, collected: 0 };
+      trend.push({ period, due: g.due, collected: g.collected });
     }
     res.json({ code: 200, data: { trend } });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
@@ -136,18 +156,35 @@ router.get('/rent', async (req: AuthRequest, res) => {
       ? parseFloat(((overdueCount / monthBills.length) * 100).toFixed(1))
       : 0;
 
-    // 收租趋势 — 过去N个月（默认12，可自定义36）
+    // 收租趋势 — 过去N个月（默认12，可自定义36），单次BETWEEN查询替代N次循环
+    const firstMonth = new Date(now.getFullYear(), now.getMonth() - (trendMonths - 1), 1);
+    const startPeriod = `${firstMonth.getFullYear()}-${String(firstMonth.getMonth() + 1).padStart(2, '0')}`;
+    const endPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const allTrendBills = await Bill.findAll({
+      where: { period: { [Op.between]: [startPeriod, endPeriod] } },
+      attributes: ['period', 'status', 'totalAmount'],
+      raw: true,
+    });
+    const grouped: Record<string, { due: number; collected: number; overdue: number }> = {};
+    for (let i = trendMonths - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      grouped[period] = { due: 0, collected: 0, overdue: 0 };
+    }
+    for (const b of allTrendBills as any[]) {
+      const g = grouped[b.period];
+      if (g) {
+        g.due += Number(b.totalAmount);
+        if (b.status === '已缴') g.collected += Number(b.totalAmount);
+        if (b.status === '逾期') g.overdue += Number(b.totalAmount);
+      }
+    }
     const trend: any[] = [];
     for (let i = trendMonths - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const bills = await Bill.findAll({ where: { period }, attributes: ['status', 'totalAmount'], raw: true });
-      trend.push({
-        period,
-        due: bills.reduce((s, b) => s + Number(b.totalAmount), 0),
-        collected: bills.filter((b) => b.status === '已缴').reduce((s, b) => s + Number(b.totalAmount), 0),
-        overdue: bills.filter((b) => b.status === '逾期').reduce((s, b) => s + Number(b.totalAmount), 0),
-      });
+      const g = grouped[period] || { due: 0, collected: 0, overdue: 0 };
+      trend.push({ period, due: g.due, collected: g.collected, overdue: g.overdue });
     }
 
     // 逾期率趋势 — 过去N个月
