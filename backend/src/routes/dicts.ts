@@ -16,6 +16,19 @@ router.get('/types', async (_req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
+// 单个字典类型详情（含其下字典项），供前端按 code 直接取值
+router.get('/types/:code', async (req: AuthRequest, res) => {
+  try {
+    const type = await DictType.findOne({ where: { code: req.params.code } });
+    if (!type) return res.status(404).json({ code: 404, message: '字典类型不存在' });
+    const items = await DictItem.findAll({
+      where: { typeCode: req.params.code } as any,
+      order: [['sortOrder', 'ASC'], ['id', 'ASC']],
+    });
+    res.json({ code: 200, data: { type, items } });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
 router.post('/types', async (req: AuthRequest, res) => {
   try {
     const { code, name } = req.body;

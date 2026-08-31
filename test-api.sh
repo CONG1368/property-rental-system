@@ -105,7 +105,8 @@ echo ""
 # ============================================================
 echo "========== 3. Tenants =========="
 test_api "GET /tenants 列表"      GET "$BASE/tenants"
-test_api "POST /tenants 创建"     POST "$BASE/tenants" '{"name":"Test-Tenant","idType":"身份证","idNumber":"440101199001011234","phone":"13800138000","status":"待入住"}'
+T_ID_NO="4401011990$(date +%s | tail -c 7)"
+test_api "POST /tenants 创建"     POST "$BASE/tenants" "{\"name\":\"Test-Tenant\",\"idType\":\"身份证\",\"idNumber\":\"$T_ID_NO\",\"phone\":\"13800138000\",\"status\":\"待入住\"}"
 TENANT_ID=$(get_field 'v=v.id')
 test_api "GET /tenants/:id 详情"  GET "$BASE/tenants/$TENANT_ID"
 test_api "PUT /tenants/:id 更新"  PUT "$BASE/tenants/$TENANT_ID" '{"phone":"13900139000"}'
@@ -120,10 +121,20 @@ echo ""
 # ============================================================
 echo "========== 4. Contracts =========="
 # 创建测试房源和租客
-	echo -n '{"name":"CT-Prop","address":"CT-Addr","area":80,"type":"写字楼","status":"空置"}' > "$TMPDIR/req_body.json"
+	# 注意：Property.type 枚举仅支持 公寓/厂房/商铺，写错会导致创建失败继而整条合同链路 404
+	echo -n "{\"name\":\"CT-Prop-$(date +%s)\",\"address\":\"CT-Addr\",\"area\":80,\"type\":\"商铺\",\"status\":\"空置\"}" > "$TMPDIR/req_body.json"
 	curl -s -X POST "$BASE/properties" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary "@$TMPDIR/req_body.json" -o "$TMPDIR/last_resp.json" 2>/dev/null
-curl -s -X POST "$BASE/tenants" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"CT-Tenant","idType":"营业执照","idNumber":"91110000T","phone":"13600136000","status":"待入住"}' -o "$TMPDIR/last_resp.json" 2>/dev/null
+CT_PROP_ID=$(get_field 'v=v.id')
+# 身份证号必须唯一：后端对重复 idNumber 返回 409，固定值会让二次运行整条合同链路失败
+# 中文字段必须走 --data-binary 临时文件：Windows bash 下 curl -d 直传中文会编码损坏写入脏数据
+CT_ID_NO="91110000T$(date +%s)"
+echo -n "{\"name\":\"CT-Tenant\",\"idType\":\"营业执照\",\"idNumber\":\"$CT_ID_NO\",\"phone\":\"13600136000\",\"status\":\"待入住\"}" > "$TMPDIR/req_body.json"
+curl -s -X POST "$BASE/tenants" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data-binary "@$TMPDIR/req_body.json" -o "$TMPDIR/last_resp.json" 2>/dev/null
 CT_TENANT_ID=$(get_field 'v=v.id')
+if [ -z "$CT_TENANT_ID" ] || [ "$CT_TENANT_ID" = "undefined" ]; then
+  echo -e "  \033[1;33m! 测试租客创建失败，合同链路将无法执行\033[0m"
+  cat "$TMPDIR/last_resp.json"
+fi
 CT_NO="CT-$(date +%s)"
 
 test_api "GET /contracts 列表"    GET "$BASE/contracts"
@@ -310,6 +321,11 @@ echo ""
 # 清理
 # ============================================================
 echo "========== 清理测试数据 =========="
+# 顺序要求：先删合同，再删租客/房源——租客存在关联合同时后端拒绝删除，
+# 残留的测试租客会因身份证唯一校验（409）让下次运行的整条合同链路失败
+if [ -n "$CT_ID" ] && [ "$CT_ID" != "undefined" ]; then
+  curl -s -X DELETE "$BASE/contracts/$CT_ID" -H "Authorization: Bearer $TOKEN" > /dev/null 2>&1
+fi
 if [ -n "$CT_TENANT_ID" ] && [ "$CT_TENANT_ID" != "undefined" ]; then
   curl -s -X DELETE "$BASE/tenants/$CT_TENANT_ID" -H "Authorization: Bearer $TOKEN" > /dev/null 2>&1
 fi

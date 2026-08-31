@@ -43,14 +43,24 @@ export async function reconcilePayment(
   await bill.update({ status, paymentChannel: channel } as any);
 
   // 如果全额付清，自动生成财务凭证
+  // 注意：凭证生成属于**后置副作用**，失败不得回滚/中断支付对账——
+  // 否则支付平台收到 5xx 会重复回调，造成重复收款记录。
   if (status === '已缴') {
-    await generateRentVoucher(billId, userId);
+    try {
+      await generateRentVoucher(billId, userId);
+    } catch (err: any) {
+      console.error(`[Payment] 账单 ${billId} 凭证生成失败（不影响收款）:`, err?.message || err);
+    }
   }
 
-  // 更新租客信用评分
+  // 更新租客信用评分（同样是后置副作用，失败仅告警）
   const contract = (bill as any).contract;
   if (contract?.tenantId) {
-    await calculateCreditScore(contract.tenantId);
+    try {
+      await calculateCreditScore(contract.tenantId);
+    } catch (err: any) {
+      console.error(`[Payment] 租客 ${contract.tenantId} 信用评分刷新失败（不影响收款）:`, err?.message || err);
+    }
   }
 
   console.log(`[Payment] Reconciled bill ${bill.billNo}: ${amount} via ${channel}`);
