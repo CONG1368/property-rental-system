@@ -43,7 +43,8 @@
     </div>
 
     <!-- 表格 -->
-    <el-table :data="list" stripe v-loading="loading" style="margin-top:12px">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading" style="margin-top:12px">
       <el-table-column prop="ticketNo" label="工单号" width="150" />
       <el-table-column prop="title" label="报修标题" min-width="180" show-overflow-tooltip />
       <el-table-column prop="type" label="类型" width="90" />
@@ -64,6 +65,9 @@
           <el-button size="small" @click="showDetail(row)">详情</el-button>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无工单" description="住户报修或巡检发现问题后，工单会显示在这里" />
+      </template>
     </el-table>
 
     <el-pagination

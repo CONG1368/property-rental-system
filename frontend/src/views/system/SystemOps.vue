@@ -44,6 +44,9 @@
         <el-table-column prop="name" label="任务名称" width="160" />
         <el-table-column prop="schedule" label="调度时间" width="160" />
         <el-table-column prop="desc" label="说明" />
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
       <div style="margin-top:12px;font-size:12px;color:#909399">
         定时任务由后端调度器管理。当前调度器可通过环境变量/外部机制触发（项目约定：scheduler.start() 不自动调用，需手动触发或通过外部机制调度）。

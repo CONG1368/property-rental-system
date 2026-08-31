@@ -69,6 +69,7 @@ declare module 'vue' {
     ElTree: typeof import('element-plus/es')['ElTree']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
+    EmptyState: typeof import('./src/components/common/EmptyState.vue')['default']
     IdCardReadButton: typeof import('./src/components/IdCardReadButton.vue')['default']
     RoomCard: typeof import('./src/components/RoomCard.vue')['default']
     RoomGrid: typeof import('./src/components/RoomGrid.vue')['default']
@@ -78,6 +79,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Sidebar: typeof import('./src/components/layout/Sidebar.vue')['default']
+    TableSkeleton: typeof import('./src/components/common/TableSkeleton.vue')['default']
     TopNav: typeof import('./src/components/layout/TopNav.vue')['default']
   }
   export interface ComponentCustomProperties {

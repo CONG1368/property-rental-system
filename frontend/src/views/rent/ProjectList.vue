@@ -16,7 +16,8 @@
       <div class="action-group"><el-button type="primary" @click="showCreate">新增项目</el-button></div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column prop="name" label="项目名称" width="180" show-overflow-tooltip />
       <el-table-column prop="code" label="编码" width="100" />
       <el-table-column prop="type" label="类型" width="110"><template #default="{ row }"><el-tag size="small">{{ row.type }}</el-tag></template></el-table-column>
@@ -28,6 +29,9 @@
       <el-table-column label="操作" width="130" fixed="right">
         <template #default="{ row }"><el-button size="small" link @click="showEdit(row)">编辑</el-button><el-button size="small" link type="danger" @click="del(row.id)">删除</el-button></template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

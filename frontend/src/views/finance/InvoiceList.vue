@@ -23,7 +23,8 @@
       </div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column prop="invoiceNo" label="发票号" width="180" show-overflow-tooltip />
       <el-table-column prop="title" label="标题" min-width="140" show-overflow-tooltip />
       <el-table-column prop="type" label="类型" width="130">
@@ -45,6 +46,9 @@
           <el-popconfirm title="确定删除该发票?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" link>删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无发票" description="开票申请通过后发票会显示在这里" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

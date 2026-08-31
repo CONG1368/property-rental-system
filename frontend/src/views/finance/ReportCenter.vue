@@ -17,7 +17,7 @@
     <el-row :gutter="16">
       <el-col :span="8" v-for="r in reports" :key="r.title">
         <el-card shadow="hover" class="report-card" @click="openReport(r)">
-          <div class="report-icon"><el-icon :size="32" color="#4f7cf7"><Document /></el-icon></div>
+          <div class="report-icon"><el-icon :size="32" color="#2b57c9"><Document /></el-icon></div>
           <div class="report-title">{{ r.title }} <el-tag v-if="isRecommended(r)" type="warning" size="small" effect="dark" style="margin-left:4px">推荐</el-tag></div>
           <div class="report-desc">{{ r.desc }}</div>
         </el-card>
@@ -116,7 +116,7 @@
         <el-descriptions :column="3" border size="small">
           <el-descriptions-item label="总收入">¥{{ (reportState.totalRevenue || 0).toFixed(2) }}</el-descriptions-item>
           <el-descriptions-item label="总成本">¥{{ (reportState.totalCost || 0).toFixed(2) }}</el-descriptions-item>
-          <el-descriptions-item label="净利润" :label-style="{ fontWeight: 700, color: '#10b981' }">¥{{ (reportState.netProfit || 0).toFixed(2) }}</el-descriptions-item>
+          <el-descriptions-item label="净利润" :label-style="{ fontWeight: 700, color: '#0a7652' }">¥{{ (reportState.netProfit || 0).toFixed(2) }}</el-descriptions-item>
         </el-descriptions>
       </template>
 

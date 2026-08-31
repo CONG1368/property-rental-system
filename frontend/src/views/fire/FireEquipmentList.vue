@@ -18,6 +18,9 @@
         <el-table-column prop="status" label="状态" width="100"><template #default="{row}"><el-tag :type="row.status==='正常'?'success':row.status==='即将过期'?'warning':'danger'" size="small">{{ row.status }}</el-tag></template></el-table-column>
         <el-table-column prop="nextCheckDate" label="下次检查" width="110" />
         <el-table-column label="操作" width="100"><template #default="{row}"><el-button link size="small" @click="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template></el-table-column>
+              <template #empty>
+          <EmptyState title="暂无消防器材" description="登记灭火器、应急照明灯等器材后可跟踪有效期与状态" />
+        </template>
       </el-table>
       <el-pagination v-if="total>0" style="margin-top:12px" v-model:current-page="page" :page-size="20" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
     </el-card>

@@ -23,7 +23,8 @@
       </el-col>
 
       <el-col :span="18">
-        <el-table :data="filteredList" stripe v-loading="loading">
+        <TableSkeleton v-if="loading && !filteredList.length" :rows="8" :columns="7" />
+        <el-table v-show="!(loading && !filteredList.length)" :data="filteredList" stripe v-loading="loading">
           <el-table-column prop="configKey" label="键名" width="220" />
           <el-table-column label="键值" min-width="220">
             <template #default="{ row }">
@@ -47,6 +48,9 @@
               </el-popconfirm>
             </template>
           </el-table-column>
+                  <template #empty>
+            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+          </template>
         </el-table>
 
         <el-pagination

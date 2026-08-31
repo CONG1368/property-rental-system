@@ -50,6 +50,9 @@
             <el-table-column prop="propertyName" label="房源" width="120" />
             <el-table-column prop="status" label="状态" width="90"><template #default="{row}"><el-tag :type="row.status==='已过期'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
             <el-table-column prop="nextCheckDate" label="下次检查" width="110" />
+                      <template #empty>
+              <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+            </template>
           </el-table>
         </el-card>
       </el-col>

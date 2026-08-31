@@ -12,7 +12,8 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
       <el-table-column type="selection" width="45" />
       <el-table-column label="模板名称" width="220">
         <template #default="{ row }">
@@ -30,6 +31,9 @@
           <el-popconfirm title="确定删除?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger">删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无合同模板" description="创建模板可在起草合同时一键套用条款" />
+      </template>
     </el-table>
 
     <el-dialog :title="dialogTitle" v-model="dialogVisible" width="600px">

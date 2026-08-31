@@ -40,8 +40,11 @@
           <el-table-column prop="channel" label="渠道" width="90"><template #default="{ row }"><el-tag size="small">{{ row.channel }}</el-tag></template></el-table-column>
           <el-table-column prop="title" label="标题" min-width="160" />
           <el-table-column prop="content" label="内容" min-width="220" show-overflow-tooltip />
-          <el-table-column label="已读" width="80"><template #default="{ row }"><el-icon v-if="row.isRead" color="#10b981"><Select /></el-icon><span v-else style="color:#8b93a3">未读</span></template></el-table-column>
+          <el-table-column label="已读" width="80"><template #default="{ row }"><el-icon v-if="row.isRead" color="#0a7652"><Select /></el-icon><span v-else style="color:#5f6675">未读</span></template></el-table-column>
           <el-table-column prop="createdAt" label="时间" width="180" />
+                  <template #empty>
+            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+          </template>
         </el-table>
         <el-pagination v-model:current-page="msgPage" :total="msgTotal" :page-size="msgPageSize" @current-change="loadMsgs" layout="total, prev, pager, next" style="margin-top:12px; justify-content:flex-end" />
       </el-tab-pane>

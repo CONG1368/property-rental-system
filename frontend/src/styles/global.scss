@@ -19,8 +19,9 @@ html:root {
   --el-text-color-primary: #1f2430 !important;
   --el-text-color-regular: #3a4354;
   --el-text-color-secondary: #5b6472;
-  --el-text-color-placeholder: #8b93a3;
-  --el-border-color: rgba(255,255,255,.72);
+  --el-text-color-placeholder: #5f6675;
+  // 交互控件边界须 >=3:1（WCAG SC 1.4.11）；装饰性白描边保留在 -light/-lighter
+  --el-border-color: #6f8299;
   --el-border-color-light: rgba(255,255,255,.55);
   --el-border-color-lighter: rgba(255,255,255,.5);
   --el-fill-color-blank: rgba(255,255,255,.62) !important;
@@ -68,8 +69,55 @@ a { color: $color-primary; text-decoration: none; }
 .el-button:active { transform: translateY(-1px) scale(.98); }
 .el-table th.el-table__cell { background-color: rgba(255,255,255,.55); }
 
-// 表单输入玻璃化
+// 表单输入玻璃化（边框用可辨识的控件描边，满足 SC 1.4.11）
 .el-input__wrapper, .el-textarea__inner {
   background: rgba(255,255,255,.6) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.4) !important;
+  box-shadow: inset 0 0 0 1px $color-border-control, inset 0 1px 0 rgba(255,255,255,.4) !important;
+}
+
+// ------------------------------------------------------------
+// 无障碍：文字/链接使用加深的 -text 变体（原色仅作填充与标签底）
+// ------------------------------------------------------------
+a { color: $color-primary-text; }
+a:hover { color: $color-primary-text-hover; }
+.el-button--primary.is-link,
+.el-button--primary.is-text,
+.el-link.el-link--primary { color: $color-primary-text; }
+.el-button--success.is-link, .el-link.el-link--success { color: $color-success-text; }
+.el-button--warning.is-link, .el-link.el-link--warning { color: $color-warning-text; }
+.el-button--danger.is-link, .el-link.el-link--danger { color: $color-danger-text; }
+
+// 实心按钮：白字须 >=4.5:1，原填充色（#4f7cf7/#10b981/#f59e0b/#ef4444）不足，
+// 故按钮底改用加深变体；标签/图表仍用原色（填充门槛 3:1 已满足）
+.el-button--primary {
+  --el-button-bg-color: #{$color-primary-text};
+  --el-button-border-color: #{$color-primary-text};
+  --el-button-hover-bg-color: #{$color-primary-text-hover};
+  --el-button-hover-border-color: #{$color-primary-text-hover};
+  --el-button-active-bg-color: #{$color-primary-text-hover};
+  --el-button-active-border-color: #{$color-primary-text-hover};
+}
+.el-button--success {
+  --el-button-bg-color: #{$color-success-text};
+  --el-button-border-color: #{$color-success-text};
+  --el-button-hover-bg-color: #0c8a60;
+  --el-button-hover-border-color: #0c8a60;
+}
+.el-button--warning {
+  --el-button-bg-color: #{$color-warning-text};
+  --el-button-border-color: #{$color-warning-text};
+  --el-button-hover-bg-color: #a06200;
+  --el-button-hover-border-color: #a06200;
+}
+.el-button--danger {
+  --el-button-bg-color: #{$color-danger-text};
+  --el-button-border-color: #{$color-danger-text};
+  --el-button-hover-bg-color: #d63030;
+  --el-button-hover-border-color: #d63030;
+}
+
+// 深色顶栏上的彩色元素需提亮（深底 #3D4D64 上原色仅 2.3:1）
+.top-nav {
+  .el-badge__content { background-color: $color-on-dark-danger !important; color: #7f1d1d !important; border-color: transparent !important; }
+  .el-icon { color: #fff; }
 }

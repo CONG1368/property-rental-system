@@ -14,7 +14,8 @@
       </div>
     </div>
 
-    <el-table :data="list" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
       <el-table-column label="合同号" width="130" show-overflow-tooltip><template #default="{ row }">{{ row.contract?.contractNo }}</template></el-table-column>
       <el-table-column label="租客" width="110"><template #default="{ row }">{{ row.tenant?.name }}</template></el-table-column>
       <el-table-column label="房源" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
@@ -28,6 +29,9 @@
           <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" link type="danger">删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-pagination v-if="total > 0" style="margin-top:16px; justify-content:flex-end" v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" />
 

@@ -17,7 +17,8 @@
       <div class="action-group"><el-button type="primary" @click="showCreate">新增档案</el-button></div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column prop="name" label="姓名" width="110" />
       <el-table-column label="类型" width="80"><template #default="{ row }"><el-tag :type="row.isOwner ? 'warning' : 'primary'" size="small">{{ row.type }}</el-tag></template></el-table-column>
       <el-table-column label="关联房源" width="150" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
@@ -28,6 +29,9 @@
       <el-table-column label="操作" width="130" fixed="right">
         <template #default="{ row }"><el-button size="small" link @click="showEdit(row)">编辑</el-button><el-button size="small" link type="danger" @click="del(row.id)">删除</el-button></template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无住户档案" description="录入业主/住户信息，便于通知与服务" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

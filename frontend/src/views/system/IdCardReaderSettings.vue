@@ -8,7 +8,8 @@
         <span>读卡器设备</span>
         <el-button size="small" type="primary" style="margin-left:12px" @click="showAddDialog">添加设备</el-button>
       </template>
-      <el-table :data="devices" size="small" v-loading="loading">
+      <TableSkeleton v-if="loading && !devices.length" :rows="8" :columns="7" />
+      <el-table v-show="!(loading && !devices.length)" :data="devices" size="small" v-loading="loading">
         <el-table-column prop="name" label="设备名称" min-width="140" show-overflow-tooltip />
         <el-table-column prop="brand" label="品牌" width="90" />
         <el-table-column prop="model" label="型号" width="120" />
@@ -32,6 +33,9 @@
             </el-popconfirm>
           </template>
         </el-table-column>
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
     </el-card>
 

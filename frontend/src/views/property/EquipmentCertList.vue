@@ -47,6 +47,9 @@
           <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
 
     <el-pagination v-if="total>0" style="margin-top:12px; justify-content:flex-end" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />

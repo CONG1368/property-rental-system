@@ -23,7 +23,8 @@
       <div class="action-group"><el-button type="primary" @click="showCreate">受理新单</el-button></div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column prop="title" label="标题" min-width="150" show-overflow-tooltip />
       <el-table-column prop="type" label="类型" width="80"><template #default="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template></el-table-column>
       <el-table-column label="关联房源" width="130" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
@@ -37,6 +38,9 @@
           <el-button size="small" link @click="onDetail(row)">详情</el-button>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无投诉建议" description="住户提交的投诉与建议会汇总到这里" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

@@ -21,13 +21,17 @@
       </header>
       <el-tabs v-model="tab" class="portal-tabs">
         <el-tab-pane label="我的账单" name="bills">
-          <el-table :data="bills" stripe v-loading="loading">
+          <TableSkeleton v-if="loading && !bills.length" :rows="8" :columns="7" />
+          <el-table v-show="!(loading && !bills.length)" :data="bills" stripe v-loading="loading">
             <el-table-column prop="billNo" label="账单号" width="150" />
             <el-table-column prop="period" label="账期" width="100" />
             <el-table-column prop="totalAmount" label="金额" width="120" align="right"><template #default="{ row }">{{ fmt(row.totalAmount) }}</template></el-table-column>
             <el-table-column prop="dueDate" label="到期日" width="120" />
             <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="row.status === '已缴' ? 'success' : row.status === '逾期' ? 'danger' : 'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
             <el-table-column label="操作" width="90"><template #default="{ row }"><el-button v-if="row.status !== '已缴'" size="small" type="primary" link>去缴费</el-button></template></el-table-column>
+                      <template #empty>
+              <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+            </template>
           </el-table>
         </el-tab-pane>
         <el-tab-pane label="我的报修" name="repairs">

@@ -52,6 +52,9 @@
         <el-table-column label="操作" width="80">
           <template #default="{ $index }"><el-button type="danger" size="small" @click="form.entries.splice($index, 1)">删除</el-button></template>
         </el-table-column>
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
       <div style="margin-top:12px; font-size:13px">借方合计: {{ debitTotal.toFixed(2) }} | 贷方合计: {{ creditTotal.toFixed(2) }}</div>
     </el-card>

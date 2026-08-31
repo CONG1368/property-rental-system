@@ -30,6 +30,9 @@
                 <el-button link size="small" @click="showMeterDetail(row)">详情</el-button>
               </template>
             </el-table-column>
+                      <template #empty>
+              <EmptyState title="暂无抄表记录" description="录入水电表读数后自动生成用量与费用" />
+            </template>
           </el-table>
           <el-pagination v-if="meterTotal > 0" style="margin-top:12px" v-model:current-page="meterPage" :page-size="meterPageSize" :total="meterTotal" @current-change="fetchMeters" layout="total, prev, pager, next" />
         </el-card>

@@ -45,7 +45,8 @@
       </div>
 
       <!-- 表格 -->
-      <el-table :data="list" stripe v-loading="loading" style="margin-top:12px">
+      <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+      <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading" style="margin-top:12px">
         <el-table-column prop="item" label="项目" min-width="160" show-overflow-tooltip />
         <el-table-column prop="type" label="类型" width="120">
           <template #default="{ row }"><el-tag :type="typeTagType(row.type)" size="small">{{ row.type }}</el-tag></template>
@@ -70,6 +71,9 @@
             </el-popconfirm>
           </template>
         </el-table-column>
+              <template #empty>
+          <EmptyState title="暂无公共收益" description="录入广告位、场地租赁等公共收益记录" />
+        </template>
       </el-table>
 
       <el-pagination v-if="total > 0" style="margin-top:12px; justify-content:flex-end" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />

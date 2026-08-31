@@ -30,7 +30,7 @@
         <span class="section-title">今日待办</span>
         <div style="display:flex;align-items:center;gap:8px">
           <el-tag v-if="todoTotal > 0" type="danger" effect="plain">{{ todoTotal }} 项</el-tag>
-          <span style="font-size:12px;color:#909399" v-else><el-icon :size="13" color="#10b981" style="vertical-align:-2px;margin-right:4px"><CircleCheck /></el-icon>今日无待办，一切正常</span>
+          <span style="font-size:12px;color:#909399" v-else><el-icon :size="13" color="#0a7652" style="vertical-align:-2px;margin-right:4px"><CircleCheck /></el-icon>今日无待办，一切正常</span>
         </div>
       </div>
       <div v-if="todoList.length > 0">
@@ -219,7 +219,7 @@
         <el-row :gutter="16">
           <el-col :span="10">
             <div class="ops-kpi-row">
-              <div class="ops-kpi"><div class="ops-kpi-val" style="color:#4f7cf7">{{ fireDash.totalEquipment }}</div><div class="ops-kpi-label">器材总数</div></div>
+              <div class="ops-kpi"><div class="ops-kpi-val" style="color:#2b57c9">{{ fireDash.totalEquipment }}</div><div class="ops-kpi-label">器材总数</div></div>
               <div class="ops-kpi"><div class="ops-kpi-val" style="color:#fa8c16">{{ fireDash.expiringEquipment }}</div><div class="ops-kpi-label">过期/到期</div></div>
               <div class="ops-kpi"><div class="ops-kpi-val" style="color:#e74c3c">{{ fireDash.pendingViolations }}</div><div class="ops-kpi-label">隐患待整改</div></div>
               <div class="ops-kpi"><div class="ops-kpi-val" style="color:#1677ff">{{ fireDash.monthInspections }}</div><div class="ops-kpi-label">本月检查</div></div>
@@ -627,7 +627,7 @@ const quickLinks = [
 .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; }
 .kpi-trend { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 10px; }
-.kpi-trend.up { color: #4f7cf7; background: #ecf1fe; }
+.kpi-trend.up { color: #2b57c9; background: #ecf1fe; }
 .kpi-trend.down { color: #e74c3c; background: #fde8e8; }
 .kpi-trend.flat { color: #909399; background: #f5f7fa; }
 .kpi-value { font-size: 28px; font-weight: 700; margin: 4px 0; }
@@ -709,5 +709,5 @@ const quickLinks = [
 // ---- 空状态（准则 Rule 5：精美空态） ----
 .empty-state { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 0; }
 .empty-title { font-size: 14px; font-weight: 600; color: #3a4354; }
-.empty-sub { font-size: 12px; color: #8b93a3; }
+.empty-sub { font-size: 12px; color: #5f6675; }
 </style>

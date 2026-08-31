@@ -149,6 +149,9 @@
               </el-popconfirm>
             </template>
           </el-table-column>
+                  <template #empty>
+            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+          </template>
         </el-table>
       </el-tab-pane>
 

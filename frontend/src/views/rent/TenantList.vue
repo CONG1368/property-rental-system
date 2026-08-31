@@ -24,7 +24,8 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
       <el-table-column type="selection" width="45" />
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column label="证件类型" width="100"><template #default="{ row }">{{ idTypeLabel(row.idType) }}</template></el-table-column>
@@ -38,6 +39,9 @@
           <el-popconfirm title="确定删除该租客?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无租客" description="新增租客后即可签订合同、生成账单" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

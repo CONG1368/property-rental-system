@@ -29,7 +29,8 @@
       </el-form-item>
     </el-form>
 
-    <el-table :data="logs" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !logs.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !logs.length)" :data="logs" stripe v-loading="loading">
       <el-table-column prop="userId" label="用户ID" width="80" />
       <el-table-column prop="module" label="模块" width="100" />
       <el-table-column prop="action" label="操作" width="80" />
@@ -42,6 +43,9 @@
       <el-table-column prop="targetId" label="对象ID" width="80" />
       <el-table-column prop="ip" label="IP地址" width="130" />
       <el-table-column prop="createdAt" label="时间" width="170" />
+          <template #empty>
+        <EmptyState title="暂无审计日志" description="系统会记录敏感操作的成功、失败与越权尝试" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
   </div>

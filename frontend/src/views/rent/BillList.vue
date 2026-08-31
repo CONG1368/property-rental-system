@@ -23,7 +23,8 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="9" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
       <el-table-column type="selection" width="45" />
       <el-table-column label="账单编号/租客" width="170">
         <template #default="{ row }">
@@ -63,6 +64,9 @@
           </el-dropdown>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无账单" description="可点击右上角「生成账单」按合同批量生成，或手动创建单张账单" />
+      </template>
     </el-table>
 
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />

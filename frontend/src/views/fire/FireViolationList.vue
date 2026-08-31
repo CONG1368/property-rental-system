@@ -16,6 +16,9 @@
         <el-table-column prop="deadline" label="整改期限" width="110" />
         <el-table-column prop="status" label="状态" width="100"><template #default="{row}"><el-tag :type="row.status==='已整改'||row.status==='已关闭'?'success':row.status==='逾期未改'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
         <el-table-column label="操作" width="140"><template #default="{row}"><el-button link size="small" v-if="row.status==='待整改'||row.status==='整改中'" type="success" @click="handleRectify(row)">标记整改</el-button><el-button link size="small" @click="showDialog(row)">编辑</el-button></template></el-table-column>
+              <template #empty>
+          <EmptyState title="暂无违规记录" description="检查发现隐患后生成整改单并跟踪闭环" />
+        </template>
       </el-table>
       <el-pagination v-if="total>0" style="margin-top:12px" v-model:current-page="page" :page-size="20" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
     </el-card>

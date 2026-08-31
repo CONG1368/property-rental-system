@@ -23,7 +23,8 @@
       </div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
       <el-table-column prop="category" label="类别" width="90"><template #default="{ row }"><el-tag size="small">{{ row.category }}</el-tag></template></el-table-column>
       <el-table-column prop="spec" label="规格" width="120" show-overflow-tooltip />
@@ -40,6 +41,9 @@
           <el-popconfirm title="确定删除该物料?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" link>删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无物料" description="登记仓库物料后可跟踪出入库与库存" />
+      </template>
     </el-table>
     <el-pagination v-if="total > 0" v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

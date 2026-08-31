@@ -2,7 +2,8 @@
   <div class="approval-page">
     <el-tabs v-model="tab">
       <el-tab-pane label="待我审批" name="pending">
-        <el-table :data="pending" stripe v-loading="loading">
+        <TableSkeleton v-if="loading && !pending.length" :rows="8" :columns="7" />
+        <el-table v-show="!(loading && !pending.length)" :data="pending" stripe v-loading="loading">
           <el-table-column prop="title" label="标题" min-width="160" />
           <el-table-column prop="bizType" label="业务类型" width="100" />
           <el-table-column prop="bizNo" label="业务单号" width="140" />
@@ -15,6 +16,9 @@
               <el-button size="small" type="danger" @click="act(row, 'reject')">驳回</el-button>
             </template>
           </el-table-column>
+                  <template #empty>
+            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+          </template>
         </el-table>
       </el-tab-pane>
       <el-tab-pane label="我发起的" name="my">

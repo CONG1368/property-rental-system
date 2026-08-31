@@ -21,7 +21,8 @@
       </div>
     </div>
 
-    <el-table :data="list" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
       <el-table-column prop="point" label="巡更点" width="140" show-overflow-tooltip />
       <el-table-column prop="route" label="路线" width="120" show-overflow-tooltip />
       <el-table-column prop="patrolDate" label="日期" width="110" />
@@ -35,6 +36,9 @@
           <el-popconfirm title="确定删除该记录?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

@@ -17,7 +17,8 @@
       <el-button type="warning" @click="autoVisible = true">自动生成凭证</el-button>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="6" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column prop="voucherNo" label="凭证号" width="150" />
       <el-table-column prop="date" label="日期" width="110" />
       <el-table-column prop="period" label="期间" width="90" />
@@ -34,6 +35,9 @@
           <el-button size="small" type="success" @click="changeStatus(row, '已过账')" v-if="row.status === '待审核'">过账</el-button>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无凭证" description="业务单据审核通过后自动生成凭证，也可手工录入" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

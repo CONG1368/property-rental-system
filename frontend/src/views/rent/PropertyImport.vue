@@ -3,7 +3,7 @@
     <h2 class="page-title">批量导入房源</h2>
     <el-card>
       <el-upload drag :auto-upload="false" :on-change="handleFileChange" :limit="1" accept=".xlsx,.xls">
-        <el-icon :size="48" color="#4f7cf7"><Upload /></el-icon>
+        <el-icon :size="48" color="#2b57c9"><Upload /></el-icon>
         <div class="upload-text">将Excel文件拖到此处，或点击上传</div>
         <template #tip><div class="upload-tip">支持 .xlsx / .xls 格式，第一行为表头</div></template>
       </el-upload>

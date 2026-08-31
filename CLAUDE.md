@@ -831,7 +831,20 @@ off('room:status-changed', callback);
 
 **5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**（此前 Login 硬编码 1.0.2 与实际 1.0.3 不符）。
 
-**6. 交互态（Rule 5）**：空态使用 `.empty-state`（图标 + 标题 + 说明）而非单行灰字；按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景以保证可读性（Anti-Card Overuse）。
+**6. 交互态（Rule 5）— 骨架屏 + 统一空态**：两个全局自动注册组件位于 `frontend/src/components/common/`：
+- `TableSkeleton.vue`（首屏骨架，shimmer 动效 + 逐行淡入，替代通用转圈）
+- `EmptyState.vue`（图标 + 标题 + 引导说明 + 可选操作按钮，props：`title/description/icon/actionText/compact`）
+
+标准接法（已覆盖 **68 个列表页**）：`<TableSkeleton v-if="loading && !list.length" />` + `<el-table v-show="!(loading && !list.length)">` + `<template #empty><EmptyState ... /></template>`。批量接入用 `scripts/apply-loading-states.cjs`（`--dry` 可预演；自动跳过已处理页面与 `:data` 非简单变量的表格），验收用 `scripts/verify-ux-states.cjs`（10 用例，含骨架出现/消失、空态内容、头像图标化）。按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景（Anti-Card Overuse）。
+
+**7. 无障碍配色（WCAG 2.1 AA）**：原色只满足 UI 组件 3:1，作正文最低仅 1.72:1，故拆分用途——
+- **文字/链接/细线图标**用加深变体：`$color-primary-text: #2b57c9`（hover `#1e50bd`）、`$color-success-text: #0a7652`、`$color-warning-text: #8a5200`、`$color-danger-text: #bf2626`、次要文字 `$color-text-subtle: #5f6675`（原 #8b93a3）
+- **交互控件边界**用 `$color-border-control: #6f8299`（`--el-border-color`，SC 1.4.11 强制 ≥3:1）；白描边仅作装饰轮廓
+- **深色顶栏**上的主色/红点用 `$color-on-dark-primary: #a8c2fc` / `$color-on-dark-danger: #fca5a5`
+- **实心按钮**（primary/success/warning/danger）底色在 `global.scss` 覆盖为加深变体，使白字达 5.6–6.4:1
+- **原色保留**用于填充、标签底、图表系列色、进度条、KPI 大号数值（品牌湛蓝 `#4f7cf7` 未被替换）
+
+自检门禁：`node scripts/check-contrast.cjs`（46 条清单，覆盖玻璃面/页面底/深色顶栏三类背景与 alpha 合成；当前 **46/46 通过 + 2 条装饰性豁免**，退出码 0）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 的文字色，`<script>` 段的图表/标签底色不动）。详见 `docs/对比度检查报告.md`。
 
 ### 已知孤立文件
 
@@ -859,4 +872,8 @@ off('room:status-changed', callback);
 | `e2e-new-modules.js` | 新增模块 E2E |
 | `run-all-regression.js` | 串联运行全部回归脚本 |
 | `theme-migrate.cjs` | 湛蓝玻璃主题色值迁移（旧色→新令牌，跳过打印模板） |
+| `apply-loading-states.cjs` | 批量为列表页注入骨架屏 + 统一空态（`--dry` 预演） |
+| `apply-a11y-colors.cjs` | 无障碍配色迁移（文字场景语义色→ -text 变体） |
+| `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（46 条清单，可作 CI 门禁） |
+| `verify-ux-states.cjs` | 交互态验收（骨架/空态/头像图标化，10 用例）；需先启动 dev |
 | `verify-dashboard.js` | 首页概览运行时回归（登录/overview≤collectionRate金额口径/todo-summary权限过滤/rooms-stats/消防/物业运营/rent，16 用例）；需先启动 dev 后端 |

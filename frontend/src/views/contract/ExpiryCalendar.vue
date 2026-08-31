@@ -15,7 +15,8 @@
 
     <el-card>
       <template #header><span>到期日历</span><el-select v-model="viewMonth" style="width:160px; margin-left:12px" @change="fetchMonthlyData"><el-option v-for="m in months" :key="m" :label="m" :value="m" /></el-select></template>
-      <el-table :data="tableData" stripe v-loading="loading">
+      <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+      <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
         <el-table-column prop="contractNo" label="合同编号" width="150" />
         <el-table-column label="房源" width="140"><template #default="{ row }">{{ row.property?.name || '-' }}</template></el-table-column>
         <el-table-column label="租客" width="100"><template #default="{ row }">{{ row.tenant?.name || '-' }}</template></el-table-column>
@@ -33,6 +34,9 @@
             <el-button size="small" type="primary" @click="$router.push(`/contract/renewals`)">续约</el-button>
           </template>
         </el-table-column>
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
     </el-card>
   </div>

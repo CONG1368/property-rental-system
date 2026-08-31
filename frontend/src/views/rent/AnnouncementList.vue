@@ -38,7 +38,8 @@
     </div>
 
     <!-- 表格 -->
-    <el-table :data="list" stripe v-loading="loading" style="margin-top:12px">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading" style="margin-top:12px">
       <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
       <el-table-column prop="category" label="类别" width="110">
         <template #default="{ row }"><el-tag :type="categoryTagType(row.category)" size="small">{{ row.category }}</el-tag></template>
@@ -60,6 +61,9 @@
           </el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无公告" description="发布公告后可推送给指定楼栋或全部住户" />
+      </template>
     </el-table>
 
     <el-pagination

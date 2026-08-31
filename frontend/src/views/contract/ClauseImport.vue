@@ -30,6 +30,9 @@
         <el-table-column prop="title" label="条款标题" min-width="140" />
         <el-table-column prop="content" label="条款内容" min-width="200" show-overflow-tooltip />
         <el-table-column prop="sortOrder" label="排序" width="70" />
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
       <div style="margin-top:12px;color:#909399;font-size:12px">共 {{ excelRows.length }} 行</div>
       <div style="margin-top:8px">

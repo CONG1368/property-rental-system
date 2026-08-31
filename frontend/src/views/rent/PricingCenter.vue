@@ -37,6 +37,9 @@
             <el-table-column label="房源" min-width="140"><template #default="{ row }">{{ row.property?.name || '-' }}</template></el-table-column>
             <el-table-column label="业态" width="80"><template #default="{ row }">{{ row.property?.type || '-' }}</template></el-table-column>
             <el-table-column prop="rentAmount" label="月租金" width="110" align="right"><template #default="{ row }">{{ fmt(row.rentAmount) }}</template></el-table-column>
+                      <template #empty>
+              <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+            </template>
           </el-table>
         </el-card>
       </el-col>

@@ -21,7 +21,8 @@
       </div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column prop="name" label="资产名称" width="140" show-overflow-tooltip />
       <el-table-column prop="category" label="类别" width="100" />
       <el-table-column prop="originalValue" label="原值" width="110" align="right"><template #default="{ row }">{{ fmt(row.originalValue) }}</template></el-table-column>
@@ -39,6 +40,9 @@
           <el-popconfirm title="确定删除该资产?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" link>删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无固定资产" description="登记资产后系统按月自动计提折旧" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

@@ -4,12 +4,16 @@
       <div class="search-group"><el-input v-model="keyword" placeholder="搜索流程名称/业务类型" clearable style="width:200px" @keyup.enter="load" /><el-button type="primary" @click="load">查询</el-button></div>
       <el-button type="primary" @click="openCreate">新增流程</el-button>
     </div>
-    <el-table :data="list" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
       <el-table-column prop="name" label="流程名称" width="160" />
       <el-table-column prop="bizType" label="业务类型" width="110" />
       <el-table-column label="审批节点" min-width="260"><template #default="{ row }"><div v-for="s in (row.steps||[])" :key="s.order" class="step-item">{{ s.order+1 }}. {{ s.role }}（{{ s.label }}）</div></template></el-table-column>
       <el-table-column prop="status" label="状态" width="80"><template #default="{ row }"><el-tag :type="row.status === '启用' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
       <el-table-column label="操作" width="120" fixed="right"><template #default="{ row }"><el-button size="small" link @click="openEdit(row)">编辑</el-button><el-button size="small" link type="danger" @click="del(row.id)">删除</el-button></template></el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
 
     <el-dialog :title="editId ? '编辑流程' : '新增流程'" v-model="dialogVisible" width="600px" @closed="resetForm">

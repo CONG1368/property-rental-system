@@ -4,7 +4,8 @@
       <h2 class="page-title">数据字典</h2>
       <el-button type="primary" @click="showTypeDialog()">新增字典类型</el-button>
     </div>
-    <el-table :data="dictTypes" stripe v-loading="loading" @row-click="(row: any) => { selectedType = row.code; fetchItems(); }" highlight-current-row>
+    <TableSkeleton v-if="loading && !dictTypes.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !dictTypes.length)" :data="dictTypes" stripe v-loading="loading" @row-click="(row: any) => { selectedType = row.code; fetchItems(); }" highlight-current-row>
       <el-table-column prop="code" label="字典编码" width="180" />
       <el-table-column prop="name" label="字典名称" />
       <el-table-column label="操作" width="180">
@@ -13,6 +14,9 @@
           <el-popconfirm title="确定删除？同时会删除所有字典项" @confirm="handleDeleteType(row.code)"><template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无字典项" description="新增字典类型与条目，统一维护下拉选项" />
+      </template>
     </el-table>
 
     <template v-if="selectedType">

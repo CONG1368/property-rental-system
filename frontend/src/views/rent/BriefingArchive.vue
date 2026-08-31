@@ -8,11 +8,15 @@
     </div>
     <el-alert type="info" :closable="false" style="margin-bottom:16px">系统每月 1 日上午自动生成并归档当月经营简报 PDF（文字版，可搜索）。</el-alert>
 
-    <el-table :data="list" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
       <el-table-column label="文件" min-width="220"><template #default="{ row }"><el-icon><Document /></el-icon> {{ row.name }}</template></el-table-column>
       <el-table-column label="大小" width="120"><template #default="{ row }">{{ fmt(row.size) }}</template></el-table-column>
       <el-table-column label="生成时间" width="200"><template #default="{ row }">{{ fmtTime(row.mtime) }}</template></el-table-column>
       <el-table-column label="操作" width="120" fixed="right"><template #default="{ row }"><el-button size="small" type="primary" link @click="download(row)">下载</el-button></template></el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-empty v-if="!loading && list.length === 0" description="暂无归档简报，点击右上角生成" />
   </div>

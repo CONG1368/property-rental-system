@@ -11,7 +11,8 @@
 
     <el-card>
       <template #header><span>税务计算</span><el-select v-model="calcPeriod" style="width:140px; margin-left:12px" @change="fetchTaxData"><el-option v-for="m in months" :key="m" :label="m" :value="m" /></el-select><el-button type="primary" style="margin-left:12px" @click="fetchTaxData">计算</el-button></template>
-      <el-table :data="taxDetails" stripe v-loading="loading">
+      <TableSkeleton v-if="loading && !taxDetails.length" :rows="8" :columns="7" />
+      <el-table v-show="!(loading && !taxDetails.length)" :data="taxDetails" stripe v-loading="loading">
         <el-table-column prop="category" label="税种" width="150" />
         <el-table-column prop="base" label="计税基础" width="180"><template #default="{ row }">¥{{ Number(row.base || 0).toFixed(2) }}</template></el-table-column>
         <el-table-column prop="rate" label="税率" width="100" />
@@ -22,6 +23,9 @@
             <el-button size="small" @click="exportTax(row.category, calcPeriod)">导出</el-button>
           </template>
         </el-table-column>
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
     </el-card>
   </div>

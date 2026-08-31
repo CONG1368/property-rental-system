@@ -1,7 +1,8 @@
 <template>
   <div class="contract-approval">
     <h2 class="page-title">合同审批</h2>
-    <el-table :data="approvals" stripe v-loading="loading" @expand-change="onExpandChange" row-style="cursor:pointer">
+    <TableSkeleton v-if="loading && !approvals.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !approvals.length)" :data="approvals" stripe v-loading="loading" @expand-change="onExpandChange" row-style="cursor:pointer">
       <el-table-column type="expand">
         <template #default="{ row }">
           <div style="padding:16px 24px" v-if="row._contractData" v-loading="row._loading">
@@ -63,6 +64,9 @@
           <el-button size="small" @click="showComment(row)">批注</el-button>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
 
     <el-dialog title="审批意见" v-model="commentVisible" width="400px">

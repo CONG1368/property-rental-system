@@ -3,7 +3,8 @@
     <h2 class="page-title">用户管理</h2>
     <el-button type="primary" style="margin-bottom:16px" @click="showDialog()">新增用户</el-button>
     <el-button style="margin-bottom:16px; margin-left:8px" @click="showPermissionMatrix">权限矩阵</el-button>
-    <el-table :data="users" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !users.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !users.length)" :data="users" stripe v-loading="loading">
       <el-table-column label="头像" width="70" align="center">
         <template #default="{ row }">
           <img v-if="row.permissions?.avatarUrl" :src="row.permissions.avatarUrl" class="avatar-img-sm" />
@@ -31,6 +32,9 @@
           <el-popconfirm title="确定删除该用户?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger">删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
 
     <!-- 新增/编辑对话框 -->

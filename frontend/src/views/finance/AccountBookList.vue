@@ -2,7 +2,8 @@
   <div class="account-books">
     <h2 class="page-title">账套管理</h2>
     <el-button type="primary" style="margin-bottom:16px" @click="showDialog()">新增账套</el-button>
-    <el-table :data="books" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !books.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !books.length)" :data="books" stripe v-loading="loading">
       <el-table-column prop="name" label="账套名称" width="200" />
       <el-table-column prop="companyName" label="公司名称" width="200" />
       <el-table-column prop="currency" label="币种" width="80" />
@@ -14,6 +15,9 @@
       <el-table-column label="操作" width="160">
         <template #default="{ row }"><el-button size="small" @click="showDialog(row)">编辑</el-button></template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-dialog :title="isEdit ? '编辑账套' : '新增账套'" v-model="dialogVisible" width="500px">
       <el-form :model="form" ref="formRef" label-width="100px">

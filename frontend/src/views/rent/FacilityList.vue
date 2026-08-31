@@ -25,7 +25,8 @@
       </div>
     </div>
 
-    <el-table :data="list" stripe size="small" v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe size="small" v-loading="loading">
       <el-table-column prop="name" label="设备名称" min-width="140" />
       <el-table-column prop="code" label="编码" width="100" />
       <el-table-column prop="category" label="类别" width="90" />
@@ -45,6 +46,9 @@
           </el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无设施设备" description="登记设备后可制定维保计划并跟踪执行" />
+      </template>
     </el-table>
     <el-pagination v-if="total > 0" style="margin-top:12px" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
 

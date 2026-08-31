@@ -16,6 +16,9 @@
         <el-table-column prop="score" label="评分" width="70" />
         <el-table-column prop="summary" label="总结" min-width="160" show-overflow-tooltip />
         <el-table-column label="操作" width="100"><template #default="{row}"><el-button link size="small" @click="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template></el-table-column>
+              <template #empty>
+          <EmptyState title="暂无演练记录" description="组织消防演练后录入参与人数与评分" />
+        </template>
       </el-table>
       <el-pagination v-if="total>0" style="margin-top:12px" v-model:current-page="page" :page-size="20" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
     </el-card>

@@ -21,7 +21,8 @@
           </div>
           <div class="action-group"><el-button type="primary" @click="showCreate">新增车位</el-button></div>
         </div>
-        <el-table :data="spaces" stripe v-loading="loading">
+        <TableSkeleton v-if="loading && !spaces.length" :rows="8" :columns="7" />
+        <el-table v-show="!(loading && !spaces.length)" :data="spaces" stripe v-loading="loading">
           <el-table-column prop="spaceNo" label="车位号" width="100" />
           <el-table-column prop="location" label="位置" width="80" />
           <el-table-column prop="type" label="类型" width="80" />
@@ -37,6 +38,9 @@
               <el-button size="small" link type="danger" @click="delSpace(row.id)">删除</el-button>
             </template>
           </el-table-column>
+                  <template #empty>
+            <EmptyState title="暂无车位" description="登记车位后可管理租售与进出记录" />
+          </template>
         </el-table>
         <el-pagination v-model:current-page="spacePage" :total="spaceTotal" :page-size="pageSize" @current-change="fetchSpaces" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
       </el-tab-pane>

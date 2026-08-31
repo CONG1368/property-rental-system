@@ -32,7 +32,8 @@
       角色：<b>{{ role }}</b> — 模块 × 操作（含全局模块 <code>*</code>），共 {{ filteredRows.length }} 个模块
     </el-alert>
 
-    <el-table ref="tableRef" :data="filteredRows" border v-loading="loading" row-key="module" @selection-change="onSelectionChange">
+    <TableSkeleton v-if="loading && !filteredRows.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !filteredRows.length)" ref="tableRef" :data="filteredRows" border v-loading="loading" row-key="module" @selection-change="onSelectionChange">
       <el-table-column type="selection" width="45" />
       <el-table-column prop="module" label="模块" width="180">
         <template #default="{ row }">
@@ -52,6 +53,9 @@
           <el-button size="small" link type="danger" @click="confirmResetModule(row)">回退默认</el-button>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
 
     <div v-if="!role" class="empty-tip">请先选择一个角色查看/配置权限矩阵。</div>

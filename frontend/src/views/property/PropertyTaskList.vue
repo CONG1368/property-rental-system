@@ -19,7 +19,8 @@
       <div class="action-group"><el-button type="primary" @click="showForm(null)">新增任务</el-button></div>
     </div>
 
-    <el-table :data="list" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
       <el-table-column prop="type" label="任务类型" width="100"><template #default="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template></el-table-column>
       <el-table-column prop="area" label="区域" min-width="140" show-overflow-tooltip />
       <el-table-column prop="frequency" label="频次" width="80" />
@@ -42,6 +43,9 @@
           </el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

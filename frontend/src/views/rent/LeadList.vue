@@ -29,7 +29,8 @@
     </div>
 
     <!-- 线索表格 -->
-    <el-table :data="list" size="small" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" size="small" stripe v-loading="loading">
       <el-table-column prop="name" label="客户姓名" min-width="110" />
       <el-table-column prop="phone" label="手机" width="130" />
       <el-table-column label="意向业态" width="100"><template #default="{ row }"><el-tag :type="interestTagType(row.interestType)" size="small">{{ row.interestType }}</el-tag></template></el-table-column>
@@ -48,6 +49,9 @@
           </el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无招租线索" description="录入意向客户后可跟进带看与成交" />
+      </template>
     </el-table>
     <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

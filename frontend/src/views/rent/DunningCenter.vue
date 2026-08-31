@@ -18,7 +18,8 @@
             <el-tab-pane label="二级催缴" name="2" />
             <el-tab-pane label="三级催缴" name="3" />
           </el-tabs>
-          <el-table :data="filteredTasks" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedIds = rows.map((r: any) => r.id)">
+          <TableSkeleton v-if="loading && !filteredTasks.length" :rows="8" :columns="7" />
+          <el-table v-show="!(loading && !filteredTasks.length)" :data="filteredTasks" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedIds = rows.map((r: any) => r.id)">
             <el-table-column type="selection" width="45" />
             <el-table-column label="租户" width="100">
               <template #default="{ row }">
@@ -61,6 +62,9 @@
                 <el-tag v-else size="small" type="info">已处理</el-tag>
               </template>
             </el-table-column>
+                      <template #empty>
+              <EmptyState title="暂无催缴任务" description="账单逾期后系统会自动生成催缴任务" />
+            </template>
           </el-table>
         </el-card>
       </el-col>

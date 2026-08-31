@@ -20,7 +20,8 @@
       <div class="action-group"><el-button type="primary" @click="showDialog(null)">新增供应商</el-button></div>
     </div>
 
-    <el-table :data="list" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
       <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip />
       <el-table-column prop="category" label="类别" width="90"><template #default="{ row }"><el-tag :type="categoryTag(row.category)" size="small">{{ row.category }}</el-tag></template></el-table-column>
       <el-table-column prop="contact" label="联系人" width="100" />
@@ -36,6 +37,9 @@
           <el-popconfirm title="确认删除该供应商?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无供应商" description="登记外包供应商后可关联工单与结算" />
+      </template>
     </el-table>
     <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 

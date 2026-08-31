@@ -19,7 +19,8 @@
       </div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column label="账单编号" width="150">
         <template #default="{ row }">
           <span v-if="row.bill">{{ row.bill.billNo }}</span>
@@ -34,6 +35,9 @@
         <template #default="{ row }">{{ row.paidAt?.slice(0, 16)?.replace('T', ' ') }}</template>
       </el-table-column>
       <el-table-column prop="notes" label="备注" min-width="150" show-overflow-tooltip />
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
 
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />

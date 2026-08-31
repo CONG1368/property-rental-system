@@ -29,6 +29,9 @@
         <el-table-column prop="bank.amount" label="金额" width="120" align="right"><template #default="{ row }">{{ fmt(row.bank?.amount) }}</template></el-table-column>
         <el-table-column prop="bank.description" label="摘要" min-width="150" />
         <el-table-column prop="reason" label="原因" width="200" />
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
     </div>
     <el-empty v-else-if="hasRun" description="全部匹配成功，无差异" />

@@ -22,7 +22,8 @@
       </div>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
       <el-table-column prop="name" label="姓名" width="120" show-overflow-tooltip />
       <el-table-column prop="phone" label="手机号" width="130" />
       <el-table-column label="评分" width="160">
@@ -47,6 +48,9 @@
           <el-button size="small" type="primary" link @click="recompute(row)">重新评估</el-button>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
   </div>

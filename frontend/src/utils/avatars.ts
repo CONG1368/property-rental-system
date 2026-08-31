@@ -53,7 +53,7 @@ export const presetAvatars = [
 
 /** 根据角色获取头像配置 */
 export function getRoleAvatar(role: string) {
-  return roleAvatars[role] || { icon: 'user', color: '#fff', bg: 'linear-gradient(135deg, #8b93a3, #5b6472)' };
+  return roleAvatars[role] || { icon: 'user', color: '#fff', bg: 'linear-gradient(135deg, #5f6675, #5b6472)' };
 }
 
 /** 图标键名（或历史 emoji）→ 图标组件，未知回退默认头像图标 */

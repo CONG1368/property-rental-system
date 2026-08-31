@@ -21,7 +21,8 @@
       </div>
     </div>
 
-    <el-table :data="list" stripe size="small" v-loading="loading">
+    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !list.length)" :data="list" stripe size="small" v-loading="loading">
       <el-table-column prop="name" label="计划名称" min-width="150" />
       <el-table-column label="关联设备" min-width="140"><template #default="{ row }">{{ row.facility?.name || '-' }}</template></el-table-column>
       <el-table-column prop="cycleType" label="周期" width="80" />
@@ -39,6 +40,9 @@
           </el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-pagination v-if="total > 0" style="margin-top:12px" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
 
