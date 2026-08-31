@@ -9,15 +9,19 @@ import User from '../models/User.js';
 import { scheduler } from '../jobs/scheduler.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = Router();
 
 const APP_NAME = '物业租赁综合管理系统';
 
-// 从根 package.json 读取版本
+// 从根 package.json 读取版本（定位到项目根，而非 process.cwd() 可能指向 backend/）
 function readVersion(): string {
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf-8'));
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    // backend/src/routes -> 上三级到项目根
+    const root = path.resolve(__dirname, '../../..');
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
     return pkg.version || '未知';
   } catch { return '未知'; }
 }
