@@ -1,10 +1,20 @@
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <!-- 系统图标 -->
-      <div class="login-logo">
-        <el-icon :size="64" color="#0A3D62"><OfficeBuilding /></el-icon>
+    <!-- 左侧品牌区（Stripe 风格） -->
+    <div class="login-brand">
+      <div class="brand-inner">
+        <div class="brand-logo"><el-icon :size="28"><OfficeBuilding /></el-icon></div>
+        <h2 class="brand-h2">专业的物业租赁<br>经营管理平台</h2>
+        <p class="brand-p">房源、租客、收租、合同、财务、消防一站式管理，让每一次收租清晰可查。</p>
+        <div class="brand-feature">
+          <div class="bf"><span class="bf-dot"><el-icon :size="12"><Select /></el-icon></span> 实时收租看板</div>
+          <div class="bf"><span class="bf-dot"><el-icon :size="12"><Select /></el-icon></span> 智能逾期催缴</div>
+          <div class="bf"><span class="bf-dot"><el-icon :size="12"><Select /></el-icon></span> 财务合规审计</div>
+        </div>
       </div>
+    </div>
+
+    <div class="login-card">
       <h1 class="login-title">物业租赁综合管理系统</h1>
       <p class="login-subtitle">Property Rental Comprehensive Management System</p>
 
@@ -70,7 +80,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
-import { User, Lock, OfficeBuilding, Loading, CircleCheck } from '@element-plus/icons-vue';
+import { User, Lock, OfficeBuilding, Loading, CircleCheck, Select } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
 import { saveCredentials, loadCredentials, clearCredentials } from '@/utils/credentialStorage';
@@ -83,7 +93,7 @@ const loading = ref(false);
 const errorMessage = ref('');
 const rememberPassword = ref(false);
 const lastLoginRole = ref(localStorage.getItem('userRole') || '');
-const appVersion = ref('1.0.2');
+const appVersion = ref(__APP_VERSION__);
 
 // 后端状态检测（Electron 环境）
 const showBackendStatus = ref(false);
@@ -197,34 +207,63 @@ async function handleLogin() {
 
 <style lang="scss" scoped>
 .login-page {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e3ecfb, #dbe6f8 45%, #e0edf7);
+}
+/* 左侧品牌区 */
+.login-brand {
+  background: linear-gradient(160deg, #1a3a6b, #2456b8 55%, #3b72d8);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background: linear-gradient(135deg, #0A3D62 0%, #1a5f8a 100%);
+  padding: 60px;
 }
+.brand-inner { max-width: 420px; }
+.brand-logo {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: #4f7cf7; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 28px; box-shadow: 0 10px 30px rgba(79,124,247,.4);
+}
+.brand-h2 {
+  font-size: 36px; font-weight: 700; letter-spacing: -0.02em;
+  line-height: 1.15; margin-bottom: 16px;
+}
+.brand-p { opacity: .75; font-size: 15px; max-width: 40ch; line-height: 1.6; }
+.brand-feature { display: flex; flex-direction: column; gap: 14px; margin-top: 40px; }
+.bf { display: flex; gap: 10px; align-items: center; font-size: 14px; opacity: .9; }
+.bf-dot {
+  width: 20px; height: 20px; border-radius: 6px; background: rgba(255,255,255,.15);
+  display: inline-flex; align-items: center; justify-content: center; font-size: 12px;
+}
+/* 右侧登录卡 */
 .login-card {
-  width: 420px;
+  width: 100%;
+  max-width: 420px;
   padding: 48px 40px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
-}
-.login-logo {
-  text-align: center;
-  margin-bottom: 16px;
+  background: rgba(255,255,255,.62);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(31,41,55,.14), inset 0 1px 0 rgba(255,255,255,.55);
+  align-self: center;
+  justify-self: center;
 }
 .login-title {
   font-size: 22px;
   text-align: center;
-  color: #0A3D62;
+  color: #1a1f36;
+  font-weight: 700;
   margin-bottom: 8px;
 }
 .login-subtitle {
   text-align: center;
-  color: #7F8C8D;
+  color: #687385;
   font-size: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 .login-role-hint {
   text-align: center;

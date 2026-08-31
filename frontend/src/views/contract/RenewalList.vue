@@ -100,7 +100,7 @@ onMounted(() => { fetchData(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin: 0; flex: 1; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; flex: 1; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; }
 </style>

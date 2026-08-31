@@ -6,7 +6,7 @@
     </div>
 
     <el-card shadow="never" class="chat-card">
-      <template #header><b>🤖 智能问数</b><span style="color:#909399;font-size:12px;margin-left:8px">输入经营问题，自动出数据</span></template>
+      <template #header><b><el-icon :size="15" style="vertical-align:-2px;margin-right:4px"><MagicStick /></el-icon>智能问数</b><span style="color:#909399;font-size:12px;margin-left:8px">输入经营问题，自动出数据</span></template>
       <div class="chat-bar">
         <el-input v-model="chatQuestion" placeholder="例如：本月收缴率？当前空置率？本年租金收益？" @keyup.enter="askQuestion" style="max-width:520px" />
         <el-button type="primary" :loading="chatLoading" @click="askQuestion">问一下</el-button>
@@ -17,7 +17,7 @@
     <el-row :gutter="16">
       <el-col :span="8" v-for="r in reports" :key="r.title">
         <el-card shadow="hover" class="report-card" @click="openReport(r)">
-          <div class="report-icon"><el-icon :size="32" color="#0A3D62"><Document /></el-icon></div>
+          <div class="report-icon"><el-icon :size="32" color="#4f7cf7"><Document /></el-icon></div>
           <div class="report-title">{{ r.title }} <el-tag v-if="isRecommended(r)" type="warning" size="small" effect="dark" style="margin-left:4px">推荐</el-tag></div>
           <div class="report-desc">{{ r.desc }}</div>
         </el-card>
@@ -116,7 +116,7 @@
         <el-descriptions :column="3" border size="small">
           <el-descriptions-item label="总收入">¥{{ (reportState.totalRevenue || 0).toFixed(2) }}</el-descriptions-item>
           <el-descriptions-item label="总成本">¥{{ (reportState.totalCost || 0).toFixed(2) }}</el-descriptions-item>
-          <el-descriptions-item label="净利润" :label-style="{ fontWeight: 700, color: '#00B894' }">¥{{ (reportState.netProfit || 0).toFixed(2) }}</el-descriptions-item>
+          <el-descriptions-item label="净利润" :label-style="{ fontWeight: 700, color: '#10b981' }">¥{{ (reportState.netProfit || 0).toFixed(2) }}</el-descriptions-item>
         </el-descriptions>
       </template>
 
@@ -201,7 +201,7 @@ import { LineChart, BarChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
-import { Document } from '@element-plus/icons-vue';
+import { Document, MagicStick } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
 import * as XLSX from 'xlsx';
@@ -527,11 +527,11 @@ async function handleExportPDF() {
   @page { size: A4 landscape; margin: 8mm; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; font-size: 12px; color: #333; background: #fff; padding: 16px; }
-  h2 { color: #0A3D62; }
+  h2 { color: #1f2430; }
   table { border-collapse: collapse; width: 100%; }
   th { background: #f5f7fa; border: 1px solid #dcdfe6; padding: 6px 8px; text-align: left; font-weight: 600; }
   td { border: 1px solid #dcdfe6; padding: 5px 8px; }
-  h4 { color: #0A3D62; }
+  h4 { color: #1f2430; }
   .total-row td { font-weight: bold; background: #ecf5ff; }
 </style></head><body>${bodyHTML}</body></html>`;
 
@@ -548,7 +548,7 @@ async function handleExportPDF() {
 // 构建报表 HTML（浏览器原生渲染中文）
 function buildReportHTML(title: string, rangeLabel: string, now: string): string {
   let html = `<div style="text-align:center;margin-bottom:10px">
-    <h2 style="margin:0 0 4px;font-size:18px;color:#0A3D62">${title}</h2>
+    <h2 style="margin:0 0 4px;font-size:18px;color:#1f2430">${title}</h2>
     <div style="font-size:11px;color:#666">${rangeLabel}　导出日期：${now}</div>
   </div>`;
 
@@ -562,7 +562,7 @@ function buildReportHTML(title: string, rangeLabel: string, now: string): string
     html += `<div style="font-size:13px;margin-top:6px;padding:8px;background:#f5f7fa;border-radius:4px">
       <strong>总收入：</strong>¥${(reportState.totalRevenue || 0).toFixed(2)}
       <strong>总成本：</strong>¥${(reportState.totalCost || 0).toFixed(2)}
-      <strong style="color:#00B894">净利润：¥${(reportState.netProfit || 0).toFixed(2)}</strong>
+      <strong style="color:#10b981">净利润：¥${(reportState.netProfit || 0).toFixed(2)}</strong>
     </div>`;
   } else if (reportType.value === 'cashflow') {
     html += buildTableHTML('经营活动', reportState.operating || [], ['code', 'name', 'amount'], ['编码', '项目', '金额'], false);
@@ -593,11 +593,11 @@ function formatCellValue(v: any, col: string): string {
 }
 
 function buildTableHTML(sectionTitle: string, data: any[], keys: string[], headers: string[], isCurrency: boolean): string {
-  if (!data.length) return `<h4 style="margin:10px 0 4px;color:#0A3D62">${sectionTitle}</h4><p style="color:#999;font-size:11px">暂无数据</p>`;
+  if (!data.length) return `<h4 style="margin:10px 0 4px;color:#1f2430">${sectionTitle}</h4><p style="color:#999;font-size:11px">暂无数据</p>`;
   const sum = data.reduce((s, r) => s + (Number(r[keys[keys.length - 1]]) || 0), 0);
-  return `<h4 style="margin:12px 0 4px;color:#0A3D62">${sectionTitle}</h4>
+  return `<h4 style="margin:12px 0 4px;color:#1f2430">${sectionTitle}</h4>
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
-      <tr style="background:#0A3D62;color:#fff">
+      <tr style="background:#4f7cf7;color:#fff">
         ${headers.map(h => `<th style="padding:6px 10px;text-align:${h === headers[headers.length - 1] && isCurrency ? 'right' : 'left'};border:1px solid #ddd">${h}</th>`).join('')}
       </tr>
       ${data.map(r => `<tr>
@@ -617,7 +617,7 @@ function buildTableHTML(sectionTitle: string, data: any[], keys: string[], heade
 
 function buildCustomTableHTML(cols: string[], rows: any[]): string {
   return `<table style="width:100%;border-collapse:collapse;font-size:11px">
-    <tr style="background:#0A3D62;color:#fff">
+    <tr style="background:#4f7cf7;color:#fff">
       ${cols.map(c => `<th style="padding:6px 10px;text-align:left;border:1px solid #ddd">${c}</th>`).join('')}
     </tr>
     ${rows.map(r => `<tr>
@@ -636,11 +636,11 @@ function buildCustomTableHTML(cols: string[], rows: any[]): string {
 .chat-bar { display: flex; gap: 10px; align-items: center; }
 .batch-period { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .head-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .report-card { text-align: center; cursor: pointer; padding: 16px; }
-.report-card:hover { border-color: #0A3D62; }
+.report-card:hover { border-color: #1f2430; }
 .report-icon { margin-bottom: 12px; }
-.report-title { font-size: 15px; font-weight: 600; color: #0A3D62; margin-bottom: 4px; }
+.report-title { font-size: 15px; font-weight: 600; color: #1f2430; margin-bottom: 4px; }
 .report-desc { font-size: 11px; color: #7F8C8D; }
-h4 { margin: 8px 0; color: #0A3D62; font-size: 14px; }
+h4 { margin: 8px 0; color: #1f2430; font-size: 14px; }
 </style>

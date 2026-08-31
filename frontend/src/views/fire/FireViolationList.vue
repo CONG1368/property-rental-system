@@ -72,6 +72,6 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 :deep(.row-expired) { background: #fef0f0 !important; }
 </style>

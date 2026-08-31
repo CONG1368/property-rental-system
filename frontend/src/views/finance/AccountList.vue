@@ -146,10 +146,10 @@ onMounted(() => { fetchBooks(); fetchAccounts(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin: 0; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .account-node { display: flex; gap: 8px; align-items: center; font-size: 13px; flex: 1; }
-.account-code { color: #0A3D62; font-weight: 600; }
+.account-code { color: #1f2430; font-weight: 600; }
 .account-direction { color: #7F8C8D; font-size: 10px; }
 .node-actions { margin-left: auto; opacity: 0; transition: opacity 0.2s; }
 .account-node:hover .node-actions { opacity: 1; }

@@ -374,7 +374,7 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .upload-drag-area {
   :deep(.el-upload-dragger) {
     padding: 40px 20px;
@@ -386,7 +386,7 @@ onMounted(async () => {
   font-size: 15px;
   color: #34495E;
   .click-hint {
-    color: #0A3D62;
+    color: #1f2430;
     text-decoration: underline;
     cursor: pointer;
     font-style: normal;

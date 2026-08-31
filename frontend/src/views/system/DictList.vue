@@ -148,7 +148,7 @@ onMounted(() => fetchTypes());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin: 0; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-h3 { margin: 0; font-size: 15px; color: #0A3D62; }
+h3 { margin: 0; font-size: 15px; color: #1f2430; }
 </style>

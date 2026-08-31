@@ -133,11 +133,11 @@ onMounted(() => loadAll());
 <style lang="scss" scoped>
 .ops-page { padding: 0; }
 .head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 700; color: #0A3D62; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; color: #1f2430; margin: 0; }
 .briefing { margin-bottom: 16px; }
 .kpi-row { margin-bottom: 16px; }
 .kpi { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; }
-.kpi-num { font-size: 28px; font-weight: 700; color: #0A3D62; }
+.kpi-num { font-size: 28px; font-weight: 700; color: #1f2430; }
 .kpi-num.warn { color: #E6A23C; } .kpi-num.green { color: #67C23A; }
 .kpi-label { margin-top: 6px; font-size: 14px; color: #303133; font-weight: 600; }
 .kpi-sub { margin-top: 4px; font-size: 12px; color: #909399; }

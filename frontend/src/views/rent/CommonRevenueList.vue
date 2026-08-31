@@ -253,7 +253,7 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .stats-row { margin-bottom: 16px; }
 .stat-card {
   background: #fff; border-radius: 8px; padding: 20px; text-align: center;

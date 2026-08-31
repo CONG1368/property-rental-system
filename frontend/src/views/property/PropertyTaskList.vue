@@ -198,7 +198,7 @@ onMounted(() => { fetchData(); fetchStats() })
 .property-task-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
 .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #0A3D62; }
+.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
 .stat-num.pending { color: #E6A23C; }
 .stat-num.done { color: #67C23A; }
 .stat-num.fail { color: #F56C6C; }

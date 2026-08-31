@@ -126,7 +126,7 @@ onMounted(() => { loadBookOptions(); fetchData(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff; }
 .batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }

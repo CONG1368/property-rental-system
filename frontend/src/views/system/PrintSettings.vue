@@ -79,7 +79,7 @@
               <div v-if="form.companyLogo" style="margin-bottom:4px">
                 <img :src="form.companyLogo" style="max-width:160px;max-height:48px" />
               </div>
-              <div style="font-size:16px;font-weight:bold;color:#0A3D62;letter-spacing:3px">物业租赁合同</div>
+              <div style="font-size:16px;font-weight:bold;color:#1f2430;letter-spacing:3px">物业租赁合同</div>
               <div style="font-size:11px;color:#999;margin-top:2px">合同编号：CT-2024-001</div>
               <div style="font-size:12px;color:#333;margin-top:8px">
                 <p style="margin:2px 0">出租方（甲方）：{{ form.companyName || '物业租赁管理公司' }}</p>
@@ -120,7 +120,7 @@
             <div class="preview-box receipt-preview" style="width:220px;margin:0 auto;font-size:10px;line-height:1.6;border:1px dashed #ccc;padding:12px">
               <div style="text-align:center">
                 <div style="font-size:13px;font-weight:bold">{{ form.companyName || '物业租赁管理公司' }}</div>
-                <div style="font-size:11px;color:#0A3D62">收款凭证</div>
+                <div style="font-size:11px;color:#1f2430">收款凭证</div>
               </div>
               <div style="margin:8px 0;padding:4px 0;border-top:1px dashed #999;border-bottom:1px dashed #999;font-size:9px">
                 <div>收据号：REC-001</div><div>日期：2026-05-16</div>

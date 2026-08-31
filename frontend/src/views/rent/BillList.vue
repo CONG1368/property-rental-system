@@ -28,7 +28,7 @@
       <el-table-column label="账单编号/租客" width="170">
         <template #default="{ row }">
           <div class="bill-no-cell" style="cursor:pointer" @click="$router.push('/contract/detail/' + row.contract?.id)">
-            <div style="font-weight:600;color:#0A3D62;font-size:13px">{{ row.billNo }}</div>
+            <div style="font-weight:600;color:#1f2430;font-size:13px">{{ row.billNo }}</div>
             <div style="font-size:11px;color:#909399;margin-top:2px">{{ row.contract?.tenant?.name || '-' }} / {{ row.contract?.property?.name || '-' }}</div>
           </div>
         </template>
@@ -86,7 +86,7 @@
         <el-form-item label="电费"><el-input-number v-model="createForm.electricFee" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="物业费"><el-input-number v-model="createForm.propertyFee" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="其他费用"><el-input-number v-model="createForm.otherAmount" :min="0" :precision="2" style="width:100%" /></el-form-item>
-        <el-form-item label="费用合计"><span style="font-weight:600;color:#0A3D62;font-size:16px">¥{{ computedCreateTotal.toFixed(2) }}</span></el-form-item>
+        <el-form-item label="费用合计"><span style="font-weight:600;color:#1f2430;font-size:16px">¥{{ computedCreateTotal.toFixed(2) }}</span></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createVisible = false">取消</el-button>
@@ -345,7 +345,7 @@ onMounted(() => fetchData());
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .search-group { display: flex; gap: 10px; align-items: center; }
 .action-group { display: flex; gap: 10px; }
-h4 { margin: 0 0 8px; color: #0A3D62; font-size: 14px; }
+h4 { margin: 0 0 8px; color: #1f2430; font-size: 14px; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff; }
 .batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }
 </style>

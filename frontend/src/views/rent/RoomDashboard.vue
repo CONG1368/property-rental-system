@@ -59,7 +59,7 @@
         <div class="card-title">实时告警</div>
         <div class="alert-ticker">
           <div class="alert-list" ref="alertListRef">
-            <div v-for="(a, i) in alerts" :key="i" class="alert-item">⚠ {{ a }}</div>
+            <div v-for="(a, i) in alerts" :key="i" class="alert-item"><el-icon :size="13" style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ a }}</div>
             <div v-if="alerts.length === 0" class="alert-empty">暂无告警</div>
           </div>
         </div>
@@ -70,6 +70,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { Warning } from '@element-plus/icons-vue';
 import { getRoomStats, getRoomAnalytics } from '@/api/properties';
 import { useWebSocket } from '@/composables/useWebSocket';
 import VChart from 'vue-echarts';

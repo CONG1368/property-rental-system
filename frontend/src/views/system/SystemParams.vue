@@ -173,13 +173,13 @@ onMounted(fetchData);
 
 <style lang="scss" scoped>
 .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.page-title { font-size:18px; font-weight:700; color:#0A3D62; margin:0; }
+.page-title { font-size:18px; font-weight:700; color:#1f2430; margin:0; }
 .group-item {
   padding:10px 12px; border-radius:6px; cursor:pointer; margin-bottom:6px;
   display:flex; justify-content:space-between; align-items:center;
   font-size:14px; color:#333; transition: all .15s;
   &:hover { background:#f2f6fc; }
-  &.active { background:#0A3D62; color:#fff; }
+  &.active { background:#4f7cf7; color:#fff; }
 }
 .sensitive { font-family: monospace; color:#909399; letter-spacing:2px; }
 </style>

@@ -814,6 +814,25 @@ off('room:status-changed', callback);
 **11. 前端并发与兜底**：基础组（rent/overview/alerts/todo-summary）在 loadDashboardData 用 Promise.all 并发（均 authMiddleware 下所有角色可访问）；**P2 组按 tab 懒加载**（loadOpsTab：首次切换到某 tab 才请求对应接口，loadedOpsKeys 记录已加载，仅该 tab 有权限时请求），避免对无权限角色白跑 403。所有 P2 ref 做空数组/空对象兜底（roomStats/propOps/fireDash 提供默认结构）。
 
 
+
+### UI 主题体系 — 湛蓝玻璃拟物（本次迭代）
+
+全站视觉统一为「湛蓝玻璃拟物（Glassmorphism·湛蓝）」，完整规范见 `docs/UI设计准则.md`（唯一权威）。要点：
+
+**1. 设计令牌集中在 `frontend/src/styles/variables.scss`**：强调色 `$color-primary: #4f7cf7`（全站唯一强调色）、渐变底 `$color-bg`、玻璃面 `$color-bg-elev: rgba(255,255,255,.62)`、白描边 `$color-border`、文字三阶（`#1f2430`/`#3a4354`/`#5b6472`）、大圆角（8/14/20px）、玻璃阴影（外阴影 + 内高光）。**页面内禁止硬编码主题色字面量**。
+
+**2. Element Plus 变量覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary`、圆角、填充色、边框色统一玻璃化；`.el-card`/`.el-dialog`/`.el-popper`/输入框统一 `backdrop-filter: blur(14px)`。
+
+**3. ANTI-EMOJI（铁律）**：UI 与代码中禁用 emoji，一律用 `@element-plus/icons-vue` 线性图标。
+- `utils/avatars.ts` 已重构为图标方案：`avatarIcons`（键名→组件）+ `roleAvatars`（角色→键名+渐变底）+ `presetAvatars`（可选头像）+ **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容数据库里已存的 emoji 头像）。渲染方式：`<el-icon><component :is="resolveAvatarIcon(key)" /></el-icon>`。
+- 首页 `HomeDashboard.vue` 的 `iconMap` 已语义化（`home/users/money/trend/bell/doc/chart/coin/check/alert/warn/list`），KPI/待办/快捷入口的 `icon` 字段存语义键而非 emoji。
+
+**4. 存量色值迁移脚本 `scripts/theme-migrate.cjs`**：把旧色（`#0A3D62`/`#F6B93B`/`#00B894`/`#FF6B35`/`#82CCDD`/`#1a5f8a`）映射到新令牌；`#0A3D62` 按语境二分——CSS `color:` 文字色→`#1f2430`，背景/边框/图表色→`#4f7cf7`。**自动跳过 `frontend/src/components/print/`**：打印模板面向纸质输出，保留深墨蓝，不参与玻璃主题迁移。本轮已迁移 66 个文件 141 处。
+
+**5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**（此前 Login 硬编码 1.0.2 与实际 1.0.3 不符）。
+
+**6. 交互态（Rule 5）**：空态使用 `.empty-state`（图标 + 标题 + 说明）而非单行灰字；按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景以保证可读性（Anti-Card Overuse）。
+
 ### 已知孤立文件
 
 - `frontend/src/views/rent/PaymentRecord.vue` — 收款功能已集成在 BillList 详情抽屉中，无路由注册
@@ -839,4 +858,5 @@ off('room:status-changed', callback);
 | `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
 | `e2e-new-modules.js` | 新增模块 E2E |
 | `run-all-regression.js` | 串联运行全部回归脚本 |
+| `theme-migrate.cjs` | 湛蓝玻璃主题色值迁移（旧色→新令牌，跳过打印模板） |
 | `verify-dashboard.js` | 首页概览运行时回归（登录/overview≤collectionRate金额口径/todo-summary权限过滤/rooms-stats/消防/物业运营/rent，16 用例）；需先启动 dev 后端 |

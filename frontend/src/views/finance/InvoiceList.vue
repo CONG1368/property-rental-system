@@ -175,7 +175,7 @@ onMounted(() => { fetchData(); });
 .invoice-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
 .stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #0A3D62; }
+.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
 .stat-num.warn { color: #E6A23C; }
 .stat-num.done { color: #67C23A; }
 .stat-label { margin-top: 6px; color: #909399; font-size: 13px; }

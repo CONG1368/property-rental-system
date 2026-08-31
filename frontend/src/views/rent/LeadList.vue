@@ -196,10 +196,10 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .stat-cards { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .stat-card { flex: 1; min-width: 140px; background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #0A3D62; }
+.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
 .stat-num.primary { color: #409EFF; }
 .stat-num.warning { color: #E6A23C; }
 .stat-num.success { color: #67C23A; }

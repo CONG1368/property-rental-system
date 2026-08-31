@@ -7,7 +7,7 @@
       <el-table-column label="头像" width="70" align="center">
         <template #default="{ row }">
           <img v-if="row.permissions?.avatarUrl" :src="row.permissions.avatarUrl" class="avatar-img-sm" />
-          <span v-else class="avatar-icon-sm" :style="{ background: getRoleBg(row.role) }">{{ getRoleIcon(row) }}</span>
+          <span v-else class="avatar-icon-sm" :style="{ background: getRoleBg(row.role) }"><el-icon :size="16" color="#fff"><component :is="getRoleIcon(row)" /></el-icon></span>
         </template>
       </el-table-column>
       <el-table-column prop="username" label="用户名" width="110" />
@@ -87,10 +87,10 @@
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
-import { getRoleAvatar } from '@/utils/avatars';
+import { getRoleAvatar, resolveAvatarIcon } from '@/utils/avatars';
 import { confirmWithPassword } from '@/utils/confirm-password';
 
-function getRoleIcon(row: any) { return row.permissions?.avatar || getRoleAvatar(row.role).icon; }
+function getRoleIcon(row: any) { return resolveAvatarIcon(row.permissions?.avatar || getRoleAvatar(row.role).icon); }
 function getRoleBg(role: string) { return getRoleAvatar(role).bg; }
 
 const roles = ['管理员','总经理','收租主管','收租员','财务主管','会计','出纳','合同主管','法务','物业经理','维修工','安全主管']; 
@@ -194,7 +194,7 @@ onMounted(() => { fetchUsers(); loadProjects(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .avatar-icon-sm {
   width: 30px; height: 30px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;

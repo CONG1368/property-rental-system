@@ -16,7 +16,7 @@
     <!-- 已登录：门户内容 -->
     <div v-else class="portal-wrap">
       <header class="portal-header">
-        <div class="ttl">🏠 租户自助服务</div>
+        <div class="ttl"><el-icon :size="18" style="vertical-align:-3px;margin-right:6px"><House /></el-icon>租户自助服务</div>
         <div class="user">{{ tenant?.name }}（{{ tenant?.phone }}）<el-button text type="danger" @click="logout">退出</el-button></div>
       </header>
       <el-tabs v-model="tab" class="portal-tabs">
@@ -73,6 +73,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { House } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { apiBaseURL } from '@/api/request';
 
@@ -125,11 +126,11 @@ onMounted(() => { if (token()) { logged.value = true; loadData(); } });
 .tenant-portal { min-height: 100vh; background: #f5f7fa; }
 .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 .login-card { width: 400px; padding: 12px 6px; }
-.portal-title { text-align: center; margin-bottom: 18px; color: #0A3D62; }
+.portal-title { text-align: center; margin-bottom: 18px; color: #1f2430; }
 .login-tip { margin-top: 12px; color: #909399; font-size: 12px; text-align: center; }
 .portal-wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
 .portal-header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 14px 20px; border-radius: 8px; margin-bottom: 16px; }
-.ttl { font-size: 18px; font-weight: 700; color: #0A3D62; }
+.ttl { font-size: 18px; font-weight: 700; color: #1f2430; }
 .user { color: #606266; }
 .add-repair { margin-top: 12px; }
 </style>

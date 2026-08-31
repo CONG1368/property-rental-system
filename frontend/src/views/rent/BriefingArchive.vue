@@ -55,5 +55,5 @@ onMounted(() => loadList());
 <style lang="scss" scoped>
 .archive-page { padding: 0; }
 .head-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 700; color: #0A3D62; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; color: #1f2430; margin: 0; }
 </style>

@@ -40,6 +40,6 @@ function go(route: string) { router.push(route).catch(() => {}); }
 <style lang="scss" scoped>
 .search-page { padding: 0; }
 .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
-.res-item { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px solid #f5f7fa; cursor: pointer; color: #0A3D62; }
+.res-item { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px solid #f5f7fa; cursor: pointer; color: #1f2430; }
 .res-item:hover { background: #ecf5ff; }
 </style>

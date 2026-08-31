@@ -1,15 +1,34 @@
 // Design Tokens — Property Rental Management System
-// Colors
-$color-primary: #0A3D62;
-$color-accent: #F6B93B;
-$color-success: #00B894;
-$color-warning: #FF6B35;
-$color-info: #82CCDD;
-$color-bg-light: #DFE6E9;
-$color-text-title: #2C3E50;
-$color-text-body: #34495E;
-$color-text-aux: #7F8C8D;
+// ============================================================
+// 主题：湛蓝玻璃拟物（Glassmorphism·湛蓝）— 2026 主流风格
+// 依据：better-design + design-taste-frontend 设计准则
+// 要素：毛玻璃半透明卡片 / 渐变底 / 单一湛蓝强调 / 大圆角 / 无 emoji
+// ============================================================
+// Colors（湛蓝玻璃拟物）
+$color-primary: #4f7cf7;           // 强调（湛蓝）
+$color-accent: #3b66e0;            // 强调 hover
+$color-success: #10b981;
+$color-warning: #f59e0b;
+$color-danger: #ef4444;
+$color-info: #5b6472;
+// 背景（玻璃拟物渐变底）
+$color-bg: linear-gradient(135deg, #e3ecfb, #dbe6f8 45%, #e0edf7);
+$color-bg-fixed: #dde7f5;          // 渐变固定色（回退）
+// 卡片（半透明白 + 毛玻璃）
+$color-bg-elev: rgba(255, 255, 255, 0.62);
+$color-bg-elev-strong: rgba(255, 255, 255, 0.78);
+$color-bg-elev2: rgba(255, 255, 255, 0.42);
+$color-border: rgba(255, 255, 255, 0.72);
+$color-border-soft: rgba(255, 255, 255, 0.5);
+// 文字（深蓝灰）
+$color-text-title: #1f2430;
+$color-text-body: #3a4354;
+$color-text-aux: #5b6472;
+$color-text-subtle: #8b93a3;
 $color-white: #FFFFFF;
+// 阴影（玻璃拟物：外阴影 + 内高光）
+$color-shadow: 0 8px 32px rgba(31, 41, 55, 0.14);
+$color-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 
 // Typography
 $font-family-base: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -20,10 +39,10 @@ $font-size-body: 12px;
 $font-size-aux: 10px;
 $font-size-label: 9px;
 
-// Radius
-$radius-sm: 4px;
-$radius-md: 8px;
-$radius-lg: 12px;
+// Radius（玻璃拟物大圆角）
+$radius-sm: 8px;
+$radius-md: 14px;
+$radius-lg: 20px;
 
 // Layout
 $top-nav-height: 56px;

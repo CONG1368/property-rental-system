@@ -6,7 +6,7 @@
     class="sidebar-menu"
     background-color="#fff"
     text-color="#34495E"
-    active-text-color="#0A3D62"
+    active-text-color="#4f7cf7"
   >
     <el-menu-item index="/dashboard">
       <el-icon><HomeFilled /></el-icon>

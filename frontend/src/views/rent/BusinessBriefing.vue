@@ -125,21 +125,21 @@ onMounted(() => loadData());
 <style lang="scss" scoped>
 .briefing-page { padding: 0; }
 .head-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 700; color: #0A3D62; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; color: #1f2430; margin: 0; }
 .report-area { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 28px; }
-.report-header { border-bottom: 2px solid #0A3D62; padding-bottom: 12px; margin-bottom: 16px; }
-.report-header h1 { margin: 0; color: #0A3D62; }
+.report-header { border-bottom: 2px solid #4f7cf7; padding-bottom: 12px; margin-bottom: 16px; }
+.report-header h1 { margin: 0; color: #1f2430; }
 .rpt-date { color: #909399; font-size: 13px; margin-top: 6px; }
 .rpt-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
 .kpi-cell { border: 1px solid #ebeef5; border-radius: 6px; padding: 14px; text-align: center; }
-.kpi-val { font-size: 24px; font-weight: 700; color: #0A3D62; }
+.kpi-val { font-size: 24px; font-weight: 700; color: #1f2430; }
 .kpi-lab { margin-top: 4px; color: #909399; font-size: 12px; }
 .rpt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .rpt-table th, .rpt-table td { border: 1px solid #ebeef5; padding: 8px; text-align: center; }
 .rpt-table th { background: #f5f7fa; }
 .struct-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .struct-item { border: 1px solid #ebeef5; border-radius: 6px; padding: 12px; }
-.struct-tag { font-weight: 600; margin-bottom: 8px; color: #0A3D62; }
+.struct-tag { font-weight: 600; margin-bottom: 8px; color: #1f2430; }
 .struct-line { font-size: 13px; line-height: 1.8; }
 @media print {
   .head-row { display: none; }

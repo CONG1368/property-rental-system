@@ -12,7 +12,7 @@
       <el-col :span="6" v-for="kpi in kpis" :key="kpi.label">
         <div class="kpi-card" @click="goPage(kpi.link)" :title="kpi.label + ' — 点击查看详情'">
           <div class="kpi-top">
-            <span class="kpi-icon" :style="{ background: kpi.color }">{{ kpi.icon }}</span>
+            <span class="kpi-icon" :style="{ background: kpi.color }"><el-icon :size="18" color="#fff"><component :is="iconMap[kpi.icon]" /></el-icon></span>
             <span class="kpi-trend" :class="kpi.trend > 0 ? 'up' : kpi.trend < 0 ? 'down' : 'flat'" :style="{ color: kpi.trendColor, background: kpi.trend > 0 ? '#e6faf4' : kpi.trend < 0 ? '#fde8e8' : '#f5f7fa' }" v-if="kpi.trend !== 0">
               {{ kpi.trend > 0 ? '↑' : '↓' }} {{ Math.abs(kpi.trend) }}%
             </span>
@@ -30,14 +30,14 @@
         <span class="section-title">今日待办</span>
         <div style="display:flex;align-items:center;gap:8px">
           <el-tag v-if="todoTotal > 0" type="danger" effect="plain">{{ todoTotal }} 项</el-tag>
-          <span style="font-size:12px;color:#909399" v-else>🎉 今日无待办，一切正常</span>
+          <span style="font-size:12px;color:#909399" v-else><el-icon :size="13" color="#10b981" style="vertical-align:-2px;margin-right:4px"><CircleCheck /></el-icon>今日无待办，一切正常</span>
         </div>
       </div>
       <div v-if="todoList.length > 0">
         <el-row :gutter="12">
           <el-col :span="8" v-for="todo in todoList" :key="todo.key" style="margin-bottom:12px">
             <div class="todo-item" @click="goPage(todo.link)" :title="todo.title + ' — 点击处理'">
-              <span class="todo-icon" :style="{ background: todoTypeColor[todo.type] || '#909399' }">{{ todoSeverityMap[todo.severity]?.icon || '📋' }}</span>
+              <span class="todo-icon" :style="{ background: todoTypeColor[todo.type] || '#909399' }"><el-icon :size="18" color="#fff"><component :is="iconMap[todoSeverityMap[todo.severity]?.icon || 'list']" /></el-icon></span>
               <div class="todo-body">
                 <div class="todo-title">{{ todo.title }} <el-tag :type="todoSeverityMap[todo.severity]?.tagType || 'info'" size="small" effect="light">{{ todoSeverityMap[todo.severity]?.label || todo.severity }}</el-tag></div>
                 <div class="todo-sub">{{ todo.type }} · {{ todo.count }} 项待处理</div>
@@ -47,7 +47,11 @@
           </el-col>
         </el-row>
       </div>
-      <div v-else style="text-align:center;color:#c0c4cc;font-size:13px;padding:18px 0">暂无待办事项，请保持 🎈</div>
+      <div v-else class="empty-state">
+        <el-icon :size="30" color="#c6d6fd"><CircleCheck /></el-icon>
+        <div class="empty-title">今日无待办</div>
+        <div class="empty-sub">有逾期账单、待审批或消防隐患时会在此提醒</div>
+      </div>
     </div>
 
     <!-- 推荐报表（按角色） -->
@@ -61,7 +65,7 @@
           <el-row :gutter="12">
             <el-col :span="6" v-for="rp in recommendedReports" :key="rp.key">
               <div class="quick-btn" @click="goPage('/finance/reports?report=' + rp.key)" :title="rp.desc">
-                <span class="quick-icon">📊</span><span>{{ rp.title }}</span>
+                <span class="quick-icon"><el-icon :size="20"><component :is="iconMap['chart']" /></el-icon></span><span>{{ rp.title }}</span>
               </div>
             </el-col>
           </el-row>
@@ -96,7 +100,7 @@
           <el-row :gutter="12">
             <el-col :span="8" v-for="link in quickLinks" :key="link.path">
               <div class="quick-btn" @click="goPage(link.path)" :title="link.label">
-                <span class="quick-icon">{{ link.icon }}</span>
+                <span class="quick-icon"><el-icon :size="24"><component :is="iconMap[link.icon]" /></el-icon></span>
                 <span>{{ link.label }}</span>
               </div>
             </el-col>
@@ -168,7 +172,7 @@
         <el-row :gutter="16">
           <el-col :span="10">
             <div style="text-align:center">
-              <div style="font-size:34px;font-weight:700;color:#0A3D62">{{ roomStats.occupancyRate }}%</div>
+              <div style="font-size:34px;font-weight:700;color:#1f2430">{{ roomStats.occupancyRate }}%</div>
               <div style="font-size:12px;color:#909399;margin-top:2px">总房源 {{ roomStats.total }} 间 · 入住率</div>
             </div>
             <div class="room-legend" style="margin-top:12px">
@@ -215,7 +219,7 @@
         <el-row :gutter="16">
           <el-col :span="10">
             <div class="ops-kpi-row">
-              <div class="ops-kpi"><div class="ops-kpi-val" style="color:#00B894">{{ fireDash.totalEquipment }}</div><div class="ops-kpi-label">器材总数</div></div>
+              <div class="ops-kpi"><div class="ops-kpi-val" style="color:#4f7cf7">{{ fireDash.totalEquipment }}</div><div class="ops-kpi-label">器材总数</div></div>
               <div class="ops-kpi"><div class="ops-kpi-val" style="color:#fa8c16">{{ fireDash.expiringEquipment }}</div><div class="ops-kpi-label">过期/到期</div></div>
               <div class="ops-kpi"><div class="ops-kpi-val" style="color:#e74c3c">{{ fireDash.pendingViolations }}</div><div class="ops-kpi-label">隐患待整改</div></div>
               <div class="ops-kpi"><div class="ops-kpi-val" style="color:#1677ff">{{ fireDash.monthInspections }}</div><div class="ops-kpi-label">本月检查</div></div>
@@ -249,6 +253,14 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import VChart from 'vue-echarts';
 import 'echarts';
+import type { Component } from 'vue';
+import { OfficeBuilding, User, Money, TrendCharts, Bell, Document, DataAnalysis, Checked, Warning, Coin, CircleCheck, Tickets } from '@element-plus/icons-vue';
+// 语义键 → 图标组件映射（ANTI-EMOJI：UI 统一用 Element Plus 线性图标，禁用 emoji）
+const iconMap: Record<string, Component> = {
+  home: OfficeBuilding, users: User, money: Money, trend: TrendCharts,
+  bell: Bell, doc: Document, chart: DataAnalysis, coin: Coin, check: Checked,
+  alert: Warning, warn: Bell, list: Tickets,
+};
 import request from '@/api/request';
 import { useWebSocket } from '@/composables/useWebSocket';
 
@@ -300,10 +312,10 @@ function goPage(path: string) {
 // ---- KPI ----
 const dashboardLoading = ref(true);
 const kpis = ref<any[]>([
-  { label: '房源总数', value: '--', color: '#0A3D62', icon: '🏠', link: '/rent/properties', trend: 0, percent: 0, barColor: '#0A3D62', trendColor: '#909399' },
-  { label: '在租合同', value: '--', color: '#00B894', icon: '👥', link: '/contract/list', trend: 0, percent: 0, barColor: '#00B894', trendColor: '#909399' },
-  { label: '当月应收(万)', value: '--', color: '#F6B93B', icon: '💰', link: '/rent/bills', trend: 0, percent: 0, barColor: '#F6B93B', trendColor: '#909399' },
-  { label: '收缴率', value: '--', color: '#FF6B35', icon: '📈', link: '/rent/dashboard', trend: 0, percent: 0, barColor: '#FF6B35', trendColor: '#909399' },
+  { label: '房源总数', value: '--', color: '#4f7cf7', icon: 'home', link: '/rent/properties', trend: 0, percent: 0, barColor: '#4f7cf7', trendColor: '#909399' },
+  { label: '在租合同', value: '--', color: '#38bdf8', icon: 'users', link: '/contract/list', trend: 0, percent: 0, barColor: '#38bdf8', trendColor: '#909399' },
+  { label: '当月应收(万)', value: '--', color: '#60a5fa', icon: 'money', link: '/rent/bills', trend: 0, percent: 0, barColor: '#60a5fa', trendColor: '#909399' },
+  { label: '收缴率', value: '--', color: '#3b82f6', icon: 'trend', link: '/rent/dashboard', trend: 0, percent: 0, barColor: '#3b82f6', trendColor: '#909399' },
 ]);
 
 const dunningStats = ref([
@@ -314,11 +326,11 @@ const dunningStats = ref([
 ]);
 const maxDunning = computed(() => Math.max(1, ...dunningStats.value.map(d => d.count)));
 const todoSeverityMap: Record<string, { label: string; tagType: string; icon: string }> = {
-  high: { label: '紧急', tagType: 'danger', icon: '🚨' },
-  mid: { label: '关注', tagType: 'warning', icon: '⚠️' },
-  low: { label: '一般', tagType: 'info', icon: '📋' },
+  high: { label: '紧急', tagType: 'danger', icon: 'alert' },
+  mid: { label: '关注', tagType: 'warning', icon: 'warn' },
+  low: { label: '一般', tagType: 'info', icon: 'list' },
 };
-const todoTypeColor: Record<string, string> = { '财务': '#eb2f96', '合同': '#1677ff', '物业': '#00B894', '消防': '#fa8c16' };
+const todoTypeColor: Record<string, string> = { '财务': '#eb2f96', '合同': '#1677ff', '物业': '#4f7cf7', '消防': '#fa8c16' };
 
 // ---- P2 看板 computed ----
 const roomStatusList = computed(() => Object.entries(roomStats.value.statusCounts || {}).map(([name, count]) => ({ name, count: Number(count) })));
@@ -338,7 +350,7 @@ const propTrendChartOption = computed(() => {
     xAxis: { type: 'category', data: months, axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', name: '元', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10 } },
     series: [
-      { name: '实收', type: 'line', smooth: true, data: (t.collectedTrend || []).map((x: any) => x.paid), lineStyle: { color: '#00B894', width: 2 }, itemStyle: { color: '#00B894' }, symbol: 'circle', symbolSize: 5 },
+      { name: '实收', type: 'line', smooth: true, data: (t.collectedTrend || []).map((x: any) => x.paid), lineStyle: { color: '#4f7cf7', width: 2 }, itemStyle: { color: '#4f7cf7' }, symbol: 'circle', symbolSize: 5 },
       { name: '应收', type: 'line', smooth: true, data: (t.collectedTrend || []).map((x: any) => x.total), lineStyle: { color: '#a0c4ff', width: 1.5 }, itemStyle: { color: '#a0c4ff' }, symbol: 'circle', symbolSize: 5 },
     ],
   };
@@ -367,7 +379,7 @@ const todoTotal = ref(0);
 const roomStats = ref<any>({ total: 0, statusCounts: {}, occupancyRate: 0, buildingStats: [] });
 const propOps = ref<any>({ trends: { workOrderTrend: [], complaintTrend: [], collectedTrend: [] }, structure: { workByType: [], facByStatus: [], compByType: [], revByType: [] }, prediction: {} });
 const fireDash = ref<any>({ totalEquipment: 0, expiringEquipment: 0, pendingViolations: 0, monthInspections: 0, equipmentByStatus: [], inspectionByResult: [], violationBySeverity: [], expiringList: [], pendingList: [] });
-const roomStatusColorMap: Record<string, string> = { '空置': '#909399', '已锁定': '#a0c4ff', '已预订': '#ffd04b', '已出租': '#00B894', '退租中': '#f6b93b', '待保洁': '#b8a9ff', '待验收': '#f39c12', '维修中': '#e67e22', '已冻结': '#95a5a6' };
+const roomStatusColorMap: Record<string, string> = { '空置': '#909399', '已锁定': '#a0c4ff', '已预订': '#ffd04b', '已出租': '#4f7cf7', '退租中': '#f59e0b', '待保洁': '#b8a9ff', '待验收': '#f39c12', '维修中': '#e67e22', '已冻结': '#95a5a6' };
 
 // ---- 曲线趋势图 ----
 const fullTrend = ref<any[]>([]);
@@ -382,7 +394,7 @@ const chartOption = computed(() => {
   const colCum = data.map((t: any) => +((colAcc += t.collected) / 10000).toFixed(1));
   const series: any[] = [
     { name: '应收金额', type: 'bar', data: data.map((t: any) => +(t.due / 10000).toFixed(1)), itemStyle: { color: '#a0c4ff', borderRadius: [3,3,0,0] }, barMaxWidth: 24 },
-    { name: '实收金额', type: 'line', smooth: true, data: data.map((t: any) => +(t.collected / 10000).toFixed(1)), lineStyle: { color: '#00B894', width: 2 }, itemStyle: { color: '#00B894' }, symbol: 'circle', symbolSize: 6 },
+    { name: '实收金额', type: 'line', smooth: true, data: data.map((t: any) => +(t.collected / 10000).toFixed(1)), lineStyle: { color: '#4f7cf7', width: 2 }, itemStyle: { color: '#4f7cf7' }, symbol: 'circle', symbolSize: 6 },
     { name: '逾期率', type: 'line', smooth: true, yAxisIndex: 1, data: data.map((t: any) => t.rate || 0), lineStyle: { color: '#e74c3c', width: 1.5, type: 'dashed' }, itemStyle: { color: '#e74c3c' }, symbol: 'diamond', symbolSize: 6 },
   ];
   if (showCumulative.value) {
@@ -531,14 +543,14 @@ async function loadDashboardData(silent = false) {
     // 在租合同占比：执行中合同 / 全部合同
     const rentRate = o.totalContracts > 0 ? Math.round((o.activeContracts / o.totalContracts) * 100) : 0;
     // 进度条颜色随数值方向（高=绿、中=黄/橙、低=红）
-    const barColor = (v: number) => v >= 90 ? '#00B894' : v >= 70 ? '#F6B93B' : v >= 50 ? '#FF6B35' : '#e74c3c';
-    const trendColor = (t: number) => t > 0 ? '#00B894' : t < 0 ? '#e74c3c' : '#909399';
+    const barColor = (v: number) => v >= 90 ? '#4f7cf7' : v >= 70 ? '#60a5fa' : v >= 50 ? '#38bdf8' : '#7ba0f9';
+    const trendColor = (t: number) => t > 0 ? '#4f7cf7' : t < 0 ? '#ef4444' : '#909399';
 
     kpis.value = [
-      { label: '房源总数', value: String(o.totalProperties || 0), color: '#0A3D62', icon: '🏠', link: '/rent/properties', trend: 0, percent: occRate, barColor: barColor(occRate), trendColor: trendColor(0) },
-      { label: '在租合同', value: String(o.activeContracts || 0), color: '#00B894', icon: '👥', link: '/contract/list', trend: 0, percent: rentRate, barColor: barColor(rentRate), trendColor: trendColor(0) },
-      { label: '当月应收(万)', value: ((d.monthlyDue || 0) / 10000).toFixed(1), color: '#F6B93B', icon: '💰', link: '/rent/bills', trend: dueTrend, percent: crVal, barColor: barColor(crVal), trendColor: trendColor(dueTrend) },
-      { label: '收缴率', value: crVal + '%', color: '#FF6B35', icon: '📈', link: '/rent/dashboard', trend: collectedTrend, percent: crVal, barColor: barColor(crVal), trendColor: trendColor(collectedTrend) },
+      { label: '房源总数', value: String(o.totalProperties || 0), color: '#4f7cf7', icon: 'home', link: '/rent/properties', trend: 0, percent: occRate, barColor: barColor(occRate), trendColor: trendColor(0) },
+      { label: '在租合同', value: String(o.activeContracts || 0), color: '#38bdf8', icon: 'users', link: '/contract/list', trend: 0, percent: rentRate, barColor: barColor(rentRate), trendColor: trendColor(0) },
+      { label: '当月应收(万)', value: ((d.monthlyDue || 0) / 10000).toFixed(1), color: '#60a5fa', icon: 'money', link: '/rent/bills', trend: dueTrend, percent: crVal, barColor: barColor(crVal), trendColor: trendColor(dueTrend) },
+      { label: '收缴率', value: crVal + '%', color: '#3b82f6', icon: 'trend', link: '/rent/dashboard', trend: collectedTrend, percent: crVal, barColor: barColor(crVal), trendColor: trendColor(collectedTrend) },
     ];
 
     if (d.dunningStats) dunningStats.value = d.dunningStats.map((s: any, i: number) => ({
@@ -585,37 +597,37 @@ onUnmounted(() => {
 });
 
 const quickLinks = [
-  { label: '房源管理', path: '/rent/properties', icon: '🏠' },
-  { label: '租客管理', path: '/rent/tenants', icon: '👥' },
-  { label: '收租管理', path: '/rent/bills', icon: '💰' },
-  { label: '智能催缴', path: '/rent/dunning', icon: '🔔' },
-  { label: '合同管理', path: '/contract/list', icon: '📝' },
-  { label: '报表中心', path: '/finance/reports', icon: '📊' },
-  { label: '收租看板', path: '/rent/dashboard', icon: '📈' },
-  { label: '财务看板', path: '/finance/dashboard', icon: '💹' },
-  { label: '合同审批', path: '/contract/approval', icon: '✅' },
+  { label: '房源管理', path: '/rent/properties', icon: 'home' },
+  { label: '租客管理', path: '/rent/tenants', icon: 'users' },
+  { label: '收租管理', path: '/rent/bills', icon: 'money' },
+  { label: '智能催缴', path: '/rent/dunning', icon: 'bell' },
+  { label: '合同管理', path: '/contract/list', icon: 'doc' },
+  { label: '报表中心', path: '/finance/reports', icon: 'chart' },
+  { label: '收租看板', path: '/rent/dashboard', icon: 'trend' },
+  { label: '财务看板', path: '/finance/dashboard', icon: 'coin' },
+  { label: '合同审批', path: '/contract/approval', icon: 'check' },
 ];
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 
-.section-card { background: #fff; border-radius: 8px; padding: 16px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.section-card { background: rgba(255,255,255,.62); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.72); box-shadow: 0 8px 32px rgba(31,41,55,.14), inset 0 1px 0 rgba(255,255,255,.55); border-radius: 20px; padding: 16px 20px; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .section-title { font-size: 14px; font-weight: 600; color: #303133; }
 
 // ---- KPI ----
 .kpi-card {
-  background: #fff; border-radius: 10px; padding: 20px 16px; text-align: center;
-  cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  background: rgba(255,255,255,.62); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.72); box-shadow: 0 8px 32px rgba(31,41,55,.14), inset 0 1px 0 rgba(255,255,255,.55); border-radius: 20px; padding: 20px 16px; text-align: center;
+  cursor: pointer;
   transition: transform 0.25s, box-shadow 0.25s;
-  &:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.14); }
+  &:hover { transform: translateY(-4px); box-shadow: 0 14px 40px rgba(31,41,55,.18), inset 0 1px 0 rgba(255,255,255,.6); }
   &:active { transform: scale(0.98); }
 }
 .kpi-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; }
 .kpi-trend { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 10px; }
-.kpi-trend.up { color: #00B894; background: #e6faf4; }
+.kpi-trend.up { color: #4f7cf7; background: #ecf1fe; }
 .kpi-trend.down { color: #e74c3c; background: #fde8e8; }
 .kpi-trend.flat { color: #909399; background: #f5f7fa; }
 .kpi-value { font-size: 28px; font-weight: 700; margin: 4px 0; }
@@ -627,8 +639,8 @@ const quickLinks = [
 .quick-btn {
   width: 100%; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4px; cursor: pointer; border-radius: 10px; transition: all 0.3s ease;
-  background: #f8f9fb; margin-bottom: 12px; user-select: none; font-size: 13px;
-  &:hover { background: #e6f0ff; transform: translateY(-3px) scale(1.05); box-shadow: 0 6px 20px rgba(64,158,255,0.18); }
+  background: rgba(255,255,255,.5); border: 1px solid rgba(255,255,255,.6); margin-bottom: 12px; user-select: none; font-size: 13px; color: #3a4354;
+  &:hover { background: rgba(255,255,255,.82); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(79,124,247,0.18); }
   &:active { transform: scale(0.97); }
 }
 .quick-icon { font-size: 24px; transition: transform 0.3s ease; }
@@ -643,8 +655,8 @@ const quickLinks = [
 
 // ---- 到期合同 ----
 .expiry-list { display: flex; flex-direction: column; gap: 8px; }
-.expiry-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s; background: #fafbfc;
-  &:hover { background: #e6f0ff; } }
+.expiry-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px; cursor: pointer; transition: background 0.2s; background: rgba(255,255,255,.5);
+  &:hover { background: rgba(255,255,255,.85); } }
 .expiry-no { font-size: 13px; color: #303133; font-weight: 500; }
 .expiry-date { font-size: 12px; color: #909399; }
 .overdue-amt { font-size: 12px; color: #e74c3c; font-weight: 600; }
@@ -652,7 +664,7 @@ const quickLinks = [
 // ---- 系统信息 ----
 .sys-info-card { margin-top: 16px; }
 .sys-info-row { display: flex; align-items: center; flex-wrap: wrap; font-size: 12px; color: #909399; }
-.sys-dot { width: 6px; height: 6px; border-radius: 50%; background: #00B894; display: inline-block; margin-right: 4px; }
+.sys-dot { width: 6px; height: 6px; border-radius: 50%; background: #4f7cf7; display: inline-block; margin-right: 4px; }
 .sys-sep { margin: 0 14px; color: #dcdfe6; }
 
 // ---- 迷你趋势图 ----
@@ -660,17 +672,17 @@ const quickLinks = [
 .mini-trend-bar { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; }
 .bar-stack { flex: 1; width: 100%; max-width: 40px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; border-radius: 4px 4px 0 0; overflow: hidden; background: #f5f7fa; }
 .bar-due { background: #a0c4ff; border-radius: 2px 2px 0 0; transition: height 0.6s ease; min-height: 2px; }
-.bar-collected { background: #00B894; border-radius: 2px 2px 0 0; transition: height 0.6s ease; min-height: 2px; }
+.bar-collected { background: #4f7cf7; border-radius: 2px 2px 0 0; transition: height 0.6s ease; min-height: 2px; }
 .bar-label { font-size: 10px; color: #909399; margin-top: 4px; }
 .trend-legend { position: absolute; top: 0; right: 8px; display: flex; gap: 12px; font-size: 11px; color: #606266; }
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
 .due-dot { background: #a0c4ff; }
-.collected-dot { background: #00B894; }
+.collected-dot { background: #4f7cf7; }
 .chart-controls { display: flex; align-items: center; }
 
 // ---- 今日待办 ----
-.todo-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 8px; background: #fafbfc; cursor: pointer; transition: all 0.2s;
-  &:hover { background: #e6f0ff; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(64,158,255,0.12); } }
+.todo-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.5); border: 1px solid rgba(255,255,255,.6); cursor: pointer; transition: all 0.2s;
+  &:hover { background: rgba(255,255,255,.85); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(79,124,247,0.14); } }
 .todo-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; flex-shrink: 0; }
 .todo-body { flex: 1; min-width: 0; }
 .todo-title { font-size: 13px; font-weight: 600; color: #303133; display: flex; align-items: center; gap: 6px; }
@@ -686,11 +698,16 @@ const quickLinks = [
 .room-bar-fill { display: block; height: 100%; border-radius: 4px; transition: width 0.6s ease; min-width: 2px; }
 .room-count { font-size: 13px; font-weight: 700; width: 28px; text-align: right; }
 .ops-kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.ops-kpi { background: #f8f9fb; border-radius: 8px; padding: 12px 14px; text-align: center; }
-.ops-kpi-val { font-size: 22px; font-weight: 700; color: #0A3D62; }
+.ops-kpi { background: rgba(255,255,255,.5); border: 1px solid rgba(255,255,255,.6); border-radius: 14px; padding: 12px 14px; text-align: center; }
+.ops-kpi-val { font-size: 22px; font-weight: 700; color: #1f2430; }
 .ops-kpi-label { font-size: 12px; color: #909399; margin-top: 4px; }
 .structure-list { display: flex; flex-direction: column; gap: 10px; }
 .structure-item { display: flex; align-items: center; gap: 8px; }
 .structure-name { font-size: 12px; color: #606266; width: 70px; flex-shrink: 0; }
 .structure-val { font-size: 13px; font-weight: 700; width: 30px; text-align: right; }
+
+// ---- 空状态（准则 Rule 5：精美空态） ----
+.empty-state { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 0; }
+.empty-title { font-size: 14px; font-weight: 600; color: #3a4354; }
+.empty-sub { font-size: 12px; color: #8b93a3; }
 </style>

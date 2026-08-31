@@ -165,7 +165,7 @@ function agingPercent(val: number): number {
 }
 
 function progressColor(label: string): string {
-  return label.includes('90天以上') ? '#FF6B35' : label.includes('61-90') ? '#F6B93B' : label.includes('31-60') ? '#00B894' : '#0A3D62';
+  return label.includes('90天以上') ? '#f97316' : label.includes('61-90') ? '#f59e0b' : label.includes('31-60') ? '#10b981' : '#4f7cf7';
 }
 
 async function fetchTasks() {
@@ -216,7 +216,7 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin: 0; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .actions { display: flex; gap: 8px; }
 .text-muted { color: #7F8C8D; font-size: 10px; }
