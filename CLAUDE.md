@@ -90,7 +90,7 @@ node scripts/generate-manual-pdf.js
 │       │   ├── finance/       # 财务管理（账套/科目/凭证/费用/税务/预算/报表/看板）
 │       │   ├── contract/      # 合同管理（列表/详情/起草/审批/看板/到期/续约/模板/合规）
 │       │   ├── fire/          # 消防管理（看板/检查/器材/违规/演练）
-│       │   └── system/        # 系统设置（用户/打印设置/审计日志/身份证读卡器）
+│       │   └── system/        # 系统设置（用户/审计日志/数据字典/打印设置/身份证读卡器/审批流程/权限矩阵/系统参数/系统运维/审批中心/全局检索）
 │       └── api/request.ts     # Axios 实例（baseURL=/api，拦截器处理 token/401）
 ├── backend/                   # Express 后端（ESM 模块）
 │   └── src/
@@ -761,6 +761,30 @@ off('room:status-changed', callback);
 - 分页钳制：`page≥1`、`1≤pageSize≤200`（fixedAssets/invoices/vouchers）。
 - 发票号生成：日期+时间戳+随机，创建遇唯一键冲突自动重试≤3 次。
 - 发票状态机：issue 仅待开票、void 拒已作废/已红冲、redflush 仅已开票。
+
+### 系统设置模块安全加固（本次迭代）
+
+系统设置模块（`/system`）在财务加固基础上做了系统性安全/可用性增强，关键约定：
+
+**1. 打印配置只读放行**：`/system-configs` 挂载从 `requireAdmin` 改为仅 `authMiddleware`（路由级），因 `GET /keys` 是**只读**接口，供**非管理员角色**在打印/导出场景读取公司抬头/Logo/签章（BillList/ContractList/ContractDetail/TenantDetail 均调用）。写操作（PUT/POST/DELETE）在路由文件内部挂 `requireAdmin` + `requireConfirmPassword` + `auditLog`。**关键**：`GET /keys` 返回**完整值**（不脱敏），因为打印场景需要真实 Logo/签章；`isSensitive` 标记由系统参数中心 `GET /` 由前端打码展示。
+
+**2. 系统参数中心**（`SystemParams.vue` + `GET /system-configs`）：`SystemConfig` 模型新增 `configGroup`（分组）/`valueType`（string/number/boolean/json）/`isSensitive`（敏感值）/`builtIn`（内置项，禁删）/`extra` 元数据。支持分组筛选（前端内存过滤）、新增/编辑/删除配置项（均二次确认）、内置项不可删除。`POST /batch` 批量保存。迁移 `system_configs` 表新增对应 5 列。
+
+**3. 审计日志筛选 + 导出**（`AuditLog.vue` + `auditLogs.ts`）：`buildWhere()` 支持 `module/userId/action/keyword(模糊)/status(success|fail)/startDate/endDate` 多条件；`GET /export` 返回 CSV（含 BOM，`Content-Disposition` 下载）。前端加筛选栏 + 导出按钮 + 结果列（根据 `action` 是否有 `(失败)` 显示成功/失败 tag）。
+
+**4. 用户安全**（`users.ts` + `UserList.vue`）：
+- **角色枚举校验**（`VALID_ROLES = ALL_ROLES`，来自 `rbac.ts`）：POST/PUT 拒绝非白名单角色，防止注入任意角色字符串。
+- **字段白名单**（`pickUserFields`）：仅接受 displayName/role/status/permissions/projectIds/password，剔除 `id`/`passwordHash`/`username` 越权注入。
+- **最后管理员保护**：删除/降权最后一名 `管理员` 被拒绝（400）；不能删除当前登录账号。
+- **不可逆二次确认**：删除用户、重置密码均需操作者重新输入登录密码（DELETE 用 `{ data: { confirmPassword } }`）。
+
+**5. 审计开关**（`audit-log.ts` 增强）：新增 `isAuditEnabled()`（5 秒 TTL 缓存读 `system_configs.audit_enabled`），关闭时跳过落库。`GET/POST /system-ops/audit-toggle` 切换（需二次确认）。
+
+**6. 系统运维页**（`SystemOps.vue` + `systemOps.ts`）：`GET /info`（版本/Node/平台/内存/DB 类型与路径/用户数/时长）、`GET /cron`（定时任务描述列表）、`GET/POST /audit-toggle`（审计开关）、`GET /backup`（SQLite 数据库备份下载，需二次确认）。挂载于 `/system-ops`（requireAdmin）。
+
+**7. 数据字典**（`DictList.vue` + `/dicts`）：前端路由 `/system/dicts` 补全；`DELETE /types/:code` 与 `DELETE /items/:id` 加 `requireConfirmPassword` + `auditLog`（级联破坏性操作）。
+
+**8. 其他**：`rbac.ts` 导出 `ALL_ROLES`；`/system-ops` 独立挂载避免被参数路由吞噬；系统菜单新增 数据字典/系统参数/系统运维。
 
 ### 已知孤立文件
 

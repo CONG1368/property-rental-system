@@ -88,6 +88,7 @@ import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
 import { getRoleAvatar } from '@/utils/avatars';
+import { confirmWithPassword } from '@/utils/confirm-password';
 
 function getRoleIcon(row: any) { return row.permissions?.avatar || getRoleAvatar(row.role).icon; }
 function getRoleBg(role: string) { return getRoleAvatar(role).bg; }
@@ -172,16 +173,20 @@ function showResetPwd(row: any) {
 }
 
 async function handleResetPwd() {
+  const pwd = await confirmWithPassword('重置用户密码需重新输入登录密码确认', '二次确认');
+  if (!pwd) return;
   if (!newPassword.value) { ElMessage.error('请输入新密码'); return; }
   try {
-    await request.put('/users/' + resetUser.value.id, { password: newPassword.value });
+    await request.put('/users/' + resetUser.value.id, { password: newPassword.value, confirmPassword: pwd });
     ElMessage.success('密码已重置');
     resetPwdVisible.value = false;
   } catch (err: any) { ElMessage.error(err?.response?.data?.message || '重置失败'); }
 }
 
 async function handleDelete(id: number) {
-  try { await request.delete('/users/' + id); ElMessage.success('已删除'); fetchUsers(); } catch { ElMessage.error('删除失败'); }
+  const pwd = await confirmWithPassword('删除用户需重新输入登录密码确认', '二次确认');
+  if (!pwd) return;
+  try { await request.delete('/users/' + id, { data: { confirmPassword: pwd } }); ElMessage.success('已删除'); fetchUsers(); } catch (err: any) { ElMessage.error(err?.response?.data?.message || '删除失败'); }
 }
 
 async function loadProjects() { try { const r = await request.get('/projects', { params: { pageSize: 200 } }); projects.value = r.data?.list || []; } catch { /* 静默 */ } }

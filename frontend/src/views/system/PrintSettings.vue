@@ -147,6 +147,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
+import { confirmWithPassword } from '@/utils/confirm-password';
 
 const saving = ref(false);
 
@@ -189,15 +190,19 @@ function onSealChange(file: any) {
 
 async function handleSave() {
   saving.value = true;
+  const pwd = await confirmWithPassword('修改打印设置需重新输入登录密码确认', '二次确认');
+  if (!pwd) { saving.value = false; return; }
   try {
-    await request.put('/system-configs/company_name_for_print', { configValue: form.companyName });
-    await request.put('/system-configs/company_logo', { configValue: form.companyLogo });
-    await request.put('/system-configs/company_seal', { configValue: form.companySeal });
-    await request.put('/system-configs/company_id_type', { configValue: form.companyIdType });
-    await request.put('/system-configs/company_id_number', { configValue: form.companyIdNumber });
-    await request.put('/system-configs/company_phone', { configValue: form.companyPhone });
+    await request.put('/system-configs/company_name_for_print', { configValue: form.companyName, confirmPassword: pwd });
+    await request.put('/system-configs/company_logo', { configValue: form.companyLogo, confirmPassword: pwd });
+    await request.put('/system-configs/company_seal', { configValue: form.companySeal, confirmPassword: pwd });
+    await request.put('/system-configs/company_id_type', { configValue: form.companyIdType, confirmPassword: pwd });
+    await request.put('/system-configs/company_id_number', { configValue: form.companyIdNumber, confirmPassword: pwd });
+    await request.put('/system-configs/company_phone', { configValue: form.companyPhone, confirmPassword: pwd });
     ElMessage.success('打印设置已保存');
-  } catch { /* ignore */ }
+  } catch (err: any) {
+    ElMessage.error(err?.response?.data?.message || '保存失败，请重试');
+  }
   finally { saving.value = false; }
 }
 </script>

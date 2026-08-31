@@ -2,6 +2,8 @@ import { Router } from 'express';
 import DictType from '../models/DictType.js';
 import DictItem from '../models/DictItem.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { requireConfirmPassword } from '../middleware/confirm-password.js';
+import { auditLog } from '../middleware/audit-log.js';
 
 const router = Router();
 
@@ -34,7 +36,7 @@ router.put('/types/:code', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.delete('/types/:code', async (req: AuthRequest, res) => {
+router.delete('/types/:code', auditLog('dict', '删除字典类型'), requireConfirmPassword('删除字典类型'), async (req: AuthRequest, res) => {
   try {
     const type = await DictType.findOne({ where: { code: req.params.code } });
     if (!type) return res.status(404).json({ code: 404, message: '字典类型不存在' });
@@ -75,7 +77,7 @@ router.put('/items/:id', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.delete('/items/:id', async (req: AuthRequest, res) => {
+router.delete('/items/:id', auditLog('dict', '删除字典项'), requireConfirmPassword('删除字典项'), async (req: AuthRequest, res) => {
   try {
     const item = await DictItem.findByPk(req.params.id);
     if (!item) return res.status(404).json({ code: 404, message: '字典项不存在' });

@@ -495,6 +495,24 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '权限矩阵', icon: 'Lock' },
       },
       {
+        path: 'system/dicts',
+        name: 'DictList',
+        component: () => import('@/views/system/DictList.vue'),
+        meta: { title: '数据字典', icon: 'Collection' },
+      },
+      {
+        path: 'system/params',
+        name: 'SystemParams',
+        component: () => import('@/views/system/SystemParams.vue'),
+        meta: { title: '系统参数', icon: 'Setting' },
+      },
+      {
+        path: 'system/ops',
+        name: 'SystemOps',
+        component: () => import('@/views/system/SystemOps.vue'),
+        meta: { title: '系统运维', icon: 'Monitor' },
+      },
+      {
         path: 'search',
         name: 'GlobalSearch',
         component: () => import('@/views/system/GlobalSearch.vue'),

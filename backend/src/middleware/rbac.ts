@@ -54,3 +54,6 @@ export function requirePermission(module: string, action: PermissionAction) {
     } catch { return res.status(500).json({ code: 500, message: '权限校验失败' }); }
   };
 }
+
+// 系统预定义角色清单（供用户管理枚举校验 / 权限矩阵 / 下拉使用）
+export const ALL_ROLES = Object.keys(rolePermissions);

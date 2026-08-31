@@ -62,6 +62,7 @@ import announcementRoutes from './announcements.js';
 import commonRevenueRoutes from './commonRevenues.js';
 import inventoryRoutes from './inventory.js';
 import systemConfigRoutes from './systemConfigs.js';
+import systemOpsRoutes from './systemOps.js';
 import idCardReaderRoutes from './idCardReaders.js';
 import fireSafetyRoutes from './fireSafety.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -159,7 +160,9 @@ router.use('/notifications', authMiddleware, notificationRoutes);
 router.use('/users', authMiddleware, requireAdmin, userRoutes);
 router.use('/dicts', authMiddleware, requireAdmin, dictRoutes);
 router.use('/audit-logs', authMiddleware, requireAdmin, auditLogRoutes);
-router.use('/system-configs', authMiddleware, requireAdmin, systemConfigRoutes);
+// 系统配置 GET /keys 为只读（供打印/展示在非管理员场景使用），写操作在路由内部 requireAdmin+二次确认
+router.use('/system-configs', authMiddleware, systemConfigRoutes);
+router.use('/system-ops', authMiddleware, systemOpsRoutes);
 router.use('/id-card-readers', authMiddleware, requireRole('管理员'), idCardReaderRoutes);
 
 // 消防管理 — 管理员/收租主管/收租员/合同主管/总经理可访问

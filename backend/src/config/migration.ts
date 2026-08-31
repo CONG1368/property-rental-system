@@ -60,6 +60,16 @@ const MIGRATION_DEFINITIONS: ColumnMigration[] = [
       { name: 'projectIds', sqliteType: 'TEXT', defaultValue: "'[]'" },
     ],
   },
+  {
+    tableName: 'system_configs',
+    columns: [
+      { name: 'configGroup', sqliteType: 'VARCHAR(50)', defaultValue: "'其他'" },
+      { name: 'valueType', sqliteType: 'VARCHAR(20)', defaultValue: "'string'" },
+      { name: 'isSensitive', sqliteType: 'INTEGER', defaultValue: '0' },
+      { name: 'builtIn', sqliteType: 'INTEGER', defaultValue: '0' },
+      { name: 'extra', sqliteType: 'TEXT', defaultValue: "'{}'" },
+    ],
+  },
 ];
 
 async function checkTableExists(tableName: string): Promise<boolean> {
