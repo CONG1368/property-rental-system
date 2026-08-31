@@ -807,6 +807,7 @@ off('room:status-changed', callback);
 | `permission-regression.js` | 权限回归（12 角色 × 端点断言，33 用例）；需先启动 dev 后端 |
 | `e2e-permission-matrix.js` | 权限矩阵页面 E2E（角色选择/搜索/批量/二次确认弹窗，8 用例） |
 | `e2e-confirm-password.js` | 不可逆操作二次确认 E2E（发票作废：弹窗/密码/取消/成功，5 用例） |
+| `verify-system-settings.js` | 系统设置模块运行时回归（登录/配置只读/二次确认/非管理员/审计/字典/运维，9 用例）；需先启动 dev 后端 |
 | `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
 | `e2e-new-modules.js` | 新增模块 E2E |
 | `run-all-regression.js` | 串联运行全部回归脚本 |
