@@ -376,15 +376,16 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 
 **物业租赁/物业管理增强模块（新增）**：租客征信风控（credit-scorer）、押金全生命周期台账（Deposit）、退租-交接-押金流程（Checkout）、固定资产折旧管理（FixedAsset）、报修工单（WorkOrder）、设施设备维保（Facility + FacilityMaintenance）、抄表计费（Meter + MeterReading）、停车管理（ParkingSpace + ParkingRecord）、投诉建议（Complaint）、住户/业主档案（Resident）、公告发布（Announcement）、公共收益（CommonRevenue）、外包供应商（Vendor）、仓库物料（Material + InventoryRecord）、物业管理运营看板（PropertyOpsDashboard）。
 
-**仅剩的 3 项工作**（均需第三方服务账号，非代码缺陷）：
+**外部服务已全部完成真实实现（零第三方依赖）**，只需在 `.env` 填入账号密钥即可启用，留空则自动降级 Mock：
 
-| 文件 | 待接入 SDK |
-|------|-----------|
-| `services/e-signature.ts` | e签宝 / 法大大 API |
-| `services/sms-service.ts` | 阿里云 SMS / 腾讯云 SMS |
-| `services/notification.ts` 微信/邮件 | 微信公众号模板消息 / nodemailer SMTP |
+| 服务 | 实现文件 | 技术要点 |
+|------|----------|---------|
+| 短信 | `services/sms-service.ts` | 阿里云 V1 签名（HMAC-SHA1）+ 腾讯云 TC3-HMAC-SHA256，原生 fetch，无 SDK |
+| 电子签章 | `services/e-signature.ts` | e签宝开放平台 v3（token 缓存 + 并发去重 + 状态映射） |
+| 邮件 | `services/mailer.ts` | 内置 SMTP 客户端（node:tls/net，AUTH LOGIN + STARTTLS + RFC 2047 中文主题），无 nodemailer |
+| 微信 | `services/wechat-provider.ts` | 公众号模板消息（access_token 缓存 + 40001 自动重试） |
 
-Mock 模式下这三项均可正常运行（写日志文件），不影响开发调试。
+**降级契约**：未配置密钥时 `isSmsConfigured()` / `isESignConfigured()` / `isMailerConfigured()` / `isWechatConfigured()` 均为 false，调用返回失败对象或走 Mock 写日志（`backend/logs/*.jsonl`），**绝不抛异常中断业务流程**（通知/催缴不是主流程）。配置说明见 `.env.example` 与 `docs/外部服务接入指南.md`；算法自检 `cd backend && npx tsx ../scripts/verify-external-providers.ts`（21 用例，无需真实账号）。
 
 ### 消防综合管理模块
 
