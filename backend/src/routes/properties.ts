@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import Property from '../models/Property.js';
+import Project from '../models/Project.js';
+import { getScopeProjectIds } from '../services/data-scope.js';
 import Contract from '../models/Contract.js';
 import Tenant from '../models/Tenant.js';
 import DoorLock from '../models/DoorLock.js';
@@ -534,7 +536,7 @@ router.get('/rooms/export', async (req: AuthRequest, res) => {
 // GET /api/properties — 房源列表（搜索、筛选、分页）
 router.get('/', async (req: AuthRequest, res) => {
   try {
-    const { page = 1, pageSize = 20, keyword, type, status, buildingName, roomNumber } = req.query;
+    const { page = 1, pageSize = 20, keyword, type, status, buildingName, roomNumber, projectId } = req.query;
     const where: any = {};
     if (keyword) {
       where[Op.or] = [
@@ -546,12 +548,20 @@ router.get('/', async (req: AuthRequest, res) => {
     if (status) where.status = status;
     if (buildingName) where.buildingName = buildingName;
     if (roomNumber) where.roomNumber = { [Op.like]: `%${roomNumber}%` };
+    if (projectId) where.projectId = Number(projectId);
+    // 行级数据权限：若当前用户被限定到部分项目，则过滤
+    const scope = await getScopeProjectIds(req.userId);
+    if (Array.isArray(scope)) {
+      where.projectId = { [Op.in]: scope };
+    }
 
     const { count, rows } = await Property.findAndCountAll({
       where,
       limit: Number(pageSize),
       offset: (Number(page) - 1) * Number(pageSize),
       order: [['buildingOrder', 'ASC'], ['floorOrder', 'ASC'], ['roomNumber', 'ASC']],
+      include: [{ model: Project, as: 'project', attributes: ['id', 'name'], required: false }],
+      distinct: true,
     });
 
     res.json({

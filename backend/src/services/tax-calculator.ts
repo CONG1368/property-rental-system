@@ -2,6 +2,7 @@ import Bill from '../models/Bill.js';
 import Contract from '../models/Contract.js';
 import { Op } from 'sequelize';
 import dayjs from 'dayjs';
+import { createTTLCache } from './ttl-cache.js';
 
 interface TaxResult {
   vat: { output: number; input: number; payable: number };
@@ -47,4 +48,20 @@ export async function calculateTaxes(period?: string): Promise<TaxResult> {
     stampTax,
     totalPayable: Math.round((vatPayable + propertyTax + urbanLandTax + stampTax) * 100) / 100,
   };
+}
+
+// 带 5 分钟 TTL 缓存的计算：避免读接口(如 GET /tax、GET /tax/reports 循环12次)反复触发重计算打库
+const taxCache = createTTLCache<TaxResult>(5 * 60 * 1000);
+export async function getCachedTaxes(period?: string): Promise<TaxResult> {
+  const key = period || 'default';
+  const hit = taxCache.get(key);
+  if (hit) return hit;
+  const result = await calculateTaxes(period);
+  taxCache.set(key, result);
+  return result;
+}
+
+// 数据变更后使缓存失效（如手动触发重算、账单/合同变更）
+export function invalidateTaxCache(period?: string): void {
+  if (period) taxCache.invalidate(period); else taxCache.clear();
 }

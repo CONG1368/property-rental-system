@@ -24,6 +24,25 @@
       </el-col>
     </el-row>
 
+    <!-- 推荐报表（按角色） -->
+    <el-row :gutter="16" v-show="!dashboardLoading" style="margin-top:16px">
+      <el-col :span="24">
+        <div class="section-card">
+          <div class="section-header">
+            <span class="section-title">推荐报表</span>
+            <el-button type="primary" link size="small" @click="goPage('/finance/reports')">前往报表中心 →</el-button>
+          </div>
+          <el-row :gutter="12">
+            <el-col :span="6" v-for="rp in recommendedReports" :key="rp.key">
+              <div class="quick-btn" @click="goPage('/finance/reports?report=' + rp.key)" :title="rp.desc">
+                <span class="quick-icon">📊</span><span>{{ rp.title }}</span>
+              </div>
+            </el-col>
+          </el-row>
+        </div>
+      </el-col>
+    </el-row>
+
     <!-- 多周期收入趋势曲线图 -->
     <div class="section-card" style="margin-top:16px">
       <div class="section-header">
@@ -115,6 +134,14 @@ import 'echarts';
 import request from '@/api/request';
 
 const router = useRouter();
+const recommendedReports = ref<any[]>([]);
+function resolveRole(): string {
+  const raw = localStorage.getItem('accessToken') || '';
+  try { const p = raw.split('.')[1]; const b64 = p.replace(/-/g, '+').replace(/_/g, '/'); const bin = atob(b64); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); const pl = JSON.parse(new TextDecoder('utf-8').decode(bytes)); return pl.role || ''; } catch { return ''; }
+}
+async function loadRecommended() {
+  try { const r = await request.get('/reports/registry', { silent: true }); const list = r.data?.list || []; const role = resolveRole(); recommendedReports.value = list.filter((x: any) => x.recommended?.includes(role)).slice(0, 4); } catch { /* 静默 */ }
+}
 function goPage(path: string) {
   if (!path) return;
   router.push(path).catch(() => {});
@@ -178,6 +205,7 @@ let timer: any;
 
 onMounted(async () => {
   await loadDashboardData();
+  loadRecommended();
 
   try {
     const ec = await request.get('/contracts/expiry-calendar');

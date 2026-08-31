@@ -12,10 +12,11 @@ interface TenantAttributes {
   idValidFrom: string; idValidTo: string;
   idPhoto: string;
   pendingClauses?: { title: string; content: string; sortOrder: number }[];
+  loginPin: string;
   createdAt?: Date; updatedAt?: Date;
 }
 
-type TenantCreationAttributes = Optional<TenantAttributes, 'id' | 'createdAt' | 'updatedAt'>;
+type TenantCreationAttributes = Optional<TenantAttributes, 'id' | 'loginPin' | 'createdAt' | 'updatedAt'>;
 
 class Tenant extends BaseModel<TenantAttributes, TenantCreationAttributes> {
 }
@@ -43,6 +44,7 @@ Tenant.init({
   idValidTo: { type: DataTypes.STRING(10), defaultValue: '' },
   idPhoto: { type: DataTypes.TEXT, defaultValue: '' },
   pendingClauses: { type: DataTypes.JSON, defaultValue: [] },
+  loginPin: { type: DataTypes.STRING(6), defaultValue: '' },
 }, { sequelize, tableName: 'tenants', indexes: [{ fields: ['phone'] }, { fields: ['creditGrade'] }, { fields: ['name'] }] });
 
 export default Tenant;

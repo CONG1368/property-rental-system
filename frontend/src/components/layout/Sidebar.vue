@@ -19,13 +19,48 @@
         <span>收租管理</span>
       </template>
       <el-menu-item index="/rent/properties">房源管理</el-menu-item>
+      <el-menu-item index="/rent/leads">招租线索</el-menu-item>
+      <el-menu-item index="/rent/move-ins">入住交接</el-menu-item>
       <el-menu-item index="/rent/room-kanban">房态看板</el-menu-item>
+      <el-menu-item index="/property/ops-dashboard">运营看板</el-menu-item>
       <el-menu-item index="/rent/tenants">租客管理</el-menu-item>
+      <el-menu-item index="/rent/tenant-credit">租客风控</el-menu-item>
+      <el-menu-item index="/rent/pricing">租金定价</el-menu-item>
+      <el-menu-item index="/rent/deposits">押金台账</el-menu-item>
+      <el-menu-item index="/rent/checkouts">退租管理</el-menu-item>
       <el-menu-item index="/rent/bills">收租管理</el-menu-item>
       <el-menu-item index="/rent/bills/calendar">收租日历</el-menu-item>
       <el-menu-item index="/rent/dunning">智能催缴</el-menu-item>
       <el-menu-item index="/rent/locks">门锁管理</el-menu-item>
       <el-menu-item index="/rent/dashboard">收租看板</el-menu-item>
+    </el-sub-menu>
+
+    <el-sub-menu index="property" v-if="canAccessProperty">
+      <template #title>
+        <el-icon><OfficeBuilding /></el-icon>
+        <span>物业管理</span>
+      </template>
+      <el-menu-item index="/property/ops-dashboard">运营看板</el-menu-item>
+      <el-menu-item index="/property/tenant-portal">租户服务</el-menu-item>
+      <el-menu-item index="/property/decorations">装修管理</el-menu-item>
+      <el-menu-item index="/property/maintenance-plans">维保计划</el-menu-item>
+      <el-menu-item index="/property/property-tasks">排班与质检</el-menu-item>
+      <el-menu-item index="/property/patrols">巡更管理</el-menu-item>
+      <el-menu-item index="/property/visitors">访客管理</el-menu-item>
+      <el-menu-item index="/property/equipment-certifications">特种设备</el-menu-item>
+      <el-menu-item index="/property/projects">项目管理</el-menu-item>
+      <el-menu-item index="/property/business-briefing">经营简报</el-menu-item>
+      <el-menu-item index="/property/briefing-archive">月度简报</el-menu-item>
+      <el-menu-item index="/property/work-orders">报修工单</el-menu-item>
+      <el-menu-item index="/property/facilities">设施设备</el-menu-item>
+      <el-menu-item index="/property/meters">抄表计费</el-menu-item>
+      <el-menu-item index="/property/parking">停车管理</el-menu-item>
+      <el-menu-item index="/property/complaints">投诉建议</el-menu-item>
+      <el-menu-item index="/property/residents">住户档案</el-menu-item>
+      <el-menu-item index="/property/announcements">公告发布</el-menu-item>
+      <el-menu-item index="/property/common-revenues">公共收益</el-menu-item>
+      <el-menu-item index="/property/vendors">外包供应商</el-menu-item>
+      <el-menu-item index="/property/inventory">仓库物料</el-menu-item>
     </el-sub-menu>
 
     <el-sub-menu index="finance" v-if="canAccessFinance">
@@ -41,6 +76,10 @@
       <el-menu-item index="/finance/budgets">预算管理</el-menu-item>
       <el-menu-item index="/finance/reports">报表中心</el-menu-item>
       <el-menu-item index="/finance/dashboard">财务看板</el-menu-item>
+      <el-menu-item index="/finance/fixed-assets">固定资产</el-menu-item>
+      <el-menu-item index="/finance/bank-reconciliation">银行对账</el-menu-item>
+      <el-menu-item index="/finance/cost-allocation">成本分摊</el-menu-item>
+      <el-menu-item index="/finance/invoices">发票管理</el-menu-item>
     </el-sub-menu>
 
     <el-sub-menu index="contract" v-if="canAccessContract">
@@ -79,14 +118,26 @@
       <el-menu-item index="/system/audit-logs">审计日志</el-menu-item>
       <el-menu-item index="/system/print-settings">打印设置</el-menu-item>
       <el-menu-item index="/system/id-card-readers">身份证读卡器</el-menu-item>
+      <el-menu-item index="/system/approval-flows">审批流程</el-menu-item>
+      <el-menu-item index="/system/permissions">权限矩阵</el-menu-item>
     </el-sub-menu>
+
+    <el-menu-item index="/search" class="approval-link">
+      <el-icon><Search /></el-icon>
+      <span>全局检索</span>
+    </el-menu-item>
+
+    <el-menu-item index="/approval-center" class="approval-link">
+      <el-icon><Stamp /></el-icon>
+      <span>审批中心</span>
+    </el-menu-item>
   </el-menu>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { HomeFilled, Money, Notebook, DocumentChecked, Setting, Aim } from '@element-plus/icons-vue';
+import { HomeFilled, Money, Notebook, DocumentChecked, Setting, Aim, OfficeBuilding, Stamp, Search } from '@element-plus/icons-vue';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
@@ -130,7 +181,10 @@ const canAccessContract = computed(() =>
   ['管理员', '总经理', '合同主管', '法务'].includes(role.value)
 );
 const canAccessFire = computed(() =>
-  ['管理员', '总经理', '收租主管', '收租员', '合同主管'].includes(role.value)
+  ['管理员', '总经理', '安全主管'].includes(role.value)
+);
+const canAccessProperty = computed(() =>
+  ['管理员', '总经理', '物业经理', '维修工'].includes(role.value)
 );
 const canAccessSystem = computed(() => role.value === '管理员');
 </script>

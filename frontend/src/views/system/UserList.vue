@@ -41,6 +41,7 @@
         <el-form-item label="角色">
           <el-select v-model="form.role" style="width:100%" @change="onRoleChange"><el-option v-for="r in roles" :key="r" :label="r" :value="r" /></el-select>
         </el-form-item>
+        <el-form-item label="项目范围"><el-select v-model="form.projectIds" multiple clearable placeholder="不选=全部项目" style="width:100%"><el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
         <el-form-item label="密码" v-if="!isEdit"><el-input v-model="form.password" type="password" placeholder="留空则自动生成" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" @click="handleSubmit">确定</el-button></template>
@@ -91,7 +92,7 @@ import { getRoleAvatar } from '@/utils/avatars';
 function getRoleIcon(row: any) { return row.permissions?.avatar || getRoleAvatar(row.role).icon; }
 function getRoleBg(role: string) { return getRoleAvatar(role).bg; }
 
-const roles = ['管理员','收租主管','收租员','财务主管','会计','出纳','合同主管','法务','总经理'];
+const roles = ['管理员','总经理','收租主管','收租员','财务主管','会计','出纳','合同主管','法务','物业经理','维修工','安全主管']; 
 
 // 角色模块权限映射
 const roleModules: Record<string, string> = {
@@ -104,6 +105,9 @@ const roleModules: Record<string, string> = {
   '出纳': '财务管理（费用/凭证）',
   '合同主管': '合同管理全部',
   '法务': '合同管理/合规管理',
+  '物业经理': '物业管理全部（工单/设备/抄表/停车/投诉/住户等）',
+  '维修工': '物业执行（工单/设备/抄表）',
+  '安全主管': '消防安全（检查/器材/违规/演练）',
 };
 
 function getRoleModules(role: string) {
@@ -112,7 +116,8 @@ function getRoleModules(role: string) {
 
 const users = ref<any[]>([]); const loading = ref(false);
 const dialogVisible = ref(false); const isEdit = ref(false); const editId = ref<number | null>(null);
-const form = ref({ username: '', displayName: '', role: '收租员', password: '' });
+const form = ref({ username: '', displayName: '', role: '收租员', password: '', projectIds: [] });
+const projects = ref<any[]>([]);
 
 const resetPwdVisible = ref(false);
 const resetUser = ref<any>(null);
@@ -147,8 +152,8 @@ async function fetchUsers() {
 }
 
 function showDialog(row?: any) {
-  if (row) { isEdit.value = true; editId.value = row.id; form.value = { username: row.username, displayName: row.displayName, role: row.role, password: '' }; }
-  else { isEdit.value = false; editId.value = null; form.value = { username: '', displayName: '', role: '收租员', password: '' }; }
+  if (row) { isEdit.value = true; editId.value = row.id; form.value = { username: row.username, displayName: row.displayName, role: row.role, password: '', projectIds: row.projectIds || [] }; }
+  else { isEdit.value = false; editId.value = null; form.value = { username: '', displayName: '', role: '收租员', password: '', projectIds: [] }; }
   dialogVisible.value = true;
 }
 
@@ -179,7 +184,8 @@ async function handleDelete(id: number) {
   try { await request.delete('/users/' + id); ElMessage.success('已删除'); fetchUsers(); } catch { ElMessage.error('删除失败'); }
 }
 
-onMounted(() => fetchUsers());
+async function loadProjects() { try { const r = await request.get('/projects', { params: { pageSize: 200 } }); projects.value = r.data?.list || []; } catch { /* 静默 */ } }
+onMounted(() => { fetchUsers(); loadProjects(); });
 </script>
 
 <style lang="scss" scoped>

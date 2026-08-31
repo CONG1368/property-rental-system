@@ -1,11 +1,24 @@
 <template>
   <div class="report-center">
-    <h2 class="page-title">报表中心</h2>
+    <div class="head-row">
+      <h2 class="page-title">报表中心</h2>
+      <el-button type="primary" @click="openBatch">批量导出</el-button>
+    </div>
+
+    <el-card shadow="never" class="chat-card">
+      <template #header><b>🤖 智能问数</b><span style="color:#909399;font-size:12px;margin-left:8px">输入经营问题，自动出数据</span></template>
+      <div class="chat-bar">
+        <el-input v-model="chatQuestion" placeholder="例如：本月收缴率？当前空置率？本年租金收益？" @keyup.enter="askQuestion" style="max-width:520px" />
+        <el-button type="primary" :loading="chatLoading" @click="askQuestion">问一下</el-button>
+      </div>
+      <el-alert v-if="chatResult" type="success" :closable="false" style="margin-top:12px">{{ chatResult.answer }}</el-alert>
+      <v-chart v-if="chatResult && ['collection', 'energy'].includes(chatResult.metric)" :option="chatChart" autoresize style="height:220px;margin-top:10px" />
+    </el-card>
     <el-row :gutter="16">
       <el-col :span="8" v-for="r in reports" :key="r.title">
         <el-card shadow="hover" class="report-card" @click="openReport(r)">
           <div class="report-icon"><el-icon :size="32" color="#0A3D62"><Document /></el-icon></div>
-          <div class="report-title">{{ r.title }}</div>
+          <div class="report-title">{{ r.title }} <el-tag v-if="isRecommended(r)" type="warning" size="small" effect="dark" style="margin-left:4px">推荐</el-tag></div>
           <div class="report-desc">{{ r.desc }}</div>
         </el-card>
       </el-col>
@@ -55,6 +68,13 @@
           @change="refreshReport"
         />
         <el-button size="small" @click="refreshReport" :loading="reportLoading">刷新</el-button>
+        <el-divider direction="vertical" />
+        <el-select v-model="drillProjectId" placeholder="筛选项目" clearable size="small" style="width:150px" @change="refreshReport">
+          <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
+        </el-select>
+        <el-select v-model="drillType" placeholder="筛选业态" clearable size="small" style="width:120px" @change="refreshReport">
+          <el-option v-for="t in ['公寓', '厂房', '商铺', '写字楼']" :key="t" :label="t" :value="t" />
+        </el-select>
       </div>
 
       <!-- 资产负债表 -->
@@ -127,6 +147,12 @@
 
       <!-- 自定义报表：通用扁平表格 -->
       <template v-else>
+        <v-chart v-if="currentReport?.chart === 'collection'" :option="collectionChart" autoresize style="height:260px;margin-bottom:12px" />
+        <v-chart v-if="currentReport?.chart === 'energy'" :option="energyChart" autoresize style="height:260px;margin-bottom:12px" />
+        <v-chart v-if="currentReport?.chart === 'revenue'" :option="revenueChart" autoresize style="height:260px;margin-bottom:12px" />
+        <v-chart v-if="currentReport?.chart === 'cost'" :option="costChart" autoresize style="height:260px;margin-bottom:12px" />
+        <v-chart v-if="currentReport?.chart === 'budget'" :option="budgetChart" autoresize style="height:260px;margin-bottom:12px" />
+        <v-chart v-if="currentReport?.chart === 'cashflow'" :option="cashflowChart" autoresize style="height:260px;margin-bottom:12px" />
         <el-table :data="reportState.rows || []" stripe size="small" empty-text="暂无数据">
           <el-table-column v-for="col in (reportState.columns || [])" :key="col" :prop="col" :label="col" show-overflow-tooltip>
             <template #default="{ row }">
@@ -148,11 +174,33 @@
         <el-button type="primary" @click="handleExport">导出Excel</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog title="批量导出报表" v-model="batchVisible" width="760px">
+      <div class="batch-period">
+        <el-radio-group v-model="batchPeriodType" size="small">
+          <el-radio-button value="month">月度</el-radio-button><el-radio-button value="year">年度</el-radio-button><el-radio-button value="custom">自定义</el-radio-button>
+        </el-radio-group>
+        <el-date-picker v-if="batchPeriodType === 'month'" v-model="batchPeriod" type="month" value-format="YYYY-MM" size="small" style="width:150px" />
+        <el-date-picker v-if="batchPeriodType === 'year'" v-model="batchYear" type="year" value-format="YYYY" size="small" style="width:120px" />
+        <el-date-picker v-if="batchPeriodType === 'custom'" v-model="batchRange" type="monthrange" range-separator="→" start-placeholder="起始月" end-placeholder="截止月" value-format="YYYY-MM" size="small" style="width:240px" />
+      </div>
+      <el-checkbox-group v-model="batchSelected">
+        <el-checkbox v-for="t in batchable" :key="t" :label="t">{{ t }}</el-checkbox>
+      </el-checkbox-group>
+      <template #footer><el-button @click="batchVisible = false">取消</el-button><el-button type="primary" :loading="batchLoading" @click="doBatchExport">导出 Excel 包</el-button></template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import VChart from 'vue-echarts';
+import { use } from 'echarts/core';
+import { LineChart, BarChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
 import { Document } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -177,14 +225,23 @@ const halfYears = computed(() =>
   ])
 );
 
-const reports = [
+const reports = ref<any[]>([
   { title: '资产负债表', desc: '资产/负债/权益汇总', endpoint: '/reports/balance-sheet', type: 'balance' },
   { title: '利润表', desc: '收入/成本/利润明细', endpoint: '/reports/income-statement', type: 'income' },
   { title: '现金流量表', desc: '经营/投资/筹资现金流', endpoint: '/reports/cash-flow', type: 'cashflow' },
   { title: '收租汇总表', desc: '按业态汇总收租', endpoint: '/reports/custom', type: 'custom', params: { type: 'rent-summary' } },
   { title: '欠费明细表', desc: '欠费租客明细', endpoint: '/reports/custom', type: 'custom', params: { type: 'arrears-detail' } },
   { title: '成本分析表', desc: '费用结构分析', endpoint: '/reports/custom', type: 'custom', params: { type: 'cost-analysis' } },
-];
+  { title: '收缴率分析', desc: '应收/实收/收缴率按月（含项目业态钻取）', endpoint: '/reports/custom', type: 'custom', params: { type: 'collection-rate' }, chart: 'collection' },
+  { title: '入驻率', desc: '分业态入驻率', endpoint: '/reports/occupancy-report', type: 'custom' },
+  { title: '账龄分析', desc: '欠费账龄分桶', endpoint: '/reports/aging-report', type: 'custom' },
+  { title: '能耗分析', desc: '水电气用量/金额按月', endpoint: '/reports/custom', type: 'custom', params: { type: 'energy-analysis' }, chart: 'energy' },
+  { title: '收益预测', desc: '分业态租金收益/年化', endpoint: '/reports/custom', type: 'custom', params: { type: 'revenue-forecast' }, chart: 'revenue' },
+  { title: '工单成本分析', desc: '工单/维保成本', endpoint: '/reports/custom', type: 'custom', params: { type: 'work-order-cost' }, chart: 'cost' },
+  { title: '租户留存', desc: '合同状态/到期/租期概览', endpoint: '/reports/custom', type: 'custom', params: { type: 'tenant-retention' } },
+  { title: '预算偏差', desc: '预算 vs 实际', endpoint: '/reports/custom', type: 'custom', params: { type: 'budget-vs-actual' }, chart: 'budget' },
+  { title: '经营简报', desc: '物业运营月度简报（可导出文字 PDF）', type: 'briefing', link: '/property/business-briefing' },
+]);
 
 const currentReport = ref<any>(null);
 const reportVisible = ref(false);
@@ -192,7 +249,155 @@ const reportType = ref('');
 const reportState = reactive<any>({});
 const reportPeriod = ref(new Date().toISOString().slice(0, 7));
 const reportPeriodType = ref('month');
+const router = useRouter();
+const route = useRoute();
 const reportLoading = ref(false);
+const drillProjectId = ref<number | null>(null); const drillType = ref(''); const projects = ref<any[]>([]);
+const collectionChart = computed(() => {
+  const rows = reportState.rows || [];
+  return {
+    tooltip: { trigger: 'axis' }, legend: { data: ['应收', '实收', '收缴率'] },
+    grid: { left: 60, right: 50, top: 30, bottom: 30 },
+    xAxis: { type: 'category', data: rows.map((r: any) => r['月份']) },
+    yAxis: [{ type: 'value', name: '金额' }, { type: 'value', name: '%', max: 100 }],
+    series: [
+      { name: '应收', type: 'bar', data: rows.map((r: any) => r['应收']) },
+      { name: '实收', type: 'bar', data: rows.map((r: any) => r['实收']) },
+      { name: '收缴率', type: 'line', yAxisIndex: 1, smooth: true, data: rows.map((r: any) => parseFloat(r['收缴率']) || 0) },
+    ],
+  };
+});
+const energyChart = computed(() => {
+  const rows = reportState.rows || [];
+  return {
+    tooltip: { trigger: 'axis' }, legend: { data: ['水用量', '电用量', '燃气用量'] },
+    grid: { left: 50, right: 20, top: 30, bottom: 30 },
+    xAxis: { type: 'category', data: rows.map((r: any) => r['月份']) },
+    yAxis: { type: 'value' },
+    series: [
+      { name: '水用量', type: 'bar', stack: 'total', data: rows.map((r: any) => r['水用量']) },
+      { name: '电用量', type: 'bar', stack: 'total', data: rows.map((r: any) => r['电用量']) },
+      { name: '燃气用量', type: 'bar', stack: 'total', data: rows.map((r: any) => r['燃气用量']) },
+    ],
+  };
+});
+const revenueChart = computed(() => {
+  const rows = reportState.rows || [];
+  return {
+    tooltip: { trigger: 'item' }, legend: { orient: 'vertical', right: 8, top: 'center', textStyle: { fontSize: 11 } },
+    series: [{ type: 'pie', radius: ['35%', '68%'], center: ['40%', '50%'], data: rows.map((r: any) => ({ name: r['业态'], value: r['月租金合计'] })), label: { show: false } }],
+  };
+});
+const costChart = computed(() => {
+  const rows = reportState.rows || [];
+  return {
+    tooltip: { trigger: 'axis' }, grid: { left: 60, right: 20, top: 30, bottom: 40 },
+    xAxis: { type: 'category', data: rows.map((r: any) => r['类型']), axisLabel: { rotate: 30 } },
+    yAxis: { type: 'value' },
+    series: [{ name: '金额', type: 'bar', data: rows.map((r: any) => r['金额']), itemStyle: { color: '#E6A23C' } }],
+  };
+});
+const budgetChart = computed(() => {
+  const rows = reportState.rows || [];
+  return {
+    tooltip: { trigger: 'axis' }, legend: { data: ['预算', '实际'] }, grid: { left: 60, right: 20, top: 30, bottom: 60 },
+    xAxis: { type: 'category', data: rows.map((r: any) => r['科目']), axisLabel: { rotate: 30 } },
+    yAxis: { type: 'value' },
+    series: [
+      { name: '预算', type: 'bar', data: rows.map((r: any) => r['预算']), itemStyle: { color: '#409EFF' } },
+      { name: '实际', type: 'bar', data: rows.map((r: any) => r['实际']), itemStyle: { color: '#F56C6C' } },
+    ],
+  };
+});
+async function loadProjects() { try { const r = await request.get('/projects', { params: { pageSize: 200 } }); projects.value = r.data?.list || []; } catch { /* 静默 */ } }
+function resolveRole(): string {
+  const raw = localStorage.getItem('accessToken') || '';
+  try {
+    const p = raw.split('.')[1]; const b64 = p.replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(b64); const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const payload = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+    return payload.role || '';
+  } catch { return ''; }
+}
+const myRole = ref(resolveRole());
+function isRecommended(r: any): boolean { return r.recommended?.includes(myRole.value); }
+async function loadCatalog() {
+  try {
+    const r = await request.get('/reports/registry', { silent: true });
+    const catalog = r.data?.list || [];
+    if (catalog.length) {
+      const visible = catalog.filter((c: any) => !c.roles?.length || c.roles.includes(myRole.value));
+      if (visible.length) reports.value = visible;
+      const targetKey = route.query.report as string;
+      if (targetKey) { const target = reports.value.find((c: any) => c.key === targetKey); if (target) openReport(target); }
+    }
+  } catch { /* 保留默认目录 */ }
+}
+onMounted(() => { loadProjects(); loadCatalog(); });
+
+const chatQuestion = ref(''); const chatLoading = ref(false); const chatResult = ref<any>(null);
+async function askQuestion() {
+  if (!chatQuestion.value.trim()) return ElMessage.warning('请输入问题');
+  chatLoading.value = true;
+  try { const r = await request.post('/analytics/ask', { question: chatQuestion.value }); chatResult.value = r.data; }
+  catch (err: any) { ElMessage.error(err?.response?.data?.message || '查询失败'); } finally { chatLoading.value = false; }
+}
+const chatChart = computed(() => {
+  const d = chatResult.value?.data || {};
+  if (chatResult.value?.metric === 'energy') return { tooltip: {}, xAxis: { type: 'category', data: ['水', '电', '燃气'] }, yAxis: { type: 'value' }, series: [{ type: 'bar', data: [d.water || 0, d.elec || 0, d.gas || 0] }] };
+  return { tooltip: {}, xAxis: { type: 'category', data: ['应收', '实收'] }, yAxis: { type: 'value' }, series: [{ type: 'bar', data: [d.total || 0, d.paid || 0] }] };
+});
+const cashflowChart = computed(() => {
+  const rows = reportState.rows || [];
+  return {
+    tooltip: { trigger: 'axis' }, legend: { data: ['预计收入', '预计支出', '净现金流'] },
+    grid: { left: 70, right: 60, top: 30, bottom: 30 },
+    xAxis: { type: 'category', data: rows.map((r: any) => r['月份']) },
+    yAxis: [{ type: 'value', name: '金额' }, { type: 'value', name: '净额' }],
+    series: [
+      { name: '预计收入', type: 'bar', data: rows.map((r: any) => r['预计收入']) },
+      { name: '预计支出', type: 'bar', data: rows.map((r: any) => r['预计支出']) },
+      { name: '净现金流', type: 'line', yAxisIndex: 1, smooth: true, data: rows.map((r: any) => r['净现金流']) },
+    ],
+  };
+});
+const batchVisible = ref(false); const batchSelected = ref<string[]>([]);
+const batchPeriod = ref(new Date().toISOString().slice(0, 7)); const batchYear = ref(String(new Date().getFullYear())); const batchPeriodType = ref('month'); const batchRange = ref<[string, string] | null>(null); const batchLoading = ref(false);
+const batchable = computed(() => reports.value.filter((r: any) => r.endpoint && r.type !== 'briefing').map((r: any) => r.title));
+function openBatch() { batchSelected.value = batchable.value; batchVisible.value = true; }
+function batchBuildParams(r: any): any {
+  const params: any = { ...(r.params || {}) };
+  if (batchPeriodType.value === 'custom' && batchRange.value) { params.startDate = batchRange.value[0]; params.endDate = batchRange.value[1]; }
+  else if (batchPeriodType.value === 'year') { params.period = batchYear.value; params.periodType = 'year'; }
+  else { params.period = batchPeriod.value; params.periodType = 'month'; }
+  return params;
+}
+async function doBatchExport() {
+  if (!batchSelected.value.length) return ElMessage.warning('请至少选择一张报表');
+  batchLoading.value = true;
+  try {
+    const wb = XLSX.utils.book_new();
+    for (const title of batchSelected.value) {
+      const r = reports.value.find((x: any) => x.title === title);
+      if (!r || !r.endpoint) continue;
+      try {
+        const res = await request.get(r.endpoint, { params: batchBuildParams(r), silent: true });
+        const d: any = res.data || {};
+        let added = false;
+        for (const k of Object.keys(d)) {
+          if (Array.isArray(d[k]) && d[k].length && typeof d[k][0] === 'object') {
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(d[k]), (title + '-' + k).slice(0, 31));
+            added = true;
+          }
+        }
+      } catch { /* 跳过失败报表 */ }
+    }
+    if (!wb.SheetNames.length) return ElMessage.warning('所选报表无可导出数据');
+    XLSX.writeFile(wb, `报表包_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    ElMessage.success('批量导出成功');
+  } finally { batchLoading.value = false; }
+}
 const pdfLoading = ref(false);
 const customDateRange = ref<[string, string] | null>(null);
 
@@ -234,6 +439,8 @@ function buildParams(r: any): any {
     params.period = reportPeriod.value;
     params.periodType = reportPeriodType.value;
   }
+  if (drillProjectId.value) params.projectId = drillProjectId.value;
+  if (drillType.value) params.type = drillType.value;
   return params;
 }
 
@@ -258,6 +465,7 @@ async function refreshReport() {
 }
 
 async function openReport(r: any) {
+  if (r.type === 'briefing' && r.link) { router.push(r.link); return; }
   currentReport.value = r;
   reportType.value = r.type;
   reportPeriod.value = new Date().toISOString().slice(0, 7);
@@ -424,6 +632,10 @@ function buildCustomTableHTML(cols: string[], rows: any[]): string {
 </script>
 
 <style lang="scss" scoped>
+.chat-card { margin-bottom: 16px; }
+.chat-bar { display: flex; gap: 10px; align-items: center; }
+.batch-period { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.head-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
 .report-card { text-align: center; cursor: pointer; padding: 16px; }
 .report-card:hover { border-color: #0A3D62; }

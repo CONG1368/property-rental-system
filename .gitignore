@@ -44,3 +44,7 @@ runtime/*.zip
 
 # 图标源文件（build/icon.* 入仓库）
 build/icon.png
+
+# 运行/测试产物
+backend/reports/
+test-results/

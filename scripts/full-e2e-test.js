@@ -138,16 +138,14 @@ async function navTo(page, hash, name) {
   // 6a. 房源创建
   try {
     await page.goto(`${BASE}/#/rent/properties`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1000);
+    await page.waitForSelector('button:has-text("新增房源")', { timeout: 20000 });
     await page.click('button:has-text("新增房源")');
     await page.waitForTimeout(500);
     await page.fill('input[placeholder*="房源名称"]', 'E2E测试房源');
-    await page.locator('.el-select').first().click();
+    await page.locator('.el-dialog .el-select').first().click();
     await page.waitForTimeout(300);
     // 选择业态类型
-    const options = await page.locator('.el-select-dropdown__item');
-    const count = await options.count();
-    if (count > 0) await options.first().click();
+    await page.locator('.el-select-dropdown__item:visible').first().click({ timeout: 10000 }).catch(() => {});
     await page.waitForTimeout(200);
     record('房源-打开新增对话框', 'PASS');
     // 取消创建，避免脏数据
@@ -160,6 +158,7 @@ async function navTo(page, hash, name) {
   // 6b. 租客列表 — 检查表格数据
   try {
     await navTo(page, 'rent/tenants', 'func-tenants');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('租客-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {
@@ -169,6 +168,7 @@ async function navTo(page, hash, name) {
   // 6c. 账单列表
   try {
     await navTo(page, 'rent/bills', 'func-bills');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('账单-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {
@@ -178,6 +178,7 @@ async function navTo(page, hash, name) {
   // 6d. 合同列表
   try {
     await navTo(page, 'contract/list', 'func-contracts');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('合同-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {
@@ -187,6 +188,7 @@ async function navTo(page, hash, name) {
   // 6e. 凭证管理
   try {
     await navTo(page, 'finance/vouchers', 'func-vouchers');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('凭证-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {
@@ -196,6 +198,7 @@ async function navTo(page, hash, name) {
   // 6f. 用户管理
   try {
     await navTo(page, 'system/users', 'func-users');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('用户-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {

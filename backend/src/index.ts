@@ -147,6 +147,11 @@ async function start() {
     await seedContractTemplates();
     await seedIdCardReaders();
     await seedFireSafety();
+    // 业务枚举数据字典统一（幂等）
+    const { seedBusinessDicts, seedDefaultFlows } = await import('./services/dict-seed.js');
+    const dictCount = await seedBusinessDicts();
+    const flowCount = await seedDefaultFlows();
+    if (dictCount > 0) console.log('[Seed] Business dicts seeded:', dictCount);
     console.log('[Seed] All seed data ready');
   } catch (err: any) {
     console.error('[Seed] Data initialization error:', err.message);

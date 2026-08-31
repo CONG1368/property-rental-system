@@ -335,6 +335,22 @@ echo -e "  \033[0;31m失败: $FAIL\033[0m"
 echo -e "  \033[1;33m跳过: $SKIP\033[0m"
 echo "=========================================="
 rm -rf "$TMPDIR"
+
+# ============================================================
+# 可选：全模块 UI 回归（需先启动前端 dev:5173 且已安装 playwright）
+# 通过 RUN_UI=1 触发：RUN_UI=1 bash test-api.sh
+# ============================================================
+if [ "$RUN_UI" = "1" ]; then
+  echo ">>> 运行全模块 UI 回归…"
+  cd "$(dirname "$0")"
+  if node scripts/e2e-newmodules-regression.js; then
+    echo -e "  \033[0;32m[UI] 全模块回归通过\033[0m"
+  else
+    echo -e "  \033[0;31m[UI] 全模块回归失败\033[0m"
+    FAIL=$((FAIL+1))
+  fi
+fi
+
 if [ $FAIL -gt 0 ]; then
   echo -e "\033[0;31m存在失败用例\033[0m"
   exit 1

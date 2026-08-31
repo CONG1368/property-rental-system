@@ -4,6 +4,10 @@ import { runDunningCheck } from '../services/dunning-engine.js';
 import { setExpiringContracts } from '../services/contract-workflow.js';
 import { runMonthlyDepreciation } from '../services/depreciation.js';
 import { broadcastNotification } from '../services/notification.js';
+import { runPropertyAutomation } from '../services/property-automation.js';
+import { generateMonthlyBriefing } from '../services/briefing-report.js';
+import DoorLockPassword from '../models/DoorLockPassword.js';
+import { Op } from 'sequelize';
 
 async function safeBroadcast(title: string, content: string) {
   try { await broadcastNotification(title, content); } catch { /* 通知失败不影响主业务流程 */ }
@@ -59,6 +63,34 @@ export const scheduler = {
       }
     });
 
-    console.log('[Cron] Scheduler initialized (4 tasks + notifications)');
+    // 物业自动化 — 每日上午 9:00（工单SLA/设备到期/合同到期提醒）
+    cron.schedule('0 9 * * *', async () => {
+      console.log('[Cron] Property automation started');
+      try {
+        const r = await runPropertyAutomation();
+        console.log(`[Cron] Property automation done: ${r.createdNotifications} notifications`);
+        if (r.createdNotifications > 0) await safeBroadcast('物业自动化提醒', `系统已处理：升级工单${r.escalatedOrders}，设备到期${r.expiringFacilities}，合同到期${r.expiringContracts}。`);
+      } catch (e: any) { console.error('[Cron] Property automation error:', e.message); }
+    });
+
+    // 月度经营简报 — 每月 1 日上午 9:30 生成本月简报 PDF 存档
+    cron.schedule('30 9 1 * *', async () => {
+      console.log('[Cron] Monthly briefing generation started');
+      try {
+        const r = await generateMonthlyBriefing();
+        console.log(`[Cron] Monthly briefing done: ${r.filePath}`);
+        await safeBroadcast('月度报表包已生成', `${r.month} 月度经营简报 PDF 已生成并归档，可前往[报表中心→经营简报/月度简报]查看下载。`);
+      } catch (e: any) { console.error('[Cron] Monthly briefing error:', e.message); }
+    });
+
+    // 门锁临时密码到期清理 — 每日上午 8:30
+    cron.schedule('30 8 * * *', async () => {
+      try {
+        const [cnt] = await DoorLockPassword.update({ isActive: false }, { where: { isActive: true, endTime: { [Op.lt]: new Date() } } } as any);
+        console.log(`[Cron] Door lock password expiry cleanup: ${cnt} expired`);
+      } catch (e: any) { console.error('[Cron] Door lock cleanup error:', e.message); }
+    });
+
+    console.log('[Cron] Scheduler initialized (6 tasks + notifications)');
   },
 };

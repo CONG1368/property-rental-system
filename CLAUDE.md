@@ -99,8 +99,8 @@ node scripts/generate-manual-pdf.js
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
 │       ├── models/            # Sequelize 模型（30个数据模型 + index/BaseModel）
 │       ├── routes/            # Express 路由（24个模块 + index，统一挂载 /api 前缀）
-│       ├── middleware/        # auth（JWT验证）/ rbac / audit-log / validate / rate-limiter / error-handler
-│       ├── services/          # 业务服务层（19个服务）
+│       ├── middleware/        # auth（JWT验证）/ rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
+│       ├── services/          # 业务服务层（22+个服务，含 permission-service / approval-bridge / voucher-status-machine / ttl-cache 等）
 │       ├── jobs/scheduler.ts  # 4个 cron 定时任务
 │       └── websocket/         # WebSocket 广播
 ├── electron/                  # Electron 主进程 + preload
@@ -257,9 +257,9 @@ function decodeFilename(name: string): string {
 
 支付回调（微信/支付宝）、短信（阿里云/腾讯云）、电子签章（e签宝/Fadada）、银行对账、税务导出等服务均以 Mock 模式运行。通过环境变量切换 Provider（如 `SMS_PROVIDER=aliyun`），日志写入 `backend/logs/` 目录下的 JSONL 文件。
 
-### RBAC 权限体系（双层防护）
+### RBAC 权限体系（双层防护 + 可配置化 + 二次确认）
 
-**后端层** — 两个中间件配合使用：
+**后端层** — 三个中间件配合使用：
 
 ```typescript
 // requireRole — 路由级粗粒度隔离（routes/index.ts 中挂载）
@@ -267,13 +267,26 @@ router.use('/properties', authMiddleware, requireRole('管理员', '收租主管
 
 // requirePermission — 操作级细粒度控制（routes/*.ts 路由 Handler 中）
 router.post('/', requirePermission('rent', 'create'), async (req, res) => { ... });
+
+// requireConfirmPassword — 不可逆操作二次确认（操作者重新输入本人密码）
+router.delete('/:id', requirePermission('finance','delete'), requireConfirmPassword('删除发票'), handler);
 ```
 
-角色权限定义见 `middleware/rbac.ts`，9 角色 × 6 操作（create/read/update/delete/approve/export），管理员和总经理拥有全部/只读全局权限。
+**角色与权限（12 角色，定义见 `middleware/rbac.ts`）**：管理员 / 总经理 / 收租主管 / 收租员 / 财务主管 / 会计 / 出纳 / 合同主管 / 法务 / 物业经理 / 维修工 / 安全主管。
+
+**角色 × 模块 × 6 操作**（create/read/update/delete/approve/export）。管理员拥有全部；总经理只读+审批+导出；财务角色（财务主管/会计/出纳）权限分级（如出纳仅 read/update，禁 create/delete/approve）。
+
+**权限可配置化（重要）**：
+- `services/permission-service.ts` 的 `getRolePerms(role)` 读取的是**生效权限**：以 `rbac.ts` 默认为基底，用 `role_permissions` 表（DB 定制）逐模块覆盖——未覆盖模块保留默认与 `'*'` 全局兜底。
+- `requirePermission` 已改为**异步读 DB 定制**（不再静态读 `rolePermissions`）；precedence 为**模块优先**（`perms[module] ?? perms['*']`），与权限矩阵页面的 `effBaseline` 一致。
+- 权限矩阵页面 `/system/permissions`（`views/system/PermissionMatrix.vue`）支持**可搜索 + 批量** + 保存/回退前**管理员密码二次确认**；后端 `/api/permissions`（`routes/permissionConfig.ts`）PUT/DELETE/reset 均要求 `confirmPassword`。
+- 权限变更使用 `auditLog('权限配置', ...)`，越权尝试（`requirePermission` 拒绝）会额外写入 `越权尝试` 审计。
+
+**审计（enhanced `middleware/audit-log.ts`）**：拦截 `res.json`，记录**所有到达的响应**——2xx=成功（action 原名）、4xx/5xx=失败（action 追加 `(失败)` 标记）。配合 `requirePermission` 的 `越权尝试` 记录，敏感操作的成功/失败/越权均可追查。
 
 **前端层** — 路由守卫 + 菜单过滤：
 
-- `router/index.ts` 的 `routeRoleMap` 按路径前缀（rent/finance/contract/system）限制角色访问
+- `router/index.ts` 的 `routeRoleMap` 按路径前缀（rent/property/finance/contract/fire/system）限制角色访问
 - `Sidebar.vue` 从 JWT 解析 userRole，隐藏无权模块的菜单项
 - JWT 过期检测（`isTokenExpired`）：解析 exp 字段，不依赖后端 401
 
@@ -291,7 +304,7 @@ Access Token payload 包含用户身份信息，前后端均可直接解析使�
   userId: number;
   username: string;
   displayName: string;
-  role: string;          // 9 种角色之一
+  role: string;          // 12 种角色之一（见 middleware/rbac.ts）
   permissions: object;   // 保留字段
   iat: number;
   exp: number;           // 4h 过期
@@ -354,13 +367,15 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 
 | 维度 | 状态 |
 |------|------|
-| 后端路由 25+ 个模块 | 全部实现 |
-| 后端服务 22 个 | 17 完整 + 3 待第三方 SDK |
-| 前端页面 48+ 个 | 全部功能完整 |
+| 后端路由模块 | 全部实现（27 业务模块 + 10 个增强模块） |
+| 后端服务 | 全部完整（含 22 个业务服务） |
+| 前端页面 | 全部功能完整（含 17 个增强页面） |
 | 前端 TypeScript | 0 错误 |
 | 后端 TypeScript | 0 错误 |
 
 **已完成的完整新模块**：消防综合管理（4 模型 + 22 端点 + 6 页面）、条款批量导入（3 格式）、合同消防约定、合同起草附件上传。
+
+**物业租赁/物业管理增强模块（新增）**：租客征信风控（credit-scorer）、押金全生命周期台账（Deposit）、退租-交接-押金流程（Checkout）、固定资产折旧管理（FixedAsset）、报修工单（WorkOrder）、设施设备维保（Facility + FacilityMaintenance）、抄表计费（Meter + MeterReading）、停车管理（ParkingSpace + ParkingRecord）、投诉建议（Complaint）、住户/业主档案（Resident）、公告发布（Announcement）、公共收益（CommonRevenue）、外包供应商（Vendor）、仓库物料（Material + InventoryRecord）、物业管理运营看板（PropertyOpsDashboard）。
 
 **仅剩的 3 项工作**（均需第三方服务账号，非代码缺陷）：
 
@@ -718,6 +733,35 @@ off('room:status-changed', callback);
 
 `GET /api/approvals` 返回的合同数据现在包含 `clauses`、`billingConfig` 和 Tenant 关联（`include: [{ model: Tenant, as: 'tenant' }]`），使审批页可直接显示租客名称。
 
+### 财务模块安全加固（权限/审计/审批/状态机）
+
+本轮对财务模块做了系统性安全/合规/内控加固，关键约定如下：
+
+**1. 写操作统一防护模式**：所有财务路由（vouchers/expenses/budgets/accounts/accountBooks/tax/fixedAssets/invoices/bankReconciliation/costAllocation）的**每个写操作**（POST/PUT/DELETE）都必须同时挂 `requirePermission('finance', 动作)` + `auditLog(模块, 动作)`。已 100% 覆盖（可用脚本统计校验）。动作映射：POST=create、PUT=update、DELETE=delete、审批/作废/红冲/折旧等状态类=approve、导出=export、计算触发=create。
+
+**2. 不可逆操作二次确认**：发票作废/红冲/删除、固定资产删除/折旧、凭证作废、账套修改、费用审批、权限变更，均需操作者**重新输入本人登录密码**。后端用 `middleware/confirm-password.ts` 的 `requireConfirmPassword(label)` 中间件（读 body/query 的 `confirmPassword`，`bcrypt.compare` 校验当前用户）；前端用 `utils/confirm-password.ts` 的 `confirmWithPassword(msg)` 弹窗，请求体携带 `confirmPassword`（DELETE 用 `{ data: { confirmPassword } }`）。
+
+**3. 权限可配置化**：`role_permissions` 表 + `services/permission-service.ts`（`getRolePerms`/`getAllMatrix`/`setRolePerms`/`clearCache`）。`requirePermission` 异步读 DB 定制；precedence **模块优先**（`perms[module] ?? perms['*']`）。权限矩阵页 `/system/permissions`（`PermissionMatrix.vue`）可搜索/批量/二次确认；后端 `/api/permissions`（`permissionConfig.ts`）PUT/DELETE/reset 均要求 `confirmPassword`。
+
+**4. 审计增强**（`middleware/audit-log.ts`）：记录所有到达的 `res.json`——2xx=成功、4xx/5xx=失败（action 加 `(失败)`）；`requirePermission` 拒绝额外写 `越权尝试` 审计。敏感操作成功/失败/越权均可追查。
+
+**5. 凭证状态机**（`services/voucher-status-machine.ts`）：`草稿→待复核→待审核→已过账→已作废`（终态）。`已过账` 只能→`已作废`，**禁止回退**（防篡改已过账凭证）。`vouchers.ts` 的 `PUT /:id/status` 用 `canTransition(from, to)` 校验非法流转返回 400，并记录 `approvedBy`/`reviewedBy`。
+
+**6. 报表角色矩阵**（`services/report-registry.ts` + `routes/reports.ts`）：`reportAuthz` 以 registry 每报表声明的 `roles` 为**唯一权威**（不再用模块启发式/`*` 泄漏）。`/reports` mount 扩为 registry 全部角色并集，细粒度门禁交给 `reportAuthz`。未登记报表一律 403。
+
+**7. 审批引擎**（`services/approval-bridge.ts` + `routes/approvalRequests.ts` + `dict-seed.ts`）：`submitApproval(opts, userId)` 按 `bizType` 找缺省流程（`FlowDefinition`）创建 `ApprovalRequest`，无配置流程则静默跳过。默认流程：`合同`（合同主管→总经理）、`预算`（财务主管→总经理）、`费用`（财务主管→总经理）。终审通过联动业务状态（合同→已签订、预算→已批准、费用→已批准），驳回回滚（合同→已驳回、预算→编制中）。
+
+**8. 财务审批/内控**：
+- **大额费用自动审批**：`expenses.ts` POST 创建时若 `amount >= LARGE_EXPENSE_THRESHOLD`（默认 5000，env `LARGE_EXPENSE_THRESHOLD`）自动桥接 `bizType='费用'` 审批。
+- **预算超支保护**：`budgets.ts` PUT 用字段白名单（仅 `budgetAmount`/`notes`）；**已批准预算禁改金额**（400），须走预算调整审批。
+- **通用字段白名单**：invoices/fixedAssets/vouchers/accountBooks 的 PUT 均白名单化，剔除 `status`/`invoiceNo`/`taxAmount` 等敏感字段（状态只能走审批端点）。
+
+**9. 其他**：
+- tax 计算缓存：`services/ttl-cache.ts` + `tax-calculator.ts` 的 `getCachedTaxes`/`invalidateTaxCache`（5 分钟 TTL）；读接口用缓存，`POST /calculate` 重算并失效。
+- 分页钳制：`page≥1`、`1≤pageSize≤200`（fixedAssets/invoices/vouchers）。
+- 发票号生成：日期+时间戳+随机，创建遇唯一键冲突自动重试≤3 次。
+- 发票状态机：issue 仅待开票、void 拒已作废/已红冲、redflush 仅已开票。
+
 ### 已知孤立文件
 
 - `frontend/src/views/rent/PaymentRecord.vue` — 收款功能已集成在 BillList 详情抽屉中，无路由注册
@@ -729,10 +773,16 @@ off('room:status-changed', callback);
 |------|------|
 | `fix-esm-imports.js` | 修复 ESM 编译产物的 `.js` 后缀缺失 |
 | `verify-esm-build.js` | 验证后端编译产物中所有 ESM import 路径有效 |
-| `full-e2e-test.js` | 全量 E2E 测试（250+ 测试用例） |
+| `full-e2e-test.js` | 全量 E2E 测试（37 项 + 250+ 断言） |
 | `generate-icon.js` | 从 build/icon.png 生成各尺寸图标 |
 | `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（截图 base64 内嵌，跨平台可移植） |
 | `generate-proposal-pdf.js` | 从 Markdown 生成产品方案 PDF |
 | `kill-dev.ps1` | 清理占用开发端口的残留进程（`dev:clean` 调用） |
 | `installer.nsi` | NSIS 安装包脚本 |
 | `7za-wrapper.bat` | 7-Zip 便携版压缩包装器 |
+| `permission-regression.js` | 权限回归（12 角色 × 端点断言，33 用例）；需先启动 dev 后端 |
+| `e2e-permission-matrix.js` | 权限矩阵页面 E2E（角色选择/搜索/批量/二次确认弹窗，8 用例） |
+| `e2e-confirm-password.js` | 不可逆操作二次确认 E2E（发票作废：弹窗/密码/取消/成功，5 用例） |
+| `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
+| `e2e-new-modules.js` | 新增模块 E2E |
+| `run-all-regression.js` | 串联运行全部回归脚本 |

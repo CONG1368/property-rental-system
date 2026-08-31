@@ -3,6 +3,10 @@ import Contract from '../models/Contract.js';
 import Tenant from '../models/Tenant.js';
 import Property from '../models/Property.js';
 import Approval from '../models/Approval.js';
+import ApprovalRequest from '../models/ApprovalRequest.js';
+import { submitApproval } from '../services/approval-bridge.js';
+import { getScopedPropertyIds, recordInScope } from '../services/data-scope.js';
+import { requirePermission } from '../middleware/rbac.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { transitionContract } from '../services/contract-workflow.js';
 import { transitionRoomStatus } from '../services/room-status-workflow.js';
@@ -51,7 +55,7 @@ const contractUpload = multer({
 });
 
 // POST /contracts/:id/upload — 上传合同附件
-router.post('/:id/upload', contractUpload.array('files', 10), async (req: AuthRequest, res) => {
+router.post('/:id/upload', requirePermission('contract', 'update'), contractUpload.array('files', 10), async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
@@ -97,6 +101,9 @@ router.get('/', async (req: AuthRequest, res) => {
     }
     if (propertyId) where.propertyId = Number(propertyId);
     if (tenantId) where.tenantId = Number(tenantId);
+    // 行级数据权限
+    const propScope = await getScopedPropertyIds(req.userId);
+    if (Array.isArray(propScope)) where.propertyId = { [Op.in]: propScope };
 
     if (endDateStart && endDateEnd) {
       where.endDate = { [Op.between]: [endDateStart as string, endDateEnd as string] };
@@ -118,7 +125,7 @@ router.get('/', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requirePermission('contract', 'create'), async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.create({ ...req.body, createdBy: req.userId });
     // 条款已写入合同时，清除该租客的待处理条款
@@ -151,11 +158,12 @@ router.get('/:id', async (req: AuthRequest, res) => {
       ],
     });
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    if (!(await recordInScope(contract, req.userId, 'contract'))) return res.status(403).json({ code: 403, message: '权限不足' });
     res.json({ code: 200, data: contract });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission('contract', 'update'), async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
@@ -186,7 +194,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
 // ====== 状态流转（统一使用 transitionContract，并同步创建/更新 Approval 记录） ======
 
 // 提交审批 → 创建审批记录
-router.post('/:id/submit', async (req: AuthRequest, res) => {
+router.post('/:id/submit', requirePermission('contract', 'approve'), async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
@@ -198,13 +206,18 @@ router.post('/:id/submit', async (req: AuthRequest, res) => {
       status: '待审批',
       opinion: '',
     } as any);
+    // 桥接通用审批引擎：创建 ApprovalRequest（bizType=合同）
+    try { await submitApproval({
+      bizType: '合同', bizId: (contract as any).id, bizNo: (contract as any).contractNo,
+      title: `合同审批：${(contract as any).contractNo}`, applicantName: (req as any).username || '', amount: Number((contract as any).rentAmount || 0),
+    }, req.userId); } catch { /* 无配置流程则忽略 */ }
     const updated = await Contract.findByPk(req.params.id);
     res.json({ code: 200, data: updated, message: '合同已提交审批，审批记录已创建' });
   } catch (err: any) { res.status(400).json({ code: 400, message: err.message }); }
 });
 
 // 驳回（从审批中退回到已驳回）
-router.post('/:id/reject', async (req: AuthRequest, res) => {
+router.post('/:id/reject', requirePermission('contract', 'approve'), async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
@@ -219,7 +232,7 @@ router.post('/:id/reject', async (req: AuthRequest, res) => {
 });
 
 // 签署生效
-router.post('/:id/sign', async (req: AuthRequest, res) => {
+router.post('/:id/sign', requirePermission('contract', 'approve'), async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
@@ -244,7 +257,7 @@ router.post('/:id/sign', async (req: AuthRequest, res) => {
 });
 
 // 终止合同
-router.post('/:id/terminate', async (req: AuthRequest, res) => {
+router.post('/:id/terminate', requirePermission('contract', 'approve'), async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
@@ -267,7 +280,7 @@ router.post('/:id/terminate', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(400).json({ code: 400, message: err.message }); }
 });
 
-router.post('/:id/renew', async (req: AuthRequest, res) => {
+router.post('/:id/renew', requirePermission('contract', 'approve'), async (req: AuthRequest, res) => {
   try {
     const oldContract = await Contract.findByPk(req.params.id);
     if (!oldContract) return res.status(404).json({ code: 404, message: '合同不存在' });
@@ -292,7 +305,7 @@ router.post('/:id/renew', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.delete('/:id', async (req: AuthRequest, res) => {
+router.delete('/:id', requirePermission('contract', 'delete'), async (req: AuthRequest, res) => {
   try {
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
@@ -303,7 +316,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 });
 
 // POST /import-clauses — 批量导入条款（Excel自动匹配 / JSON手动模式）
-router.post('/import-clauses', (req: AuthRequest, res, next) => {
+router.post('/import-clauses', requirePermission('contract', 'create'), (req: AuthRequest, res, next) => {
   // 判断是文件上传还是JSON模式
   if (req.headers['content-type']?.includes('multipart/form-data')) {
     importUpload.single('file')(req, res, (err) => {

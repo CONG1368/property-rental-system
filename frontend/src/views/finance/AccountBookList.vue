@@ -31,6 +31,7 @@
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
+import { confirmWithPassword } from '@/utils/confirm-password';
 
 const books = ref<any[]>([]); const loading = ref(false);
 const dialogVisible = ref(false); const isEdit = ref(false); const editId = ref<number | null>(null);
@@ -49,7 +50,11 @@ function showDialog(row?: any) {
 
 async function handleSubmit() {
   try {
-    if (isEdit.value && editId.value) { await request.put('/account-books/' + editId.value, form.value); ElMessage.success('更新成功'); }
+    if (isEdit.value && editId.value) {
+      const pwd = await confirmWithPassword('确定修改账套「' + (form.value?.name || '') + '」? 账套变更影响所有财务数据，请输入登录密码。', '修改账套二次确认');
+      if (!pwd) return;
+      await request.put('/account-books/' + editId.value, { ...form.value, confirmPassword: pwd }); ElMessage.success('更新成功');
+    }
     else { await request.post('/account-books', form.value); ElMessage.success('创建成功'); }
     dialogVisible.value = false; fetchBooks();
   } catch {}

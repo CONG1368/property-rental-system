@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import User from '../models/User.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { auditLog } from '../middleware/audit-log.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -59,7 +60,7 @@ router.post('/', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', auditLog('user', '用户信息/权限修改'), async (req: AuthRequest, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ code: 404, message: '用户不存在' });
@@ -75,7 +76,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.delete('/:id', async (req: AuthRequest, res) => {
+router.delete('/:id', auditLog('user', '用户删除'), async (req: AuthRequest, res) => {
   try {
     const user = await User.findByPk(req.params.id);
     if (!user) return res.status(404).json({ code: 404, message: '用户不存在' });

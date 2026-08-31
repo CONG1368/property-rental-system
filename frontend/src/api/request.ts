@@ -74,4 +74,11 @@ request.interceptors.response.use(
   }
 );
 
+// 支持 silent 配置（跳过错误 toast）的类型声明
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    silent?: boolean;
+  }
+}
+
 export default request;
