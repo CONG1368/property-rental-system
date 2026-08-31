@@ -786,6 +786,35 @@ off('room:status-changed', callback);
 
 **8. 其他**：`rbac.ts` 导出 `ALL_ROLES`；`/system-ops` 独立挂载避免被参数路由吞噬；系统菜单新增 数据字典/系统参数/系统运维。
 
+### 首页概览模块增强（本次迭代）
+
+首页概览（`HomeDashboard.vue`）在财务/系统设置加固基础上做了数据可信 + 实时性增强，关键约定：
+
+**1. 入住率口径修正**：`/dashboard/overview` 新增 `occupiedProperties`（`Property.status='已出租'`）、`totalContracts`（合同总数）、`occupancyRate`（已出租房源/总房源，1 位小数）。前端 KPI 的「房源总数」progress 用 `occupancyRate`，「在租合同」progress 用 `rentRate = activeContracts/totalContracts`（执行中/全部合同），不再用 `activeContracts/totalProperties` 近似。
+
+**2. 预警统一**：首页**逾期账单预警 + 即将到期合同**统一复用 `/dashboard/alerts`（`overdueBills`/`overdueCount`/`expiringContracts`），随刷新联动，不再单独请求 `/contracts/expiry-calendar`。`/dashboard/alerts` 的 `expiringContracts` 含 `id/contractNo/endDate`，前端补算 `daysLeft`。
+
+**3. 自动刷新**：`HomeDashboard.vue` 采用**60s 弱轮询兜底 + WebSocket 事件触发**（静默刷新 `loadDashboardData(true)`，不闪加载态）。订阅事件：`room:status-changed`、`room:batch-status-changed`、`contract:created/deleted/renewed/status-changed`、`dunning:new`——均为后端真实广播事件。WS 事件触发带 **300ms 防抖**（`scheduleRefresh`），合并批量状态变更的多条广播。
+
+**4. 系统信息条动态化**：`/dashboard/overview` 新增 `version`（根 package.json，模块加载时缓存一次，避免每次请求同步读文件）与 `uptimeSeconds`（`process.uptime()`）。前端系统信息条版本改 `{{ systemVersion }}`，运行时长 = 后端进程 uptime + 页面停留时长（不再用写死的 v1.0.0 和前端本地计时）。
+
+**5. 幂等与清理**：`dashboardRetried` 防重试风暴；`onUnmounted` 清理 `timer`/`refreshTimer`/`wsRefreshTimer`/`wsUnsubs`，无定时器/订阅泄漏。`dashboardLoading` 仅首次为 true，静默刷新不触发全屏 loading。
+
+**6. 权限与回归**：`dashboard.ts` 的 `/overview` 挂载仍在 `authMiddleware` 下（首页所有登录角色可见），未引入 requireAdmin。返回 `version/uptimeSeconds` 属低敏运行信息（与 `system-ops /info` 一致，但首页面向所有角色，故自取版本而非依赖 requireAdmin 的 system-ops）。回归脚本 `scripts/verify-dashboard.js`（16 用例，覆盖 P0+P1+P2）。
+**7. P1 今日待办（作战台）**：新增 '/dashboard/todo-summary' 聚合接口，汇总 9 类待办计数（逾期账单/待审批合同/到期合同/在途工单/消防隐患/器材过期/待审批费用/待审核预算/维保到期），按 severity(high/mid/low)→count 降序、过滤 count>0，返回 list[]（每项含 key/type/module/title/count/severity/link）+ expiringContracts/overdueBills/total。前端「今日待办」卡片按严重度排序展示，**权限隔离**：后端 item 带 module（rent/property/finance/contract/fire），前端按 JWT 角色 + roleModuleMap 过滤，仅显示当前角色可访问模块的待办（避免低权限角色看到高权限模块计数）。
+
+**8. P1 KPI 语义纠偏**：收缴率改**金额口径**（monthlyCollected/monthlyDue）；后端 `/dashboard/overview` 的 `collectionRate` 也统一为金额口径（已缴金额/应收金额，不再是份数比）。KPI 进度条颜色随数值方向（barColor：≥90 绿 / ≥70 黄 / ≥50 橙 / 其他红），趋势角标随方向着色（trendColor）；保留 4 张 KPI 卡片，房源/合同卡片不再显示伪趋势。
+
+**9. P1 收入趋势增强**：趋势图新增 showCumulative 开关，开启后追加「累计应收/累计实收」虚线（逐月累加），tooltip 单位按系列区分（%/万）。
+
+**10. P2 多模块看板**：首页新增「多模块看板」tab 区（opsTab，默认房态分布），三个 tab：
+- **房态分布**：复用 '/properties/rooms/stats'（statusCounts 9 固定键 + occupancyRate + buildingStats），左侧入住率+状态条形图、右侧环形图（roomChartOption），状态色映射 roomStatusColorMap。
+- **物业运营**：复用 '/property-analytics/dashboard'（trends/structure/prediction），近6月应收/实收曲线（propTrendChartOption）+ KPI（收缴率/下月工单预测/未生成抄表/停车收入）+ 工单类型分布。
+- **消防安全**：复用 '/fire-safety/dashboard'（注意裸路径 '/fire-safety' 404，必须用子路径），器材总数/过期/隐患待整改/本月检查 KPI + 器材状态环形图（fireEquipChartOption）。
+
+**11. 前端并发与兜底**：基础组（rent/overview/alerts/todo-summary）在 loadDashboardData 用 Promise.all 并发（均 authMiddleware 下所有角色可访问）；**P2 组按 tab 懒加载**（loadOpsTab：首次切换到某 tab 才请求对应接口，loadedOpsKeys 记录已加载，仅该 tab 有权限时请求），避免对无权限角色白跑 403。所有 P2 ref 做空数组/空对象兜底（roomStats/propOps/fireDash 提供默认结构）。
+
+
 ### 已知孤立文件
 
 - `frontend/src/views/rent/PaymentRecord.vue` — 收款功能已集成在 BillList 详情抽屉中，无路由注册
@@ -811,3 +840,4 @@ off('room:status-changed', callback);
 | `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
 | `e2e-new-modules.js` | 新增模块 E2E |
 | `run-all-regression.js` | 串联运行全部回归脚本 |
+| `verify-dashboard.js` | 首页概览运行时回归（登录/overview≤collectionRate金额口径/todo-summary权限过滤/rooms-stats/消防/物业运营/rent，16 用例）；需先启动 dev 后端 |
