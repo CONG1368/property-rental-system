@@ -10,9 +10,32 @@ import DunningTask from '../models/DunningTask.js';
 import Voucher from '../models/Voucher.js';
 import VoucherEntry from '../models/VoucherEntry.js';
 import ChartOfAccount from '../models/ChartOfAccount.js';
+import WorkOrder from '../models/WorkOrder.js';
+import Approval from '../models/Approval.js';
+import FireViolation from '../models/FireViolation.js';
+import FireEquipment from '../models/FireEquipment.js';
+import Budget from '../models/Budget.js';
+import Facility from '../models/Facility.js';
+import { getRolePerms } from '../services/permission-service.js';
 import { Op, fn, col, literal } from 'sequelize';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = Router();
+
+// 从根 package.json 读取版本（模块加载时缓存一次，避免每次 /overview 请求同步读文件）
+let cachedVersion = '';
+function readVersion(): string {
+  if (cachedVersion) return cachedVersion;
+  try {
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const root = path.resolve(__dirname, '../../..');
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
+    cachedVersion = pkg.version || '未知';
+  } catch { cachedVersion = '未知'; }
+  return cachedVersion;
+}
 
 // GET /dashboard/overview — 首页概览
 router.get('/overview', async (req: AuthRequest, res) => {
@@ -37,17 +60,70 @@ router.get('/overview', async (req: AuthRequest, res) => {
       }
     }
 
-    const [totalProperties, totalTenants, activeContracts] = await Promise.all([
+    const [totalProperties, occupiedProperties, totalTenants, activeContracts, totalContracts] = await Promise.all([
       Property.count(),
+      Property.count({ where: { status: '已出租' } }),
       Tenant.count(),
       Contract.count({ where: { status: '执行中' } }),
+      Contract.count(),
     ]);
     const monthlyDue = monthBills.reduce((s, b) => s + Number(b.totalAmount), 0);
     const monthlyCollected = monthBills.filter(b => b.status === '已缴').reduce((s, b) => s + Number(b.totalAmount), 0);
     const overdueCount = monthBills.filter(b => b.status === '逾期').length;
-    const collectionRate = monthBills.length > 0
-      ? parseFloat(((monthBills.filter(b => b.status === '已缴').length / monthBills.length) * 100).toFixed(1)) : 0;
-    res.json({ code: 200, data: { totalProperties, totalTenants, activeContracts, monthlyDue, monthlyCollected, overdueCount, collectionRate, period: thisMonth } });
+    // 收缴率统一为金额口径（已缴金额/应收金额），与首页实际展示一致，避免份数比失真
+    const collectionRate = monthlyDue > 0
+      ? parseFloat(((monthlyCollected / monthlyDue) * 100).toFixed(1)) : 0;
+    // 入住率用「已出租房源/总房源」口径（Property.status='已出租'），而非近似合同数
+    const occupancyRate = totalProperties > 0
+      ? parseFloat(((occupiedProperties / totalProperties) * 100).toFixed(1)) : 0;
+    res.json({ code: 200, data: { totalProperties, occupiedProperties, totalTenants, activeContracts, totalContracts, monthlyDue, monthlyCollected, overdueCount, collectionRate, occupancyRate, period: thisMonth, version: readVersion(), uptimeSeconds: Math.floor(process.uptime()) } });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
+
+// GET /dashboard/todo-summary — 今日待办聚合（按严重度排序 + 按角色权限过滤，供首页作战台）
+router.get('/todo-summary', async (req: AuthRequest, res) => {
+  try {
+    const now = new Date();
+    const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const [overdueBills, pendingApprovals, expiringContracts, activeWorkOrders, pendingViolations, expiringEquipment, pendingExpenses, pendingBudgets, expiringFacilities, anyExpiring, anyOverdue] = await Promise.all([
+      Bill.count({ where: { status: '逾期' } }),
+      Approval.count({ where: { status: '待审批' } }),
+      Contract.count({ where: { status: '执行中', endDate: { [Op.between]: [now, thirtyDaysLater] } as any } }),
+      WorkOrder.count({ where: { status: { [Op.in]: ['待派单', '已派单', '处理中'] } } }),
+      FireViolation.count({ where: { status: { [Op.in]: ['待整改', '整改中', '逾期未改'] } } }),
+      FireEquipment.count({ where: { status: { [Op.in]: ['即将过期', '已过期', '待维修'] } } }),
+      Expense.count({ where: { status: '待审批' } }),
+      Budget.count({ where: { status: '待审核' } }),
+      Facility.count({ where: { status: { [Op.notIn]: ['正常', '已报废'] } } }),
+      Contract.findAll({ where: { status: '执行中', endDate: { [Op.between]: [now, thirtyDaysLater] } as any }, attributes: ['id', 'contractNo', 'endDate'], order: [['endDate', 'ASC']], limit: 5, raw: true }),
+      Bill.findAll({ where: { status: '逾期' }, attributes: ['id', 'billNo', 'dueDate', 'totalAmount'], order: [['dueDate', 'ASC']], limit: 5, raw: true }),
+    ]);
+
+    // 权限过滤：按角色生效权限（module 优先，'*' 兜底），仅当含 'read' 时才对外暴露该项
+    const perms = await getRolePerms(req.role || '');
+    const canRead = (module: string) => (perms[module] ?? perms['*'] ?? []).includes('read');
+    const allItems = [
+      { key: 'overdue_bill', type: '财务', module: 'rent', title: '逾期账单', count: overdueBills, severity: 'high', link: '/rent/dunning' },
+      { key: 'pending_approval', type: '合同', module: 'contract', title: '待审批合同', count: pendingApprovals, severity: 'high', link: '/contract/approval' },
+      { key: 'expiring_contract', type: '合同', module: 'contract', title: '即将到期合同', count: expiringContracts, severity: 'mid', link: '/contract/expiry' },
+      { key: 'active_workorder', type: '物业', module: 'workorder', title: '待处理工单', count: activeWorkOrders, severity: 'mid', link: '/property/work-orders' },
+      { key: 'fire_violation', type: '消防', module: 'fire', title: '隐患待整改', count: pendingViolations, severity: 'high', link: '/fire/violations' },
+      { key: 'fire_equipment', type: '消防', module: 'fire', title: '器材过期/维修', count: expiringEquipment, severity: 'mid', link: '/fire/equipment' },
+      { key: 'pending_expense', type: '财务', module: 'finance', title: '待审批费用', count: pendingExpenses, severity: 'mid', link: '/finance/expenses' },
+      { key: 'pending_budget', type: '财务', module: 'finance', title: '待审核预算', count: pendingBudgets, severity: 'low', link: '/finance/budgets' },
+      { key: 'facility_maintain', type: '物业', module: 'facility', title: '维保到期/故障', count: expiringFacilities, severity: 'mid', link: '/property/facilities' },
+    ];
+    const visible = allItems.filter((x: any) => canRead(x.module) && x.count > 0);
+    const orderRank: Record<string, number> = { high: 0, mid: 1, low: 2 };
+    visible.sort((a: any, b: any) => orderRank[a.severity] - orderRank[b.severity] || b.count - a.count);
+
+    res.json({ code: 200, data: {
+      list: visible,
+      expiringContracts: anyExpiring,
+      overdueBills: anyOverdue,
+      total: visible.reduce((s: number, x: any) => s + (x.count || 0), 0),
+    } });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 

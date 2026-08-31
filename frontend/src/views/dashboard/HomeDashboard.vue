@@ -13,16 +13,42 @@
         <div class="kpi-card" @click="goPage(kpi.link)" :title="kpi.label + ' — 点击查看详情'">
           <div class="kpi-top">
             <span class="kpi-icon" :style="{ background: kpi.color }">{{ kpi.icon }}</span>
-            <span class="kpi-trend" :class="kpi.trend > 0 ? 'up' : kpi.trend < 0 ? 'down' : 'flat'" v-if="kpi.value !== '--'">
-              {{ kpi.trend > 0 ? '↑' : kpi.trend < 0 ? '↓' : '→' }} {{ kpi.trend !== 0 ? Math.abs(kpi.trend) + '%' : '持平' }}
+            <span class="kpi-trend" :class="kpi.trend > 0 ? 'up' : kpi.trend < 0 ? 'down' : 'flat'" :style="{ color: kpi.trendColor, background: kpi.trend > 0 ? '#e6faf4' : kpi.trend < 0 ? '#fde8e8' : '#f5f7fa' }" v-if="kpi.trend !== 0">
+              {{ kpi.trend > 0 ? '↑' : '↓' }} {{ Math.abs(kpi.trend) }}%
             </span>
           </div>
           <div class="kpi-value" :style="{ color: kpi.color }">{{ kpi.value }}</div>
           <div class="kpi-label">{{ kpi.label }}</div>
-          <div class="kpi-bar"><span class="kpi-bar-fill" :style="{ width: kpi.percent + '%', background: kpi.color }"></span></div>
+          <div class="kpi-bar"><span class="kpi-bar-fill" :style="{ width: kpi.percent + '%', background: kpi.barColor }"></span></div>
         </div>
       </el-col>
     </el-row>
+
+    <!-- 今日待办（P1 作战台核心） -->
+    <div class="section-card" v-show="!dashboardLoading" style="margin-top:16px">
+      <div class="section-header">
+        <span class="section-title">今日待办</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <el-tag v-if="todoTotal > 0" type="danger" effect="plain">{{ todoTotal }} 项</el-tag>
+          <span style="font-size:12px;color:#909399" v-else>🎉 今日无待办，一切正常</span>
+        </div>
+      </div>
+      <div v-if="todoList.length > 0">
+        <el-row :gutter="12">
+          <el-col :span="8" v-for="todo in todoList" :key="todo.key" style="margin-bottom:12px">
+            <div class="todo-item" @click="goPage(todo.link)" :title="todo.title + ' — 点击处理'">
+              <span class="todo-icon" :style="{ background: todoTypeColor[todo.type] || '#909399' }">{{ todoSeverityMap[todo.severity]?.icon || '📋' }}</span>
+              <div class="todo-body">
+                <div class="todo-title">{{ todo.title }} <el-tag :type="todoSeverityMap[todo.severity]?.tagType || 'info'" size="small" effect="light">{{ todoSeverityMap[todo.severity]?.label || todo.severity }}</el-tag></div>
+                <div class="todo-sub">{{ todo.type }} · {{ todo.count }} 项待处理</div>
+              </div>
+              <span class="todo-count" :style="{ color: todoTypeColor[todo.type] }">{{ todo.count }}</span>
+            </div>
+          </el-col>
+        </el-row>
+      </div>
+      <div v-else style="text-align:center;color:#c0c4cc;font-size:13px;padding:18px 0">暂无待办事项，请保持 🎈</div>
+    </div>
 
     <!-- 推荐报表（按角色） -->
     <el-row :gutter="16" v-show="!dashboardLoading" style="margin-top:16px">
@@ -48,6 +74,7 @@
       <div class="section-header">
         <span class="section-title">收入趋势分析</span>
         <div class="chart-controls">
+          <el-switch v-model="showCumulative" active-text="累计" size="small" style="margin-right:12px" />
           <el-radio-group v-model="chartPeriod" size="small">
             <el-radio-button :value="6">近6月</el-radio-button>
             <el-radio-button :value="12">近12月</el-radio-button>
@@ -77,8 +104,24 @@
         </div>
       </el-col>
 
-      <!-- 催缴 + 到期 -->
+      <!-- 催缴 + 到期 + 逾期预警 -->
       <el-col :span="10">
+        <div class="section-card" style="margin-bottom:16px">
+          <div class="section-header">
+            <span class="section-title">逾期账单预警</span>
+            <el-button v-if="overdueCount > 0" type="danger" text size="small">{{ overdueCount }} 笔</el-button>
+            <el-button type="primary" link size="small" @click="goPage('/rent/dunning')">查看详情 →</el-button>
+          </div>
+          <div class="expiry-list" v-if="overdueBills.length > 0">
+            <div class="expiry-item" v-for="ob in overdueBills.slice(0, 4)" :key="ob.id" @click="goPage('/rent/dunning')" :title="ob.billNo + ' — ' + ob.dueDate">
+              <span class="expiry-no">{{ ob.billNo }}</span>
+              <span class="expiry-date">{{ ob.dueDate }}</span>
+              <span class="overdue-amt">¥{{ Number(ob.totalAmount).toLocaleString() }}</span>
+            </div>
+          </div>
+          <div v-else style="text-align:center;color:#c0c4cc;font-size:13px;padding:16px 0">暂无逾期账单</div>
+        </div>
+
         <div class="section-card" style="margin-bottom:16px">
           <div class="section-header">
             <span class="section-title">催缴分布</span>
@@ -111,10 +154,85 @@
       </el-col>
     </el-row>
 
+    <!-- P2 多模块看板：房态分布 / 物业运营 / 消防 -->
+    <div class="section-card" style="margin-top:16px" v-show="!dashboardLoading">
+      <div class="section-header">
+        <span class="section-title">多模块看板</span>
+        <el-radio-group v-model="opsTab" size="small">
+          <el-radio-button v-for="t in opsTabList" :key="t.key" :value="t.key">{{ t.label }}</el-radio-button>
+        </el-radio-group>
+      </div>
+
+      <!-- 房态分布 -->
+      <div v-if="opsTab === 'room'">
+        <el-row :gutter="16">
+          <el-col :span="10">
+            <div style="text-align:center">
+              <div style="font-size:34px;font-weight:700;color:#0A3D62">{{ roomStats.occupancyRate }}%</div>
+              <div style="font-size:12px;color:#909399;margin-top:2px">总房源 {{ roomStats.total }} 间 · 入住率</div>
+            </div>
+            <div class="room-legend" style="margin-top:12px">
+              <div class="room-legend-item" v-for="s in roomStatusList.filter(x => x.count > 0)" :key="s.name">
+                <span class="room-dot" :style="{ background: roomStatusColorMap[s.name] || '#909399' }"></span>
+                <span class="room-name">{{ s.name }}</span>
+                <div class="room-bar-wrap"><span class="room-bar-fill" :style="{ width: (s.count / roomMax * 100) + '%', background: roomStatusColorMap[s.name] }"></span></div>
+                <span class="room-count">{{ s.count }}</span>
+              </div>
+            </div>
+          </el-col>
+          <el-col :span="14">
+            <v-chart :option="roomChartOption" style="height:260px" autoresize />
+          </el-col>
+        </el-row>
+      </div>
+
+      <!-- 物业运营 -->
+      <div v-if="opsTab === 'prop'">
+        <el-row :gutter="16">
+          <el-col :span="14">
+            <v-chart :option="propTrendChartOption" style="height:240px" autoresize />
+          </el-col>
+          <el-col :span="10">
+            <div class="ops-kpi-row">
+              <div class="ops-kpi"><div class="ops-kpi-val">{{ propOps.prediction?.curCollectionRate ?? 0 }}%</div><div class="ops-kpi-label">本月收缴率</div></div>
+              <div class="ops-kpi"><div class="ops-kpi-val">{{ propOps.prediction?.forecastNextWork ?? 0 }}</div><div class="ops-kpi-label">下月工单预测</div></div>
+              <div class="ops-kpi"><div class="ops-kpi-val">¥{{ Number(propOps.prediction?.meterUnbilled ?? 0).toLocaleString() }}</div><div class="ops-kpi-label">未生成抄表</div></div>
+              <div class="ops-kpi"><div class="ops-kpi-val">¥{{ Number(propOps.prediction?.parkingRevenue ?? 0).toLocaleString() }}</div><div class="ops-kpi-label">停车累计收入</div></div>
+            </div>
+            <div class="structure-list" style="margin-top:14px">
+              <div class="structure-item" v-for="s in (propOps.structure?.workByType || [])" :key="s.name">
+                <span class="structure-name">{{ s.name }}</span>
+                <div class="viz-bar-wrap"><span class="viz-bar-fill" :style="{ width: (s.value / (Math.max(1, ...(propOps.structure?.workByType || []).map((x: any) => x.value))) * 100) + '%', background: '#5B7FFF' }"></span></div>
+                <span class="structure-val">{{ s.value }}</span>
+              </div>
+            </div>
+          </el-col>
+        </el-row>
+      </div>
+
+      <!-- 消防安全 -->
+      <div v-if="opsTab === 'fire'">
+        <el-row :gutter="16">
+          <el-col :span="10">
+            <div class="ops-kpi-row">
+              <div class="ops-kpi"><div class="ops-kpi-val" style="color:#00B894">{{ fireDash.totalEquipment }}</div><div class="ops-kpi-label">器材总数</div></div>
+              <div class="ops-kpi"><div class="ops-kpi-val" style="color:#fa8c16">{{ fireDash.expiringEquipment }}</div><div class="ops-kpi-label">过期/到期</div></div>
+              <div class="ops-kpi"><div class="ops-kpi-val" style="color:#e74c3c">{{ fireDash.pendingViolations }}</div><div class="ops-kpi-label">隐患待整改</div></div>
+              <div class="ops-kpi"><div class="ops-kpi-val" style="color:#1677ff">{{ fireDash.monthInspections }}</div><div class="ops-kpi-label">本月检查</div></div>
+            </div>
+            <el-button type="primary" link size="small" style="margin-top:12px" @click="goPage('/fire/list')">前往消防管理 →</el-button>
+          </el-col>
+          <el-col :span="14">
+            <v-chart :option="fireEquipChartOption" style="height:240px" autoresize />
+          </el-col>
+        </el-row>
+      </div>
+    </div>
+
     <!-- 系统信息 -->
     <div class="section-card sys-info-card">
       <div class="sys-info-row">
-        <span class="sys-item"><span class="sys-dot"></span> 版本 v1.0.0</span>
+        <span class="sys-item"><span class="sys-dot"></span> 版本 v{{ systemVersion || '--' }}</span>
         <span class="sys-sep">|</span>
         <span class="sys-item"><span class="sys-dot"></span> Vue3 + Express + SQLite</span>
         <span class="sys-sep">|</span>
@@ -127,17 +245,49 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import VChart from 'vue-echarts';
 import 'echarts';
 import request from '@/api/request';
+import { useWebSocket } from '@/composables/useWebSocket';
 
 const router = useRouter();
 const recommendedReports = ref<any[]>([]);
 function resolveRole(): string {
   const raw = localStorage.getItem('accessToken') || '';
   try { const p = raw.split('.')[1]; const b64 = p.replace(/-/g, '+').replace(/_/g, '/'); const bin = atob(b64); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); const pl = JSON.parse(new TextDecoder('utf-8').decode(bytes)); return pl.role || ''; } catch { return ''; }
+}
+// 角色 → 可访问模块（与路由守卫 routeRoleMap 一致），用于首页待办权限隔离
+const roleModuleMap: Record<string, string[]> = {
+  '管理员': ['rent', 'property', 'finance', 'contract', 'fire', 'system'],
+  '总经理': ['rent', 'property', 'finance', 'contract', 'fire'],
+  '收租主管': ['rent'],
+  '收租员': ['rent'],
+  '合同主管': ['contract'],
+  '法务': ['contract'],
+  '财务主管': ['finance'],
+  '会计': ['finance'],
+  '出纳': ['finance'],
+  '物业经理': ['property'],
+  '维修工': ['property'],
+  '安全主管': ['fire'],
+};
+const roleModules = computed(() => roleModuleMap[resolveRole()] || []);
+// P2 多模块看板 tab 门控：仅渲染当前角色可访问的模块 tab（与路由守卫一致）
+const opsTabList = computed(() => {
+  const list = [
+    { key: 'room', label: '房态分布', module: 'rent' },
+    { key: 'prop', label: '物业运营', module: 'property' },
+    { key: 'fire', label: '消防安全', module: 'fire' },
+  ];
+  return list.filter((t) => roleModules.value.includes(t.module));
+});
+// 缺省 tab：落到首个有权限的模块；opsTab 在挂载时由 opsTabList 决定
+const opsTab = ref('room');
+function resolveOpsTab() {
+  const first = opsTabList.value[0];
+  if (first) opsTab.value = first.key;
 }
 async function loadRecommended() {
   try { const r = await request.get('/reports/registry', { silent: true }); const list = r.data?.list || []; const role = resolveRole(); recommendedReports.value = list.filter((x: any) => x.recommended?.includes(role)).slice(0, 4); } catch { /* 静默 */ }
@@ -149,11 +299,11 @@ function goPage(path: string) {
 
 // ---- KPI ----
 const dashboardLoading = ref(true);
-const kpis = ref([
-  { label: '房源总数', value: '--', color: '#0A3D62', icon: '🏠', link: '/rent/properties', trend: 0, percent: 0 },
-  { label: '在租合同', value: '--', color: '#00B894', icon: '👥', link: '/contract/list', trend: 0, percent: 0 },
-  { label: '当月应收(万)', value: '--', color: '#F6B93B', icon: '💰', link: '/rent/bills', trend: 0, percent: 0 },
-  { label: '收缴率', value: '--', color: '#FF6B35', icon: '📈', link: '/rent/dashboard', trend: 0, percent: 0 },
+const kpis = ref<any[]>([
+  { label: '房源总数', value: '--', color: '#0A3D62', icon: '🏠', link: '/rent/properties', trend: 0, percent: 0, barColor: '#0A3D62', trendColor: '#909399' },
+  { label: '在租合同', value: '--', color: '#00B894', icon: '👥', link: '/contract/list', trend: 0, percent: 0, barColor: '#00B894', trendColor: '#909399' },
+  { label: '当月应收(万)', value: '--', color: '#F6B93B', icon: '💰', link: '/rent/bills', trend: 0, percent: 0, barColor: '#F6B93B', trendColor: '#909399' },
+  { label: '收缴率', value: '--', color: '#FF6B35', icon: '📈', link: '/rent/dashboard', trend: 0, percent: 0, barColor: '#FF6B35', trendColor: '#909399' },
 ]);
 
 const dunningStats = ref([
@@ -163,38 +313,104 @@ const dunningStats = ref([
   { level: '三级催缴', count: 0, color: '#e74c3c' },
 ]);
 const maxDunning = computed(() => Math.max(1, ...dunningStats.value.map(d => d.count)));
+const todoSeverityMap: Record<string, { label: string; tagType: string; icon: string }> = {
+  high: { label: '紧急', tagType: 'danger', icon: '🚨' },
+  mid: { label: '关注', tagType: 'warning', icon: '⚠️' },
+  low: { label: '一般', tagType: 'info', icon: '📋' },
+};
+const todoTypeColor: Record<string, string> = { '财务': '#eb2f96', '合同': '#1677ff', '物业': '#00B894', '消防': '#fa8c16' };
+
+// ---- P2 看板 computed ----
+const roomStatusList = computed(() => Object.entries(roomStats.value.statusCounts || {}).map(([name, count]) => ({ name, count: Number(count) })));
+const roomMax = computed(() => Math.max(1, ...roomStatusList.value.map(s => s.count)));
+const roomChartOption = computed(() => ({
+  tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+  legend: { bottom: 0, textStyle: { fontSize: 10 } },
+  series: [{ type: 'pie', radius: ['40%', '68%'], center: ['50%', '44%'], data: roomStatusList.value.filter(s => s.count > 0).map(s => ({ name: s.name, value: s.count, itemStyle: { color: roomStatusColorMap[s.name] || '#909399' } })), label: { fontSize: 11 }, emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.3)' } } }],
+}));
+const propTrendChartOption = computed(() => {
+  const t = propOps.value.trends || {};
+  const months = (t.collectedTrend || []).map((x: any) => x.month.slice(5) + '月');
+  return {
+    tooltip: { trigger: 'axis' },
+    legend: { bottom: 0, textStyle: { fontSize: 10 } },
+    grid: { top: 12, right: 20, bottom: 30, left: 45 },
+    xAxis: { type: 'category', data: months, axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', name: '元', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10 } },
+    series: [
+      { name: '实收', type: 'line', smooth: true, data: (t.collectedTrend || []).map((x: any) => x.paid), lineStyle: { color: '#00B894', width: 2 }, itemStyle: { color: '#00B894' }, symbol: 'circle', symbolSize: 5 },
+      { name: '应收', type: 'line', smooth: true, data: (t.collectedTrend || []).map((x: any) => x.total), lineStyle: { color: '#a0c4ff', width: 1.5 }, itemStyle: { color: '#a0c4ff' }, symbol: 'circle', symbolSize: 5 },
+    ],
+  };
+});
+const fireEquipChartOption = computed(() => {
+  const byStatus = fireDash.value.equipmentByStatus || [];
+  const total = fireDash.value.totalEquipment || 0;
+  return {
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { bottom: 0, textStyle: { fontSize: 10 } },
+    series: [{ type: 'pie', radius: ['40%', '68%'], center: ['50%', '44%'], data: byStatus.map((s: any) => ({ name: s.status, value: Number(s.count) })), label: { fontSize: 11 } }],
+  };
+});
 
 const expiringContracts = ref<any[]>([]);
+const overdueBills = ref<any[]>([]);
+const overdueCount = ref(0);
+const systemVersion = ref('');
+const uptimeSeconds = ref(0);
+
+// ---- P1 今日待办 ----
+const todoList = ref<any[]>([]);
+const todoTotal = ref(0);
+
+// ---- P2 多模块看板 ----
+const roomStats = ref<any>({ total: 0, statusCounts: {}, occupancyRate: 0, buildingStats: [] });
+const propOps = ref<any>({ trends: { workOrderTrend: [], complaintTrend: [], collectedTrend: [] }, structure: { workByType: [], facByStatus: [], compByType: [], revByType: [] }, prediction: {} });
+const fireDash = ref<any>({ totalEquipment: 0, expiringEquipment: 0, pendingViolations: 0, monthInspections: 0, equipmentByStatus: [], inspectionByResult: [], violationBySeverity: [], expiringList: [], pendingList: [] });
+const roomStatusColorMap: Record<string, string> = { '空置': '#909399', '已锁定': '#a0c4ff', '已预订': '#ffd04b', '已出租': '#00B894', '退租中': '#f6b93b', '待保洁': '#b8a9ff', '待验收': '#f39c12', '维修中': '#e67e22', '已冻结': '#95a5a6' };
 
 // ---- 曲线趋势图 ----
 const fullTrend = ref<any[]>([]);
 const chartPeriod = ref(6);
+const showCumulative = ref(false); // 累计曲线开关
 const chartOption = computed(() => {
   const data = fullTrend.value.slice(-chartPeriod.value);
   const months = data.map((t: any) => t.period.slice(5) + '月');
+  // 累计：逐月累加应收/实收
+  let dueAcc = 0, colAcc = 0;
+  const dueCum = data.map((t: any) => +((dueAcc += t.due) / 10000).toFixed(1));
+  const colCum = data.map((t: any) => +((colAcc += t.collected) / 10000).toFixed(1));
+  const series: any[] = [
+    { name: '应收金额', type: 'bar', data: data.map((t: any) => +(t.due / 10000).toFixed(1)), itemStyle: { color: '#a0c4ff', borderRadius: [3,3,0,0] }, barMaxWidth: 24 },
+    { name: '实收金额', type: 'line', smooth: true, data: data.map((t: any) => +(t.collected / 10000).toFixed(1)), lineStyle: { color: '#00B894', width: 2 }, itemStyle: { color: '#00B894' }, symbol: 'circle', symbolSize: 6 },
+    { name: '逾期率', type: 'line', smooth: true, yAxisIndex: 1, data: data.map((t: any) => t.rate || 0), lineStyle: { color: '#e74c3c', width: 1.5, type: 'dashed' }, itemStyle: { color: '#e74c3c' }, symbol: 'diamond', symbolSize: 6 },
+  ];
+  if (showCumulative.value) {
+    series.push(
+      { name: '累计应收', type: 'line', smooth: true, data: dueCum, lineStyle: { color: '#5B7FFF', width: 1.5, type: 'dotted' }, itemStyle: { color: '#5B7FFF' }, symbol: 'circle', symbolSize: 4 },
+      { name: '累计实收', type: 'line', smooth: true, data: colCum, lineStyle: { color: '#1abc9c', width: 1.5, type: 'dotted' }, itemStyle: { color: '#1abc9c' }, symbol: 'circle', symbolSize: 4 },
+    );
+  }
   return {
     tooltip: {
       trigger: 'axis',
       formatter: (params: any) => {
         let s = params[0].axisValue + '<br/>';
         params.forEach((p: any) => {
-          s += `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${p.color};margin-right:6px"></span>${p.seriesName}: ${p.value}${p.seriesIndex === 2 ? '%' : '万'}<br/>`;
+          const unit = p.seriesName === '逾期率' ? '%' : '万';
+          s += '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + p.color + ';margin-right:6px"></span>' + p.seriesName + ': ' + p.value + unit + '<br/>';
         });
         return s;
       },
     },
-    legend: { data: ['应收金额', '实收金额', '逾期率'], bottom: 0, textStyle: { fontSize: 11 } },
+    legend: { data: series.map((s: any) => s.name), bottom: 0, textStyle: { fontSize: 11 } },
     grid: { top: 15, right: 55, bottom: 35, left: 50 },
     xAxis: { type: 'category', data: months, axisLabel: { fontSize: 10 } },
     yAxis: [
       { type: 'value', name: '万元', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10 } },
       { type: 'value', name: '%', nameTextStyle: { fontSize: 10 }, axisLabel: { fontSize: 10 }, max: 100 },
     ],
-    series: [
-      { name: '应收金额', type: 'bar', data: data.map((t: any) => +(t.due / 10000).toFixed(1)), itemStyle: { color: '#a0c4ff', borderRadius: [3,3,0,0] }, barMaxWidth: 24 },
-      { name: '实收金额', type: 'line', smooth: true, data: data.map((t: any) => +(t.collected / 10000).toFixed(1)), lineStyle: { color: '#00B894', width: 2 }, itemStyle: { color: '#00B894' }, symbol: 'circle', symbolSize: 6 },
-      { name: '逾期率', type: 'line', smooth: true, yAxisIndex: 1, data: data.map((t: any) => t.rate || 0), lineStyle: { color: '#e74c3c', width: 1.5, type: 'dashed' }, itemStyle: { color: '#e74c3c' }, symbol: 'diamond', symbolSize: 6 },
-    ],
+    series,
   };
 });
 
@@ -202,40 +418,102 @@ const nowStr = ref('');
 const startTime = Date.now();
 const uptime = ref('');
 let timer: any;
+let refreshTimer: any;
+let wsUnsubs: (() => void)[] = [];
 
-onMounted(async () => {
-  await loadDashboardData();
-  loadRecommended();
+// 格式化时长（基于后端进程 uptime 为基准 + 页面停留时长）
+function fmtUptime(seconds: number) {
+  const h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), s = seconds % 60;
+  return h > 0 ? h + '时' + m + '分' + s + '秒' : m + '分' + s + '秒';
+}
 
-  try {
-    const ec = await request.get('/contracts/expiry-calendar');
-    const now = Date.now();
-    expiringContracts.value = (ec.data?.list || []).map((c: any) => ({
-      ...c, daysLeft: Math.ceil((new Date(c.endDate).getTime() - now) / 86400000),
-    }));
-  } catch (e: any) {
-    console.error('[首页] 到期合同加载失败:', e?.message || e);
-  }
-
+function startClock() {
   timer = setInterval(() => {
     nowStr.value = new Date().toLocaleString('zh-CN');
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    const h = Math.floor(elapsed / 3600), m = Math.floor((elapsed % 3600) / 60), s = elapsed % 60;
-    uptime.value = `${h}时${m}分${s}秒`;
+    uptime.value = fmtUptime((uptimeSeconds.value || 0) + elapsed);
   }, 1000);
+}
+
+// ---- P2 看板按 tab 懒加载 ----
+const loadedOpsKeys = ref<string[]>([]);
+const opsLoading = ref(false);
+async function loadOpsTab(tabKey: string) {
+  if (!tabKey || loadedOpsKeys.value.includes(tabKey)) return; // 已加载不重复拉
+  opsLoading.value = true;
+  try {
+    const myModules = roleModules.value;
+    if (tabKey === 'room' && myModules.includes('rent')) {
+      const r = await request.get('/properties/rooms/stats', { silent: true } as any);
+      roomStats.value = r.data || { total: 0, statusCounts: {}, occupancyRate: 0, buildingStats: [] };
+    } else if (tabKey === 'prop' && myModules.includes('property')) {
+      const r = await request.get('/property-analytics/dashboard', { silent: true } as any);
+      propOps.value = r.data || { trends: {}, structure: {}, prediction: {} };
+    } else if (tabKey === 'fire' && myModules.includes('fire')) {
+      const r = await request.get('/fire-safety/dashboard', { silent: true } as any);
+      fireDash.value = r.data || { totalEquipment: 0, expiringEquipment: 0, pendingViolations: 0, monthInspections: 0, equipmentByStatus: [], inspectionByResult: [], violationBySeverity: [], expiringList: [], pendingList: [] };
+    }
+    loadedOpsKeys.value = [...loadedOpsKeys.value, tabKey];
+  } catch (e: any) {
+    // 无权限接口 403 或有错误：静默保留默认空对象，不阻塞
+    console.error('[首页] 看板 tab 数据加载失败:', tabKey, e?.message || e);
+  } finally {
+    opsLoading.value = false;
+  }
+}
+// 切换 P2 tab 时懒加载
+watch(opsTab, (tab) => { loadOpsTab(tab); });
+
+let wsRefreshTimer: any;
+function scheduleRefresh() {
+  // 300ms 防抖：批量状态变更可能一次广播 N 条事件，合并为一次刷新
+  if (wsRefreshTimer) clearTimeout(wsRefreshTimer);
+  wsRefreshTimer = setTimeout(() => loadDashboardData(true), 300);
+}
+
+function startAutoRefresh() {
+  // 60s 弱轮询兜底 + WebSocket 事件触发（静默刷新，不闪加载态）
+  refreshTimer = setInterval(() => loadDashboardData(true), 60000);
+  const { on } = useWebSocket();
+  const events = ['room:status-changed', 'room:batch-status-changed', 'contract:created', 'contract:deleted', 'contract:renewed', 'contract:status-changed', 'dunning:new'];
+  events.forEach((ev) => {
+    wsUnsubs.push(on(ev, scheduleRefresh));
+  });
+}
+
+onMounted(async () => {
+  resolveOpsTab(); // 按角色落到首个有权限的看板 tab
+  await loadDashboardData();
+  loadRecommended();
+  startClock();
+  startAutoRefresh();
 });
 
 let dashboardRetried = false;
 
-async function loadDashboardData() {
-  dashboardLoading.value = true;
+async function loadDashboardData(silent = false) {
+  if (!silent) dashboardLoading.value = true;
+  const myModules = roleModules.value;
   try {
-    const [rentRes, overviewRes] = await Promise.all([
+    // 基础组：均为 authMiddleware 下所有登录角色可访问，用 Promise.all 并发
+    const [rentRes, overviewRes, alertsRes, todoRes] = await Promise.all([
       request.get('/dashboard/rent', { params: { trendMonths: 36 }, silent: true } as any),
       request.get('/dashboard/overview', { silent: true } as any),
+      request.get('/dashboard/alerts', { silent: true } as any),
+      request.get('/dashboard/todo-summary', { silent: true } as any),
     ]);
     const d = rentRes.data;
     const o = overviewRes.data;
+    const a = alertsRes.data || {};
+    // P1 今日待办（字段已与后端实测核对，做空数组兜底）
+    const t = todoRes.data || {};
+    // 权限隔离：仅展示当前角色可访问模块的待办项（避免低权限角色看到高权限模块计数）
+    const permitted = (t.list || []).filter((x: any) => !x.module || myModules.includes(x.module));
+    todoList.value = permitted;
+    todoTotal.value = permitted.reduce((s: number, x: any) => s + (x.count || 0), 0);
+    // P2 看板数据按 tab 懒加载（见 loadOpsTab），此处不预拉，避免对无权限角色白跑 403
+    const firstTab = opsTabList.value[0];
+    if (firstTab) await loadOpsTab(firstTab.key);
 
     const trend = d.trend || [];
     let dueTrend = 0, collectedTrend = 0;
@@ -244,19 +522,41 @@ async function loadDashboardData() {
       dueTrend = l.due > 0 ? Math.round(((t.due - l.due) / l.due) * 100) : 0;
       collectedTrend = l.collected > 0 ? Math.round(((t.collected - l.collected) / l.collected) * 100) : 0;
     }
+    // 收缴率：金额口径（已缴金额/应收金额），比份数比更能反映资金回笼
     const cr = d.collectionRate || 0;
-    const occRate = o.totalProperties > 0 ? Math.round((o.activeContracts / o.totalProperties) * 100) : 0;
+    const crAmount = o.monthlyDue > 0 ? parseFloat(((o.monthlyCollected / o.monthlyDue) * 100).toFixed(1)) : 0;
+    const crVal = crAmount > 0 ? crAmount : cr;
+    // 入住率：后端已按「已出租房源/总房源」口径算好（Property.status='已出租'）
+    const occRate = o.occupancyRate != null ? o.occupancyRate : (o.totalProperties > 0 ? Math.round((o.activeContracts / o.totalProperties) * 100) : 0);
+    // 在租合同占比：执行中合同 / 全部合同
+    const rentRate = o.totalContracts > 0 ? Math.round((o.activeContracts / o.totalContracts) * 100) : 0;
+    // 进度条颜色随数值方向（高=绿、中=黄/橙、低=红）
+    const barColor = (v: number) => v >= 90 ? '#00B894' : v >= 70 ? '#F6B93B' : v >= 50 ? '#FF6B35' : '#e74c3c';
+    const trendColor = (t: number) => t > 0 ? '#00B894' : t < 0 ? '#e74c3c' : '#909399';
 
     kpis.value = [
-      { label: '房源总数', value: String(o.totalProperties || 0), color: '#0A3D62', icon: '🏠', link: '/rent/properties', trend: 0, percent: occRate },
-      { label: '在租合同', value: String(o.activeContracts || 0), color: '#00B894', icon: '👥', link: '/contract/list', trend: 0, percent: occRate },
-      { label: '当月应收(万)', value: ((d.monthlyDue || 0) / 10000).toFixed(1), color: '#F6B93B', icon: '💰', link: '/rent/bills', trend: dueTrend, percent: cr },
-      { label: '收缴率', value: cr + '%', color: '#FF6B35', icon: '📈', link: '/rent/dashboard', trend: collectedTrend, percent: cr },
+      { label: '房源总数', value: String(o.totalProperties || 0), color: '#0A3D62', icon: '🏠', link: '/rent/properties', trend: 0, percent: occRate, barColor: barColor(occRate), trendColor: trendColor(0) },
+      { label: '在租合同', value: String(o.activeContracts || 0), color: '#00B894', icon: '👥', link: '/contract/list', trend: 0, percent: rentRate, barColor: barColor(rentRate), trendColor: trendColor(0) },
+      { label: '当月应收(万)', value: ((d.monthlyDue || 0) / 10000).toFixed(1), color: '#F6B93B', icon: '💰', link: '/rent/bills', trend: dueTrend, percent: crVal, barColor: barColor(crVal), trendColor: trendColor(dueTrend) },
+      { label: '收缴率', value: crVal + '%', color: '#FF6B35', icon: '📈', link: '/rent/dashboard', trend: collectedTrend, percent: crVal, barColor: barColor(crVal), trendColor: trendColor(collectedTrend) },
     ];
 
     if (d.dunningStats) dunningStats.value = d.dunningStats.map((s: any, i: number) => ({
       ...s, count: s.count || 0, color: dunningStats.value[i]?.color || '#999',
     }));
+
+    // 逾期账单预警 + 到期合同（统一复用 /dashboard/alerts，随刷新联动）
+    overdueBills.value = a.overdueBills || [];
+    overdueCount.value = a.overdueCount || 0;
+    const nowTs = Date.now();
+    expiringContracts.value = (a.expiringContracts || []).map((c: any) => ({
+      ...c,
+      daysLeft: Math.ceil((new Date(c.endDate).getTime() - nowTs) / 86400000),
+    }));
+
+    // 系统版本/运行时长（后端动态）
+    systemVersion.value = o.version || '';
+    uptimeSeconds.value = o.uptimeSeconds || 0;
 
     const overdueTrend = d.overdueTrend || [];
     fullTrend.value = trend.map((t: any) => {
@@ -268,7 +568,7 @@ async function loadDashboardData() {
     console.error('[首页] 看板数据加载失败:', e?.message || e);
     if (!dashboardRetried) {
       dashboardRetried = true;
-      setTimeout(() => loadDashboardData(), 2000);
+      setTimeout(() => loadDashboardData(true), 2000);
       return;
     }
   } finally {
@@ -276,7 +576,13 @@ async function loadDashboardData() {
   }
 }
 
-onUnmounted(() => clearInterval(timer));
+onUnmounted(() => {
+  clearInterval(timer);
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (wsRefreshTimer) clearTimeout(wsRefreshTimer);
+  wsUnsubs.forEach((u) => u());
+  wsUnsubs = [];
+});
 
 const quickLinks = [
   { label: '房源管理', path: '/rent/properties', icon: '🏠' },
@@ -341,6 +647,7 @@ const quickLinks = [
   &:hover { background: #e6f0ff; } }
 .expiry-no { font-size: 13px; color: #303133; font-weight: 500; }
 .expiry-date { font-size: 12px; color: #909399; }
+.overdue-amt { font-size: 12px; color: #e74c3c; font-weight: 600; }
 
 // ---- 系统信息 ----
 .sys-info-card { margin-top: 16px; }
@@ -360,4 +667,30 @@ const quickLinks = [
 .due-dot { background: #a0c4ff; }
 .collected-dot { background: #00B894; }
 .chart-controls { display: flex; align-items: center; }
+
+// ---- 今日待办 ----
+.todo-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 8px; background: #fafbfc; cursor: pointer; transition: all 0.2s;
+  &:hover { background: #e6f0ff; transform: translateY(-2px); box-shadow: 0 4px 14px rgba(64,158,255,0.12); } }
+.todo-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; flex-shrink: 0; }
+.todo-body { flex: 1; min-width: 0; }
+.todo-title { font-size: 13px; font-weight: 600; color: #303133; display: flex; align-items: center; gap: 6px; }
+.todo-sub { font-size: 12px; color: #909399; margin-top: 2px; }
+.todo-count { font-size: 20px; font-weight: 700; flex-shrink: 0; }
+
+// ---- 多模块看板 ----
+.room-legend { display: flex; flex-direction: column; gap: 10px; }
+.room-legend-item { display: flex; align-items: center; gap: 8px; }
+.room-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.room-name { font-size: 12px; color: #606266; width: 46px; flex-shrink: 0; }
+.room-bar-wrap { flex: 1; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+.room-bar-fill { display: block; height: 100%; border-radius: 4px; transition: width 0.6s ease; min-width: 2px; }
+.room-count { font-size: 13px; font-weight: 700; width: 28px; text-align: right; }
+.ops-kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ops-kpi { background: #f8f9fb; border-radius: 8px; padding: 12px 14px; text-align: center; }
+.ops-kpi-val { font-size: 22px; font-weight: 700; color: #0A3D62; }
+.ops-kpi-label { font-size: 12px; color: #909399; margin-top: 4px; }
+.structure-list { display: flex; flex-direction: column; gap: 10px; }
+.structure-item { display: flex; align-items: center; gap: 8px; }
+.structure-name { font-size: 12px; color: #606266; width: 70px; flex-shrink: 0; }
+.structure-val { font-size: 13px; font-weight: 700; width: 30px; text-align: right; }
 </style>
