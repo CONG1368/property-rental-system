@@ -34,6 +34,12 @@ const MIGRATION_DEFINITIONS: ColumnMigration[] = [
     ],
   },
   {
+    tableName: 'fixed_assets',
+    columns: [
+      { name: 'lastDepreciationPeriod', sqliteType: 'VARCHAR(7)', defaultValue: "''" },
+    ],
+  },
+  {
     tableName: 'work_orders',
     columns: [
       { name: 'facilityId', sqliteType: 'INTEGER', defaultValue: 'NULL' },

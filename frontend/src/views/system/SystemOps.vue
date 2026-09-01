@@ -39,17 +39,50 @@
       </el-col>
     </el-row>
 
-    <el-card header="定时任务（Cron）" style="margin-top:16px" v-loading="loadingCron">
+    <el-card style="margin-top:16px" v-loading="loadingCron">
+      <template #header>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span>定时任务（Cron）</span>
+          <el-tag :type="cronStarted ? 'success' : 'danger'" size="small">
+            {{ cronStarted ? '调度器运行中' : '调度器已停止' }}
+          </el-tag>
+          <div style="margin-left:auto">
+            <el-button size="small" @click="fetchCron">刷新</el-button>
+            <el-button size="small" :type="cronStarted ? 'danger' : 'primary'" @click="toggleCron">
+              {{ cronStarted ? '停止调度器' : '启动调度器' }}
+            </el-button>
+          </div>
+        </div>
+      </template>
       <el-table :data="cronList" stripe size="small">
-        <el-table-column prop="name" label="任务名称" width="160" />
-        <el-table-column prop="schedule" label="调度时间" width="160" />
-        <el-table-column prop="desc" label="说明" />
-              <template #empty>
+        <el-table-column prop="name" label="任务名称" width="140" />
+        <el-table-column prop="schedule" label="调度时间" width="140" />
+        <el-table-column prop="desc" label="说明" min-width="220" />
+        <el-table-column label="最近执行" width="230">
+          <template #default="{ row }">
+            <span v-if="!row.lastRun" style="color:#909399">未执行</span>
+            <span v-else>
+              <el-tag :type="row.lastRun.ok ? 'success' : 'danger'" size="small" effect="plain">
+                {{ row.lastRun.ok ? '成功' : '失败' }}
+              </el-tag>
+              <span style="margin-left:6px">{{ formatRunTime(row.lastRun.at) }}</span>
+              <div style="font-size:12px;color:#909399">{{ row.lastRun.detail }}</div>
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" :loading="runningKey === row.key" @click="runCronTask(row)">
+              立即执行
+            </el-button>
+          </template>
+        </el-table-column>
+        <template #empty>
           <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
         </template>
       </el-table>
       <div style="margin-top:12px;font-size:12px;color:#909399">
-        定时任务由后端调度器管理。当前调度器可通过环境变量/外部机制触发（项目约定：scheduler.start() 不自动调用，需手动触发或通过外部机制调度）。
+        调度器随后端启动自动挂载（设 CRON_ENABLED=false 可关闭）。手动执行与定时执行走同一份逻辑；账单生成、折旧计提均已做幂等保护，重复执行不会产生重复数据。
       </div>
     </el-card>
   </div>
@@ -66,6 +99,8 @@ const info = ref<any>(null);
 const loadingInfo = ref(false);
 const cronList = ref<any[]>([]);
 const loadingCron = ref(false);
+const cronStarted = ref(false);
+const runningKey = ref('');
 const auditEnabled = ref(true);
 const loadingToggle = ref(false);
 
@@ -85,7 +120,41 @@ async function fetchInfo() {
 
 async function fetchCron() {
   loadingCron.value = true;
-  try { const res = await request.get('/system-ops/cron'); cronList.value = res.data?.list || []; } catch {} finally { loadingCron.value = false; }
+  try {
+    const res = await request.get('/system-ops/cron');
+    cronList.value = res.data?.list || [];
+    cronStarted.value = !!res.data?.started;
+  } catch {} finally { loadingCron.value = false; }
+}
+
+function formatRunTime(iso: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+
+// 手动触发单个任务：与定时执行共用后端同一份逻辑，已做幂等保护
+async function runCronTask(row: any) {
+  runningKey.value = row.key;
+  try {
+    // 拦截器实际返回的是 body（{ code, data, message }），类型上仍是 AxiosResponse，故断言
+    const res: any = await request.post('/system-ops/cron/run/' + row.key, {});
+    ElMessage.success(res.message || '执行完成');
+    await fetchCron();
+  } catch { /* 拦截器已提示 */ } finally { runningKey.value = ''; }
+}
+
+// 启停调度器（不可逆影响自动化，需二次确认）
+async function toggleCron() {
+  const next = !cronStarted.value;
+  const pwd = await confirmWithPassword(next ? '确认启动定时任务调度器？' : '确认停止定时任务调度器？停止后账单生成、催缴、折旧等将不再自动执行。');
+  if (!pwd) return;
+  try {
+    const res: any = await request.post('/system-ops/cron/toggle', { enabled: next, confirmPassword: pwd });
+    ElMessage.success(res.message || '已切换');
+    await fetchCron();
+  } catch { /* 拦截器已提示 */ }
 }
 
 async function fetchToggle() {

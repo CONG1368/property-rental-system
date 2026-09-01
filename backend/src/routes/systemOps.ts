@@ -58,18 +58,40 @@ router.get('/info', requireAdmin, async (_req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-// GET /system-ops/cron — cron 任务执行状态（静态描述 + 手动触发入口提示）
+// GET /system-ops/cron — cron 任务真实状态（任务清单 + 最近一次执行结果）
+// 注意：started 取自调度器实际状态，不是"函数存在与否"——后者永远为 true，会谎报在跑
 router.get('/cron', requireAdmin, async (_req: AuthRequest, res) => {
-  const tasks = [
-    { name: '账单生成', schedule: '每日 02:00', desc: '生成月租账单' },
-    { name: '催缴升级', schedule: '每日 08:00', desc: '检查逾期生成催缴任务' },
-    { name: '合同到期检查', schedule: '每日 07:00', desc: '标记到期提醒' },
-    { name: '固定资产折旧', schedule: '每月 1 日 02:00', desc: '月度折旧计算' },
-    { name: '物业自动化', schedule: '每日 09:00', desc: 'SLA升级/设备到期/合同到期' },
-    { name: '月度经营简报', schedule: '每月 1 日 09:30', desc: '生成月度简报 PDF' },
-    { name: '门锁密码清理', schedule: '每日 08:30', desc: '清理过期临时密码' },
-  ];
-  res.json({ code: 200, data: { list: tasks, started: typeof scheduler?.start === 'function' } });
+  res.json({
+    code: 200,
+    data: {
+      list: scheduler.list(),
+      started: scheduler.isStarted(),
+      envEnabled: String(process.env.CRON_ENABLED ?? 'true').toLowerCase() !== 'false',
+    },
+  });
+});
+
+// POST /system-ops/cron/run/:key — 手动触发单个定时任务（与定时执行共用同一份逻辑）
+router.post('/cron/run/:key', auditLog('系统运维', '手动触发定时任务'), requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const key = String(req.params.key || '');
+    if (!scheduler.list().some((t) => t.key === key)) {
+      return res.status(404).json({ code: 404, message: '未知的定时任务: ' + key });
+    }
+    const record = await scheduler.runTask(key, 'manual');
+    if (!record.ok) return res.status(500).json({ code: 500, message: '任务执行失败: ' + record.detail, data: record });
+    res.json({ code: 200, data: record, message: '执行完成：' + record.detail });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
+// POST /system-ops/cron/toggle — 运行时启停调度器（二次确认）
+router.post('/cron/toggle', auditLog('系统运维', '切换定时任务调度器'), requireAdmin, requireConfirmPassword('切换定时任务调度器'), async (req: AuthRequest, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') return res.status(400).json({ code: 400, message: 'enabled 必须为布尔值' });
+    if (enabled) scheduler.start(); else scheduler.stop();
+    res.json({ code: 200, data: { started: scheduler.isStarted() }, message: enabled ? '调度器已启动' : '调度器已停止' });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
 // GET /system-ops/audit-toggle — 审计开关
