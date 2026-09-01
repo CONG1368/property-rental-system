@@ -30,8 +30,11 @@ npm run build
 bash test-api.sh
 & 'C:\Program Files\Git\bin\bash.exe' ./test-api.sh
 
-# 全链路回归（18 项串联，需先启动 dev）
+# 全链路回归（23 项串联，需先启动 dev）
 npm run test:regression
+
+# 只跑单元测试（vitest：backend/tests + frontend/tests，纯函数，不需服务）
+npm run test:unit
 
 # 仅无服务依赖的门禁（静态铁律 + 对比度 + 双端类型检查 + ESM 产物校验，CI 可直接跑）
 npm run test:static
@@ -68,9 +71,10 @@ node scripts/generate-manual-pdf.js
 |---|------|---------|
 | 前端框架 | Vue 3 Composition API (`<script setup lang="ts">`) | 3.4 |
 | UI 库 | Element Plus + @element-plus/icons-vue | 2.5 |
-| 图表 | ECharts 5 + vue-echarts 6 | - |
+| 图表 | ECharts 6 + vue-echarts 8 | - |
 | PDF 导出 | Electron printToPDF（文字PDF，主路径）+ html2canvas/jspdf（截图回退） | 打印/导出 |
 | 文档解析 | mammoth (.docx) + word-extractor (.doc) + pdf-parse v2 (.pdf) | 条款文本提取 |
+| Excel 读写 | **exceljs**（前后端统一，已彻底移除 xlsx；仅支持 .xlsx） | 导入/导出 |
 | 状态管理 | Pinia | 2.1 |
 | 路由 | Vue Router 4 (hash 模式) | 4.3 |
 | HTTP 客户端 | Axios (拦截器自动附加 Bearer token + 401 自动刷新) | - |
@@ -242,10 +246,18 @@ Phase 3.5：`scheduler.start()` 在种子数据之后挂载 7 个定时任务（
 
 ### 文件上传配置
 
-- 上传目录：`backend/uploads/`（可通过 `UPLOAD_DIR` 环境变量覆盖）
-- 大小限制：**仅用户头像上传限制 2MB**（`routes/users.ts`），其余上传区（合同附件、消防检查附件、房源导入、条款导入等）均无文件大小限制
-- multer 实例在各路由文件中独立定义，`fileFilter` 按路由各自配置允许的文件扩展名。**所有 multer 实例都必须有 fileFilter**（安全要求），防火墙安全：`contracts.ts`（条款导入 + 合同附件）、`fireSafety.ts`（消防附件）、`properties.ts`（房源导入仅 .xlsx/.xls）、`users.ts`（头像 2MB）
-- `config/index.ts` 中的 `upload.allowedTypes` 为历史遗留，未被实际引用
+- 上传目录：`backend/uploads/`（`UPLOAD_DIR` 可覆盖）；`config/index.ts` 的 `upload.allowedTypes` 是历史遗留，未被引用
+- multer 实例在各路由文件独立定义，**每个都必须有 fileFilter**（静态门禁 R5 强制），当前限制：
+
+| 入口 | 扩展名 | 体积上限 |
+|---|---|---|
+| 头像 `users.ts` | 图片 | 2MB |
+| 房源导入 `properties.ts` | **仅 .xlsx** | 10MB |
+| 条款导入 `contracts.ts` | **.xlsx** / Word / PDF | 20MB |
+| 银行对账 `bankReconciliation.ts` | **.xlsx** / .csv | 5MB |
+| 合同附件 / 消防附件 | 文档+图片 | 无上限 |
+
+**旧版 .xls 一律拒绝**（exceljs 不支持 BIFF），提示用户「另存为 .xlsx」。
 - **重要**：前端 `el-upload` 必须通过 `name` prop 指定字段名，必须与后端 multer `.array('xxx')` / `.single('xxx')` 的字段名完全一致，否则 multer 返回 `Unexpected field`。后端当前使用：`files`（合同/消防附件）、`avatar`（头像）、`file`（房源导入/条款导入/文本提取）
 
 **中文文件名编码修复**：multer/busboy 解析 `Content-Disposition` 头的非 ASCII 文件名时可能按 Latin-1 解码，导致 UTF-8 中文变成乱码。修复方法：
@@ -462,9 +474,7 @@ if (contentText.length < 50) { /* 扫描件提示 */ }
 
 **待处理条款桥接机制（pendingClauses）**：导入条款时**无论租客是否已有合同**，都同时存入 `tenant.pendingClauses`（确保新建合同时也能自动加载）。ContractDraft.vue 的 `loadPendingClausesForCurrentTenant()` 在编辑初始化、租客切换、模板加载后三个时机调用。**注意**：API 返回 `pendingClauses` 可能是 JSON 字符串，前端需 `JSON.parse` 处理。
 
-**条款模板同步（syncToTemplate）**：导入条款时自动按业态创建 `常用条款模板-{公寓/厂房/商铺}`，`content.isAuto: true` 标记。TemplateList.vue 对自动模板显示「自动」标签。ContractDraft 选择房源时自动匹配：默认模板 > 常用条款模板（该业态）> 同类型模板。
-
-**前端**：`ClauseImport.vue` — 侧边栏「合同管理→条款导入」入口。上传区支持拖拽+点击。Word/PDF 上传后自动触发智能拆分。模板选择下拉可指定同步目标。
+**条款模板同步（syncToTemplate）**：按业态自动建 `常用条款模板-{公寓/厂房/商铺}`（`content.isAuto: true`，模板列表显示「自动」标签）；ContractDraft 选房源时匹配优先级：默认模板 > 该业态常用模板 > 同类型模板。入口在侧边栏「合同管理→条款导入」。
 
 ### 种子数据就绪机制
 
@@ -688,13 +698,7 @@ off('room:status-changed', callback);
 
 `Contract.billingConfig`（JSON 类型）是合同的元数据容器，**新增可选配置项时不需修改模型列**，只需在表单、打印模板、详情页三处同步即可。当前字段：
 
-| 字段组 | 字段 | 说明 |
-|--------|------|------|
-| 费用 | `feeItems[]` | `{ name, amount, unit }` |
-| 收款 | `paymentMethod` / `bankName` / `bankAccountNumber` / `bankAccountName` | 收款方式及银行账号 |
-| 税务 | `taxType` / `taxRate` / `invoiceType` | 含税/不含税、税率、发票类型 |
-| 细则 | `lateFeeRate` / `depositTerms` / `maintenanceParty` / `terminationNotice` / `renewalNotice` / `subletAllowed` | 滞纳金/押金/维修/转租/解约/续约 |
-| 附件 | `attachments[]` | `{ name, path, size, uploadedAt }` |
+费用 `feeItems[]{name,amount,unit}`；收款 `paymentMethod`/`bankName`/`bankAccountNumber`/`bankAccountName`；税务 `taxType`/`taxRate`/`invoiceType`；细则 `lateFeeRate`/`depositTerms`/`maintenanceParty`/`terminationNotice`/`renewalNotice`/`subletAllowed`；附件 `attachments[]{name,path,size,uploadedAt}`。
 
 **注意**：新增 billingConfig 字段时，必须同步修改 3 个位置：ContractDraft.vue（表单+变量+`buildBillingConfig`+编辑回填）、ContractPrint.ts（`ContractPrintData` 接口+打印内容）、ContractDetail.vue（展示+`handlePrint` 传参）。
 
@@ -790,7 +794,11 @@ off('room:status-changed', callback);
 
 `npm run test:static` 只跑 A+B 段——**这是唯一能在纯 CI 环境（checkout + install）跑通的部分**，C 段依赖本地 dev 服务。
 
-**GitHub Actions**：`.github/workflows/ci.yml` 在 push / PR 时自动执行 `npm run test:static`（Node 20，三处 `npm ci --ignore-scripts`——类型检查只需 `.d.ts`，可跳过 better-sqlite3 原生编译与 Electron/Playwright 二进制下载）。C 段运行时回归不在流水线内，发版前须本地跑 `npm run test:regression`。
+**GitHub Actions**：`.github/workflows/ci.yml` 在 push / PR 时跑 `npm run test:static`。两个必须记住的环境约束（都是踩出来的）：
+- **Node 22**（不能用 20）：Node 20 上 jsdom 报 `webidl.util.markAsUncloneable is not a function`，frontend vitest 起不了 worker。
+- **用 `npm install` 而非 `npm ci`，且前后端不加 `--ignore-scripts`**：本机 npm 12 生成 lockfile 时只为当前平台记录 esbuild 等可选原生包，Linux runner 上 `npm ci` 直接报 "Missing @esbuild/... from lock file"；跳过脚本则 better-sqlite3 拿不到原生绑定、backend vitest 报 "Could not locate the bindings file"。根依赖仍带 `--ignore-scripts`（Electron/Playwright 二进制用环境变量跳过）。
+
+C 段运行时回归不在流水线内，发版前须本地跑 `npm run test:regression`。
 
 **本地钩子**：`.githooks/`（`npm run hooks:install` 设 `core.hooksPath`，postinstall 自动执行）。pre-commit 跑秒级静态铁律+对比度，pre-push 跑 `npm run test:static`。钩子扫的是**工作区**而非暂存区（更严，不相关的脏文件也会拦），紧急用 `--no-verify` 绕过，但 CI 仍会拦。`.gitattributes` 强制 `.githooks/**` 用 LF——CRLF 会让 Git Bash 报 bad interpreter 导致钩子静默失效。
 
