@@ -246,8 +246,8 @@ Phase 3.5：`scheduler.start()` 在种子数据之后挂载 7 个定时任务（
 
 ### 文件上传配置
 
-- 上传目录：`backend/uploads/`（`UPLOAD_DIR` 可覆盖）；`config/index.ts` 的 `upload.allowedTypes` 是历史遗留，未被引用
-- multer 实例在各路由文件独立定义，**每个都必须有 fileFilter**（静态门禁 R5 强制），当前限制：
+- 上传目录：`backend/uploads/`（`UPLOAD_DIR` 可覆盖）；`upload.allowedTypes` 为历史遗留
+- multer 实例按路由独立定义，**每个都必须有 fileFilter**（R5 强制），当前限制：
 
 | 入口 | 扩展名 | 体积上限 |
 |---|---|---|
@@ -287,6 +287,7 @@ function decodeFilename(name: string): string {
 3. IPC 通道：`get-app-version`、`get-backend-status`、`get-backend-url`、`export-pdf`、`print-html`、`save-file-dialog`、`open-file-dialog`、`read-id-card`
 4. 开发模式窗口加载 `http://localhost:5173`，生产模式加载 `file://` 协议
 5. 生产模式禁止开发者工具（拦截 `devtools-opened` 事件）
+6. **两个真实生产坑（发版必记）**：① 版本号不能运行时读 package.json（在 app.asar 里读不到）——改为构建期 `scripts/gen-build-version.cjs` 注入 `BUILD_VERSION`；② 终端一关，主进程 `console.log` 后端 stdout 抛 **EPIPE 崩主进程**——stdout/stderr 写入包 try/catch，且 `main.ts` 对 `process.stdout/stderr` 加全局 `stream.on('error')`
 
 ### RBAC 权限体系（双层防护 + 可配置化 + 二次确认）
 
@@ -739,8 +740,6 @@ off('room:status-changed', callback);
 5. **自动刷新**：60s 弱轮询 + WS 事件静默刷新（300ms 防抖，不闪加载态），`onUnmounted` 清理定时器与订阅。
 6. **系统信息条**：`version` 取自根 package.json（缓存一次），`uptimeSeconds` 取 `process.uptime()`。回归脚本 `scripts/verify-dashboard.js`（16 用例）。
 
-
-
 ### UI 主题体系 — 湛蓝玻璃拟物
 
 全站视觉统一为「湛蓝玻璃拟物（Glassmorphism·湛蓝）」，完整规范见 `docs/UI设计准则.md`（唯一权威）。要点：
@@ -753,7 +752,7 @@ off('room:status-changed', callback);
 - `utils/avatars.ts` 已重构为图标方案：`avatarIcons`（键名→组件）+ `roleAvatars`（角色→键名+渐变底）+ `presetAvatars`（可选头像）+ **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容数据库里已存的 emoji 头像）。渲染方式：`<el-icon><component :is="resolveAvatarIcon(key)" /></el-icon>`。
 - 首页 `HomeDashboard.vue` 的 `iconMap` 已语义化（`home/users/money/trend/bell/doc/chart/coin/check/alert/warn/list`），KPI/待办/快捷入口的 `icon` 字段存语义键而非 emoji。
 
-**4. 存量色值迁移脚本 `scripts/theme-migrate.cjs`**：把旧色（`#0A3D62`/`#F6B93B`/`#00B894`/`#FF6B35`/`#82CCDD`/`#1a5f8a`）映射到新令牌；`#0A3D62` 按语境二分——CSS `color:` 文字色→`#1f2430`，背景/边框/图表色→`#4f7cf7`。**自动跳过 `frontend/src/components/print/`**：打印模板面向纸质输出，保留深墨蓝，不参与玻璃主题迁移。本轮已迁移 66 个文件 141 处。
+**4. 存量色值迁移脚本 `scripts/theme-migrate.cjs`**：旧色（`#0A3D62`/`#F6B93B`/`#00B894`/`#FF6B35`/`#82CCDD`/`#1a5f8a`）→新令牌；`#0A3D62` 按语境二分——CSS `color:` 文字色→`#1f2430`，背景/边框/图表色→`#4f7cf7`。**自动跳过 `frontend/src/components/print/`**（打印模板面向纸质，保留深墨蓝）。
 
 **5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**（此前 Login 硬编码 1.0.2 与实际 1.0.3 不符）。
 
@@ -761,7 +760,7 @@ off('room:status-changed', callback);
 - `TableSkeleton.vue`（首屏骨架，shimmer 动效 + 逐行淡入，替代通用转圈）
 - `EmptyState.vue`（图标 + 标题 + 引导说明 + 可选操作按钮，props：`title/description/icon/actionText/compact`）
 
-标准接法（已覆盖 **68 个列表页**）：`<TableSkeleton v-if="loading && !list.length" />` + `<el-table v-show="!(loading && !list.length)">` + `<template #empty><EmptyState ... /></template>`。批量接入用 `scripts/apply-loading-states.cjs`（`--dry` 可预演；自动跳过已处理页面与 `:data` 非简单变量的表格），验收用 `scripts/verify-ux-states.cjs`（10 用例，含骨架出现/消失、空态内容、头像图标化）。按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景（Anti-Card Overuse）。
+标准接法（已覆盖 **68 个列表页**）：`<TableSkeleton v-if="loading && !list.length" />` + `<el-table v-show="!(loading && !list.length)">` + `<template #empty><EmptyState ... /></template>`。批量接入用 `scripts/apply-loading-states.cjs`（`--dry` 预演），验收用 `scripts/verify-ux-states.cjs`。按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景（Anti-Card Overuse）。
 
 **7. 无障碍配色（WCAG 2.1 AA）**：原色只满足 UI 组件 3:1，作正文最低仅 1.72:1，故拆分用途——
 - **文字/链接/细线图标**用加深变体：`$color-primary-text: #2b57c9`（hover `#1e50bd`）、`$color-success-text: #0a7652`、`$color-warning-text: #8a5200`、`$color-danger-text: #bf2626`、次要文字 `$color-text-subtle: #5f6675`（原 #8b93a3）
@@ -770,7 +769,7 @@ off('room:status-changed', callback);
 - **实心按钮**（primary/success/warning/danger）底色在 `global.scss` 覆盖为加深变体，使白字达 5.6–6.4:1
 - **原色保留**用于填充、标签底、图表系列色、进度条、KPI 大号数值（品牌湛蓝 `#4f7cf7` 未被替换）
 
-自检门禁：`node scripts/check-contrast.cjs`（46 条清单，覆盖玻璃面/页面底/深色顶栏三类背景与 alpha 合成；当前 **46/46 通过 + 2 条装饰性豁免**，退出码 0）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 的文字色，`<script>` 段的图表/标签底色不动）。详见 `docs/对比度检查报告.md`。
+自检门禁：`node scripts/check-contrast.cjs`（46 条清单，覆盖玻璃面/页面底/深色顶栏三类背景与 alpha 合成；当前 46/46 通过 + 2 条装饰性豁免）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 的文字色）。详见 `docs/对比度检查报告.md`。
 
 ### 依赖漏洞治理（当前状态与决策）
 
@@ -779,7 +778,7 @@ off('room:status-changed', callback);
 1. **无痛升级**：`npm audit fix` 修掉 15 个（含唯一 critical `tar` 与多个 high），只动 lockfile。
 2. **根因替代升级**：
    - `uuid<11.1.1` 一条告警把 `node-cron`/`sequelize`/`exceljs` 三个库一起标红。后端 `uuid` 是**未被引用的直接依赖**，已删除；再用 `overrides: { "uuid": "^11.1.1" }` 抬高传递依赖版本，三个库**无需大版本升级**即消除告警。
-   - `echarts` XSS（<6.1.0）：升级到 `echarts@6` + `vue-echarts@8`。5 个图表页用的是模块化 `use([...])` API，升级无需改代码；已验证类型检查、生产构建、80/80 页面回归与 4 个图表页 canvas 渲染。
+   - `echarts` XSS（<6.1.0）：升级到 `echarts@6` + `vue-echarts@8`。5 个图表页用模块化 `use([...])` API，无需改代码。
    - **禁止 `npm audit fix --force`**：npm 给 `sequelize` 的"修复"是 3.30.0、`exceljs` 是 3.4.0——**都是降级**，执行会把项目打回上古版本。
 3. **上游无补丁 → 换库（xlsx 已彻底移除）**：SheetJS 的 npm 包停更在 0.18.5，两条 high 在 npm 渠道永远修不掉。已全量迁到 `exceljs`：后端 `utils/excel.ts`、前端 `utils/excel.ts` 提供同语义的 `readSheetAsObjects` / `buildWorkbook*`，8 处调用点改写完毕，前后端 `xlsx` 依赖均已卸载。
    **代价（必须知道）**：exceljs **不支持旧版 .xls（BIFF 二进制）**，所有上传入口已收紧为 `.xlsx`，并给出「请另存为 .xlsx」提示（房源导入 / 条款导入 / 银行对账）。回归脚本 `verify-excel-import.js` 覆盖导入解析、.xls 拒绝、多表导出。
@@ -796,11 +795,11 @@ off('room:status-changed', callback);
 
 **GitHub Actions**：`.github/workflows/ci.yml` 在 push / PR 时跑 `npm run test:static`。两个必须记住的环境约束（都是踩出来的）：
 - **Node 22**（不能用 20）：Node 20 上 jsdom 报 `webidl.util.markAsUncloneable is not a function`，frontend vitest 起不了 worker。
-- **用 `npm install` 而非 `npm ci`，且前后端不加 `--ignore-scripts`**：本机 npm 12 生成 lockfile 时只为当前平台记录 esbuild 等可选原生包，Linux runner 上 `npm ci` 直接报 "Missing @esbuild/... from lock file"；跳过脚本则 better-sqlite3 拿不到原生绑定、backend vitest 报 "Could not locate the bindings file"。根依赖仍带 `--ignore-scripts`（Electron/Playwright 二进制用环境变量跳过）。
+- **用 `npm install` 而非 `npm ci`，且前后端不加 `--ignore-scripts`**：npm 12 的 lockfile 只记录当前平台的 esbuild 等可选原生包，Linux runner 上 `npm ci` 报 "Missing @esbuild/... from lock file"；跳过脚本则 better-sqlite3 拿不到原生绑定。根依赖仍带 `--ignore-scripts`（Electron/Playwright 二进制走环境变量跳过）。
 
 C 段运行时回归不在流水线内，发版前须本地跑 `npm run test:regression`。
 
-**本地钩子**：`.githooks/`（`npm run hooks:install` 设 `core.hooksPath`，postinstall 自动执行）。pre-commit 跑秒级静态铁律+对比度，pre-push 跑 `npm run test:static`。钩子扫的是**工作区**而非暂存区（更严，不相关的脏文件也会拦），紧急用 `--no-verify` 绕过，但 CI 仍会拦。`.gitattributes` 强制 `.githooks/**` 用 LF——CRLF 会让 Git Bash 报 bad interpreter 导致钩子静默失效。
+**本地钩子**：`.githooks/`（`npm run hooks:install` 设 `core.hooksPath`，postinstall 自动执行）。pre-commit 跑秒级静态铁律+对比度，pre-push 跑 `npm run test:static`。钩子扫的是**工作区**而非暂存区，紧急用 `--no-verify` 绕过，但 CI 仍会拦。`.gitattributes` 强制 `.githooks/**` 用 LF——CRLF 会让 Git Bash 报 bad interpreter 导致钩子静默失效。
 
 **注意**：CI 与钩子都只是**检查**，真正的"不通过就合不进去"要靠仓库 ruleset 的 required status checks（见 `protect-main`）。
 
@@ -818,11 +817,6 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 
 **后置副作用必须隔离**：`payment-reconciler.ts` 中凭证生成与信用评分都包在 try/catch 里仅告警——收款记录已落库时若让副作用抛错，支付平台收到 5xx 会**重复回调造成重复收款**。同类原则适用于所有通知/回调路径。
 
-### 已知孤立文件
-
-- `frontend/src/views/rent/PaymentRecord.vue` — 收款功能已集成在 BillList 详情抽屉中，无路由注册
-- `frontend/src/components/RoomTableView.vue` — 表格视图组件已定义（在 `components.d.ts` 中全局注册），但未在现有页面中使用。如需表格/网格切换功能，可在 RoomStatusKanban 中引入
-
 ### scripts 脚本目录
 
 | 脚本 | 用途 |
@@ -831,7 +825,7 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-esm-build.js` | 验证后端编译产物中所有 ESM import 路径有效 |
 | `full-e2e-test.js` | 全量 E2E 测试（37 项 + 250+ 断言 + 全局乱码检查） |
 | `generate-icon.js` | 从 build/icon.png 生成各尺寸图标 |
-| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（截图 base64 内嵌，跨平台可移植） |
+| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（截图 base64 内嵌） |
 | `generate-proposal-pdf.js` | 从 Markdown 生成产品方案 PDF |
 | `kill-dev.ps1` | 清理占用开发端口的残留进程（`dev:clean` 调用） |
 | `installer.nsi` | NSIS 安装包脚本 |
@@ -839,12 +833,12 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `permission-regression.js` | 权限回归（12 角色 × 端点断言，33 用例）；需先启动 dev 后端 |
 | `e2e-permission-matrix.js` | 权限矩阵页面 E2E（角色选择/搜索/批量/二次确认弹窗，8 用例） |
 | `e2e-confirm-password.js` | 不可逆操作二次确认 E2E（发票作废：弹窗/密码/取消/成功，5 用例） |
-| `verify-system-settings.js` | 系统设置模块运行时回归（登录/配置只读/二次确认/非管理员/审计/字典/运维，9 用例）；需先启动 dev 后端 |
+| `verify-system-settings.js` | 系统设置运行时回归（登录/配置只读/二次确认/非管理员/审计/字典/运维，9 用例）；需 dev |
 | `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
 | `e2e-new-modules.js` | 新增模块 E2E |
 | `run-all-regression.js` | **全链路回归入口**：串联 23 项，分 A 静态 / B 类型+单测+构建 / C 运行时 三段；`--static` 只跑 A+B |
-| `verify-uncovered-api.js` | 零覆盖模块 API 回归（door-locks 全生命周期 + 读卡器/通知/审批请求/简报/导出/租户登录/OCR/智能问数/物业自动化，50 用例）；对种子门锁只做净零操作 |
-| `e2e-uncovered-pages.js` | 零覆盖页面渲染回归（消防 5 页 + 房态看板 3 页 + 门锁/起草/条款导入/打印设置/读卡器/参数/运维/门户，18 页 80 用例，带截图） |
+| `verify-uncovered-api.js` | 零覆盖模块 API 回归（door-locks + 读卡器/通知/审批/简报/导出/租户登录/OCR/智能问数/物业自动化，50 用例）；对种子门锁净零操作 |
+| `e2e-uncovered-pages.js` | 零覆盖页面渲染回归（消防 5 + 房态看板 3 + 门锁/起草/条款导入/打印设置/读卡器/参数/运维/门户，18 页 80 用例） |
 | `verify-excel-import.js` | Excel 链路回归（房源/条款导入解析、.xls 拒绝、服务端多表导出，12 用例）；迁 exceljs 后的守护 |
 | `verify-websocket.js` | WebSocket 广播回归（房态变更/批量变更事件、载荷结构、断开后服务健康，11 用例）；对种子房源做净零流转 |
 | `check-deps-audit.cjs` | **依赖漏洞门禁**（`npm audit --omit=dev`，high/critical 阻断；xlsx 等上游无补丁项在 ALLOWLIST 豁免并带复审期限） |
@@ -855,4 +849,4 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `apply-a11y-colors.cjs` | 无障碍配色迁移（文字场景语义色→ -text 变体） |
 | `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（46 条清单，可作 CI 门禁） |
 | `verify-ux-states.cjs` | 交互态验收（骨架/空态/头像图标化，10 用例）；需先启动 dev |
-| `verify-dashboard.js` | 首页概览运行时回归（登录/overview≤collectionRate金额口径/todo-summary权限过滤/rooms-stats/消防/物业运营/rent，16 用例）；需先启动 dev 后端 |
+| `verify-dashboard.js` | 首页概览运行时回归（overview 金额口径/todo-summary 权限过滤/rooms-stats/消防/物业运营，16 用例）；需 dev |
