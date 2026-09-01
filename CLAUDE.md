@@ -813,6 +813,8 @@ off('room:status-changed', callback);
 
 `npm run test:static` 只跑 A+B 段——**这是唯一能在纯 CI 环境（checkout + install）跑通的部分**，C 段依赖本地 dev 服务。
 
+**GitHub Actions**：`.github/workflows/ci.yml` 在 push / PR 时自动执行 `npm run test:static`（Node 20，三处 `npm ci --ignore-scripts`——类型检查只需 `.d.ts`，可跳过 better-sqlite3 原生编译与 Electron/Playwright 二进制下载）。C 段运行时回归不在流水线内，发版前须本地跑 `npm run test:regression`。
+
 C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modules` → `verify-dashboard` → `verify-system-settings` → `verify-ux-states` → `permission-regression` → `e2e-permission-matrix` → `e2e-confirm-password` → `verify-external-providers`（tsx 运行） → `test-api.sh`（自动探测 Git Bash，找不到则显式跳过、不计失败）。
 
 **顺序约束**：`permission-regression` 必须在 `e2e-permission-matrix` 之前——后者会写入角色权限定制（结束时通过 `/api/permissions/reset` 还原），顺序颠倒会污染前者的基线断言。

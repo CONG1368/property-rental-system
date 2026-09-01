@@ -54,3 +54,10 @@ test-results/
 # 本地临时调研文件（下划线前缀）与主题预览截图
 _*
 _preview_shots/
+
+# 根目录调试截图与 Playwright 页面快照（历史上误提交过 25 个，勿再入库）
+/*.png
+/*-snap.yml
+/page-*.yml
+/login*.yml
+/current-page.yml
