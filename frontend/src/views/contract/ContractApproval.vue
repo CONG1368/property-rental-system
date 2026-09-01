@@ -1,7 +1,8 @@
 <template>
   <div class="contract-approval">
     <h2 class="page-title">合同审批</h2>
-    <el-table :data="approvals" stripe v-loading="loading" @expand-change="onExpandChange" row-style="cursor:pointer">
+    <TableSkeleton v-if="loading && !approvals.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !approvals.length)" :data="approvals" stripe v-loading="loading" @expand-change="onExpandChange" row-style="cursor:pointer">
       <el-table-column type="expand">
         <template #default="{ row }">
           <div style="padding:16px 24px" v-if="row._contractData" v-loading="row._loading">
@@ -17,8 +18,8 @@
             <el-card shadow="never" style="margin-bottom:16px" v-if="getClausesArr(row).length > 0">
               <template #header><span style="font-weight:bold">合同条款 ({{ getClausesArr(row).length }} 条)</span></template>
               <div v-for="(clause, idx) in getClausesArr(row)" :key="idx"
-                style="margin-bottom:10px;padding:10px 14px;background:#f5f7fa;border-radius:4px;border-left:3px solid #0A3D62">
-                <h4 style="margin:0 0 4px;color:#0A3D62;font-size:13px">{{ clause.title || '(无标题)' }}</h4>
+                style="margin-bottom:10px;padding:10px 14px;background:#f5f7fa;border-radius:4px;border-left:3px solid #4f7cf7">
+                <h4 style="margin:0 0 4px;color:#1f2430;font-size:13px">{{ clause.title || '(无标题)' }}</h4>
                 <p style="margin:0;font-size:12px;color:#606266;white-space:pre-wrap;line-height:1.6">{{ clause.content }}</p>
               </div>
             </el-card>
@@ -63,6 +64,9 @@
           <el-button size="small" @click="showComment(row)">批注</el-button>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
 
     <el-dialog title="审批意见" v-model="commentVisible" width="400px">
@@ -153,5 +157,5 @@ onMounted(() => fetchApprovals())
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 </style>

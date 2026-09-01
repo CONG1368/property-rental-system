@@ -5,7 +5,7 @@
     <!-- 中间：系统名称（居中） -->
     <div class="nav-center">
       <img v-if="sysLogo" :src="sysLogo" class="sys-logo" alt="logo" />
-      <span v-else class="sys-logo-emoji" @click="triggerLogoUpload">🏠</span>
+      <el-icon v-else :size="20" class="sys-logo-emoji" @click="triggerLogoUpload"><OfficeBuilding /></el-icon>
       <span class="logo-text">物业租赁综合管理系统</span>
     </div>
     <div class="nav-right">
@@ -24,19 +24,19 @@
           <div class="search-group" v-if="propsResults.length > 0">
             <div class="search-group-title">房源 ({{ propsResults.length }})</div>
             <div class="search-item" v-for="r in propsResults" :key="'p'+r.id" @click="goResult('/rent/properties/' + r.id)">
-              <span>🏠</span> <span class="s-name">{{ r.name }}</span> <span class="s-sub">{{ r.address }}</span>
+              <el-icon class="s-icon"><OfficeBuilding /></el-icon> <span class="s-name">{{ r.name }}</span> <span class="s-sub">{{ r.address }}</span>
             </div>
           </div>
           <div class="search-group" v-if="tenantResults.length > 0">
             <div class="search-group-title">租客 ({{ tenantResults.length }})</div>
             <div class="search-item" v-for="r in tenantResults" :key="'t'+r.id" @click="goResult('/rent/tenants/' + r.id)">
-              <span>👤</span> <span class="s-name">{{ r.name }}</span> <span class="s-sub">{{ r.phone }}</span>
+              <el-icon class="s-icon"><Avatar /></el-icon> <span class="s-name">{{ r.name }}</span> <span class="s-sub">{{ r.phone }}</span>
             </div>
           </div>
           <div class="search-group" v-if="contractResults.length > 0">
             <div class="search-group-title">合同 ({{ contractResults.length }})</div>
             <div class="search-item" v-for="r in contractResults" :key="'c'+r.id" @click="goResult('/contract/detail/' + r.id)">
-              <span>📝</span> <span class="s-name">{{ r.contractNo }}</span> <span class="s-sub">{{ r['tenant.name'] || r['property.name'] || '' }}</span>
+              <el-icon class="s-icon"><Document /></el-icon> <span class="s-name">{{ r.contractNo }}</span> <span class="s-sub">{{ r['tenant.name'] || r['property.name'] || '' }}</span>
             </div>
           </div>
         </div>
@@ -74,7 +74,7 @@
       <el-dropdown trigger="click">
         <span class="user-info">
           <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img" />
-          <span v-else class="avatar-icon" :style="{ background: avatarBg }">{{ avatarIcon }}</span>
+          <span v-else class="avatar-icon" :style="{ background: avatarBg }"><el-icon :size="16" color="#fff"><component :is="avatarIconComp" /></el-icon></span>
           <span class="username">{{ username }}</span>
           <el-tag size="small" type="danger" v-if="userRole === '管理员'" style="margin-left:6px">管理员</el-tag>
           <el-tag size="small" type="warning" v-else-if="userRole" style="margin-left:6px">{{ userRole }}</el-tag>
@@ -94,12 +94,12 @@
         <el-form-item label="用户名"><el-input v-model="profileForm.username" disabled /></el-form-item>
         <el-form-item label="显示名称"><el-input v-model="profileForm.displayName" /></el-form-item>
         <el-form-item label="角色">
-          <span class="avatar-icon" :style="{ background: avatarBg }" style="display:inline-flex;vertical-align:middle;margin-right:8px">{{ profileForm.avatar || avatarIcon }}</span>
+          <span class="avatar-icon" :style="{ background: avatarBg }" style="display:inline-flex;vertical-align:middle;margin-right:8px"><el-icon :size="16" color="#fff"><component :is="resolveAvatarIcon(profileForm.avatar || avatarIcon)" /></el-icon></span>
           <el-tag>{{ authStore.user?.role || '-' }}</el-tag>
         </el-form-item>
         <el-form-item label="自定义头像">
           <div class="avatar-picker">
-            <span v-for="(a, i) in presetAvatars" :key="i" class="avatar-option" :class="{ selected: profileForm.avatar === a.icon }" @click="selectAvatar(a.icon)" :title="a.label">{{ a.icon }}</span>
+            <span v-for="(a, i) in presetAvatars" :key="i" class="avatar-option" :class="{ selected: profileForm.avatar === a.icon }" @click="selectAvatar(a.icon)" :title="a.label"><el-icon :size="18"><component :is="resolveAvatarIcon(a.icon)" /></el-icon></span>
           </div>
           <el-divider style="margin:10px 0">或上传图片</el-divider>
           <div style="display:flex;align-items:center;gap:10px">
@@ -115,7 +115,7 @@
               <el-button size="small">选择图片</el-button>
             </el-upload>
             <img v-if="profileForm.avatarUrl" :src="profileForm.avatarUrl" class="avatar-preview" />
-            <span v-if="profileForm.avatarUrl" class="avatar-icon" :style="{ background: avatarBg }" style="display:inline-flex">{{ profileForm.avatar || avatarIcon }}</span>
+            <span v-if="profileForm.avatarUrl" class="avatar-icon" :style="{ background: avatarBg }" style="display:inline-flex"><el-icon :size="16" color="#fff"><component :is="resolveAvatarIcon(profileForm.avatar || avatarIcon)" /></el-icon></span>
             <span style="font-size:11px;color:#909399">JPG/PNG/GIF ≤2MB</span>
           </div>
         </el-form-item>
@@ -136,10 +136,10 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Search, Bell } from '@element-plus/icons-vue';
+import { Search, Bell, OfficeBuilding, Avatar, Document } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/stores/auth';
-import { getRoleAvatar, presetAvatars } from '@/utils/avatars';
+import { getRoleAvatar, presetAvatars, resolveAvatarIcon } from '@/utils/avatars';
 import request, { apiBaseURL } from '@/api/request';
 import { useWebSocket } from '@/composables/useWebSocket';
 
@@ -201,6 +201,7 @@ const avatarInfo = computed(() => getRoleAvatar(userRole.value));
 const avatarIcon = computed(() => authStore.user?.permissions?.avatar || avatarInfo.value.icon);
 const avatarUrl = computed(() => authStore.user?.permissions?.avatarUrl || '');
 const avatarBg = computed(() => avatarInfo.value.bg);
+const avatarIconComp = computed(() => resolveAvatarIcon(avatarIcon.value));
 const handleLogout = () => authStore.logout();
 
 // ---- 系统 Logo ----

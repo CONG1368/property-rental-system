@@ -30,6 +30,36 @@ import FireInspection from './FireInspection.js';
 import FireEquipment from './FireEquipment.js';
 import FireViolation from './FireViolation.js';
 import FireDrill from './FireDrill.js';
+import Deposit from './Deposit.js';
+import Checkout from './Checkout.js';
+import ParkingSpace from './ParkingSpace.js';
+import ParkingRecord from './ParkingRecord.js';
+import Complaint from './Complaint.js';
+import Resident from './Resident.js';
+import Facility from './Facility.js';
+import FacilityMaintenance from './FacilityMaintenance.js';
+import WorkOrder from './WorkOrder.js';
+import Vendor from './Vendor.js';
+import Meter from './Meter.js';
+import MeterReading from './MeterReading.js';
+import Announcement from './Announcement.js';
+import CommonRevenue from './CommonRevenue.js';
+import Material from './Material.js';
+import InventoryRecord from './InventoryRecord.js';
+import Invoice from './Invoice.js';
+import Project from './Project.js';
+import Lead from './Lead.js';
+import Viewing from './Viewing.js';
+import MoveIn from './MoveIn.js';
+import Decoration from './Decoration.js';
+import MaintenancePlan from './MaintenancePlan.js';
+import FlowDefinition from './FlowDefinition.js';
+import ApprovalRequest from './ApprovalRequest.js';
+import PropertyTask from './PropertyTask.js';
+import RolePermission from './RolePermission.js';
+import PatrolRecord from './PatrolRecord.js';
+import Visitor from './Visitor.js';
+import EquipmentCertification from './EquipmentCertification.js';
 
 // ====== 房源 <-> 合同 ======
 Property.hasMany(Contract, { foreignKey: 'propertyId', as: 'contracts' });
@@ -170,6 +200,109 @@ FireInspection.belongsTo(User, { foreignKey: 'inspectorId', as: 'inspector' });
 FireInspection.hasMany(FireViolation, { foreignKey: 'inspectionId', as: 'violations' });
 FireViolation.belongsTo(FireInspection, { foreignKey: 'inspectionId', as: 'inspection' });
 
+// ====== 合同 <-> 押金 ======
+Contract.hasMany(Deposit, { foreignKey: 'contractId', as: 'deposits' });
+Deposit.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+Tenant.hasMany(Deposit, { foreignKey: 'tenantId', as: 'deposits' });
+Deposit.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+Property.hasMany(Deposit, { foreignKey: 'propertyId', as: 'deposits' });
+Deposit.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+
+// ====== 合同 <-> 退租 ======
+Contract.hasMany(Checkout, { foreignKey: 'contractId', as: 'checkouts' });
+Checkout.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+Tenant.hasMany(Checkout, { foreignKey: 'tenantId', as: 'checkouts' });
+Checkout.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+Property.hasMany(Checkout, { foreignKey: 'propertyId', as: 'checkouts' });
+Checkout.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+
+// ====== 房源 <-> 车位 ======
+Property.hasMany(ParkingSpace, { foreignKey: 'propertyId', as: 'parkingSpaces' });
+ParkingSpace.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+// ====== 车位 <-> 停车记录 ======
+ParkingSpace.hasMany(ParkingRecord, { foreignKey: 'spaceId', as: 'records' });
+ParkingRecord.belongsTo(ParkingSpace, { foreignKey: 'spaceId', as: 'space' });
+// ====== 房源/租客 <-> 投诉 ======
+Property.hasMany(Complaint, { foreignKey: 'propertyId', as: 'complaints' });
+Complaint.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Tenant.hasMany(Complaint, { foreignKey: 'tenantId', as: 'complaints' });
+Complaint.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+
+// ====== 房源 <-> 住户档案 ======
+Property.hasMany(Resident, { foreignKey: 'propertyId', as: 'residents' });
+Resident.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+
+// ====== 房源 <-> 设施设备 ======
+Property.hasMany(Facility, { foreignKey: 'propertyId', as: 'facilities' });
+Facility.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+// ====== 设施 <-> 维保记录 ======
+Facility.hasMany(FacilityMaintenance, { foreignKey: 'facilityId', as: 'maintenances' });
+FacilityMaintenance.belongsTo(Facility, { foreignKey: 'facilityId', as: 'facility' });
+
+// ====== 房源/租客 <-> 工单 ======
+Property.hasMany(WorkOrder, { foreignKey: 'propertyId', as: 'workOrders' });
+WorkOrder.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Tenant.hasMany(WorkOrder, { foreignKey: 'tenantId', as: 'workOrders' });
+WorkOrder.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+
+// ====== 房源/租客 <-> 仪表/抄表 ======
+Property.hasMany(Meter, { foreignKey: 'propertyId', as: 'meters' });
+Meter.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Tenant.hasMany(Meter, { foreignKey: 'tenantId', as: 'meters' });
+Meter.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+Meter.hasMany(MeterReading, { foreignKey: 'meterId', as: 'readings' });
+MeterReading.belongsTo(Meter, { foreignKey: 'meterId', as: 'meter' });
+Property.hasMany(MeterReading, { foreignKey: 'propertyId', as: 'meterReadings' });
+MeterReading.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Tenant.hasMany(MeterReading, { foreignKey: 'tenantId', as: 'meterReadings' });
+MeterReading.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+
+// ====== 房源 <-> 公共收益 ======
+Property.hasMany(CommonRevenue, { foreignKey: 'propertyId', as: 'commonRevenues' });
+CommonRevenue.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+// ====== 物料 <-> 出入库记录 ======
+Material.hasMany(InventoryRecord, { foreignKey: 'materialId', as: 'records' });
+InventoryRecord.belongsTo(Material, { foreignKey: 'materialId', as: 'material' });
+
+// ====== 科目 <-> 公共收益 ======
+ChartOfAccount.hasMany(CommonRevenue, { foreignKey: 'accountId', as: 'commonRevenues' });
+CommonRevenue.belongsTo(ChartOfAccount, { foreignKey: 'accountId', as: 'account' });
+
+// ====== 账单/合同/租客 <-> 发票 ======
+Bill.hasMany(Invoice, { foreignKey: 'billId', as: 'invoices' });
+Invoice.belongsTo(Bill, { foreignKey: 'billId', as: 'bill' });
+Contract.hasMany(Invoice, { foreignKey: 'contractId', as: 'invoices' });
+Invoice.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+Tenant.hasMany(Invoice, { foreignKey: 'tenantId', as: 'invoices' });
+Invoice.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+
+// ====== 项目 <-> 房源 ======
+Project.hasMany(Property, { foreignKey: 'projectId', as: 'properties' });
+Property.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+// ====== 线索 <-> 看房 ======
+Lead.hasMany(Viewing, { foreignKey: 'leadId', as: 'viewings' });
+Viewing.belongsTo(Lead, { foreignKey: 'leadId', as: 'lead' });
+Property.hasMany(Lead, { foreignKey: 'propertyId', as: 'leads' });
+Lead.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+// ====== 入住交接 <-> 合同/租客/房源 ======
+Contract.hasMany(MoveIn, { foreignKey: 'contractId', as: 'moveIns' });
+MoveIn.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+Tenant.hasMany(MoveIn, { foreignKey: 'tenantId', as: 'moveIns' });
+MoveIn.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+Property.hasMany(MoveIn, { foreignKey: 'propertyId', as: 'moveIns' });
+MoveIn.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+
+// ====== 装修 <-> 房源/租客 ======
+Property.hasMany(Decoration, { foreignKey: 'propertyId', as: 'decorations' });
+Decoration.belongsTo(Property, { foreignKey: 'propertyId', as: 'property' });
+Tenant.hasMany(Decoration, { foreignKey: 'tenantId', as: 'decorations' });
+Decoration.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
+
+// ====== 设施 <-> 维保计划 ======
+Facility.hasMany(MaintenancePlan, { foreignKey: 'facilityId', as: 'maintenancePlans' });
+MaintenancePlan.belongsTo(Facility, { foreignKey: 'facilityId', as: 'facility' });
+
 export {
   User, Property, Tenant, Contract, Bill, PaymentRecord,
   Voucher, VoucherEntry, AccountBook, ChartOfAccount,
@@ -178,4 +311,5 @@ export {
   Notification, AuditLog, DoorLock, DoorLockPassword,
   DoorLockKey, DoorLockLog, RoomStatusLog, IdCardReader, IdCardReadLog,
   FireInspection, FireEquipment, FireViolation, FireDrill,
+  Deposit, Checkout, ParkingSpace, ParkingRecord, Complaint, Resident, Facility, FacilityMaintenance, WorkOrder, Vendor, Meter, MeterReading, Announcement, CommonRevenue, Material, InventoryRecord, Invoice, Project, Lead, Viewing, MoveIn, Decoration, MaintenancePlan, FlowDefinition, ApprovalRequest, PropertyTask, PatrolRecord, Visitor, EquipmentCertification, RolePermission,
 };

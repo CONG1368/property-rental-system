@@ -23,12 +23,13 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="9" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
       <el-table-column type="selection" width="45" />
       <el-table-column label="账单编号/租客" width="170">
         <template #default="{ row }">
           <div class="bill-no-cell" style="cursor:pointer" @click="$router.push('/contract/detail/' + row.contract?.id)">
-            <div style="font-weight:600;color:#0A3D62;font-size:13px">{{ row.billNo }}</div>
+            <div style="font-weight:600;color:#1f2430;font-size:13px">{{ row.billNo }}</div>
             <div style="font-size:11px;color:#909399;margin-top:2px">{{ row.contract?.tenant?.name || '-' }} / {{ row.contract?.property?.name || '-' }}</div>
           </div>
         </template>
@@ -63,6 +64,9 @@
           </el-dropdown>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无账单" description="可点击右上角「生成账单」按合同批量生成，或手动创建单张账单" />
+      </template>
     </el-table>
 
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
@@ -86,7 +90,7 @@
         <el-form-item label="电费"><el-input-number v-model="createForm.electricFee" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="物业费"><el-input-number v-model="createForm.propertyFee" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="其他费用"><el-input-number v-model="createForm.otherAmount" :min="0" :precision="2" style="width:100%" /></el-form-item>
-        <el-form-item label="费用合计"><span style="font-weight:600;color:#0A3D62;font-size:16px">¥{{ computedCreateTotal.toFixed(2) }}</span></el-form-item>
+        <el-form-item label="费用合计"><span style="font-weight:600;color:#1f2430;font-size:16px">¥{{ computedCreateTotal.toFixed(2) }}</span></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="createVisible = false">取消</el-button>
@@ -345,7 +349,7 @@ onMounted(() => fetchData());
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .search-group { display: flex; gap: 10px; align-items: center; }
 .action-group { display: flex; gap: 10px; }
-h4 { margin: 0 0 8px; color: #0A3D62; font-size: 14px; }
+h4 { margin: 0 0 8px; color: #1f2430; font-size: 14px; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff; }
 .batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }
 </style>

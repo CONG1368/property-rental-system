@@ -1,0 +1,5 @@
+# 钩子与 shell 脚本必须保持 LF 换行：
+# Windows 上 core.autocrlf 会把 LF 换成 CRLF，带 CR 的脚本在 Git Bash 里会报
+# bad interpreter 或 command not found，导致钩子静默失效。
+.githooks/** text eol=lf
+*.sh text eol=lf

@@ -1,15 +1,47 @@
 // Design Tokens — Property Rental Management System
-// Colors
-$color-primary: #0A3D62;
-$color-accent: #F6B93B;
-$color-success: #00B894;
-$color-warning: #FF6B35;
-$color-info: #82CCDD;
-$color-bg-light: #DFE6E9;
-$color-text-title: #2C3E50;
-$color-text-body: #34495E;
-$color-text-aux: #7F8C8D;
+// ============================================================
+// 主题：湛蓝玻璃拟物（Glassmorphism·湛蓝）— 2026 主流风格
+// 依据：better-design + design-taste-frontend 设计准则
+// 要素：毛玻璃半透明卡片 / 渐变底 / 单一湛蓝强调 / 大圆角 / 无 emoji
+// ============================================================
+// Colors（湛蓝玻璃拟物）
+$color-primary: #4f7cf7;           // 强调（湛蓝）
+$color-accent: #3b66e0;            // 强调 hover
+$color-success: #10b981;
+$color-warning: #f59e0b;
+$color-danger: #ef4444;
+$color-info: #5b6472;
+// 背景（玻璃拟物渐变底）
+$color-bg: linear-gradient(135deg, #e3ecfb, #dbe6f8 45%, #e0edf7);
+$color-bg-fixed: #dde7f5;          // 渐变固定色（回退）
+// 卡片（半透明白 + 毛玻璃）
+$color-bg-elev: rgba(255, 255, 255, 0.62);
+$color-bg-elev-strong: rgba(255, 255, 255, 0.78);
+$color-bg-elev2: rgba(255, 255, 255, 0.42);
+$color-border: rgba(255, 255, 255, 0.72);
+$color-border-soft: rgba(255, 255, 255, 0.5);
+// 文字（深蓝灰）
+$color-text-title: #1f2430;
+$color-text-body: #3a4354;
+$color-text-aux: #5b6472;
+$color-text-subtle: #5f6675;    // 原 #8b93a3 仅 2.47:1，提深至 AA（见 docs/对比度检查报告.md）
 $color-white: #FFFFFF;
+// ------------------------------------------------------------
+// 无障碍文字变体（WCAG 2.1 AA ≥4.5:1）
+// 说明：$color-primary / $color-success 等原色继续用于「填充/标签底/图表」
+//      （UI 组件门槛 3:1 已满足）；下列 -text 变体专供「正文文字与细线图标」
+// ------------------------------------------------------------
+$color-primary-text: #2b57c9;        // 主色文字/链接（原 #4f7cf7 仅 3.03:1）
+$color-primary-text-hover: #1e50bd;  // 主色文字 hover
+$color-success-text: #0a7652;        // 成功文字（原 #10b981 仅 2.03:1）
+$color-warning-text: #8a5200;        // 警告文字（原 #f59e0b 仅 1.72:1，最严重）
+$color-danger-text: #bf2626;         // 危险文字（原 #ef4444 仅 3.01:1）
+$color-border-control: #6f8299;      // 交互控件边界（白描边仅 1.06:1，违反 SC 1.4.11）
+$color-on-dark-primary: #a8c2fc;     // 深色顶栏上的主色元素
+$color-on-dark-danger: #fca5a5;      // 深色顶栏上的红点/告警
+// 阴影（玻璃拟物：外阴影 + 内高光）
+$color-shadow: 0 8px 32px rgba(31, 41, 55, 0.14);
+$color-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 
 // Typography
 $font-family-base: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
@@ -20,10 +52,10 @@ $font-size-body: 12px;
 $font-size-aux: 10px;
 $font-size-label: 9px;
 
-// Radius
-$radius-sm: 4px;
-$radius-md: 8px;
-$radius-lg: 12px;
+// Radius（玻璃拟物大圆角）
+$radius-sm: 8px;
+$radius-md: 14px;
+$radius-lg: 20px;
 
 // Layout
 $top-nav-height: 56px;

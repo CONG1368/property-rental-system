@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { readFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { resolve, dirname, basename } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -7,7 +7,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const docsDir = resolve(__dirname, '../docs');
 const screenshotDir = resolve(docsDir, 'screenshots');
 const mdFile = resolve(docsDir, '使用说明书.md');
-const pdfFile = resolve(docsDir, '物业租赁综合管理系统-使用说明书-v1.0.3.pdf');
+// 版本号唯一来源：根 package.json（禁止在脚本里写死）
+const APP_VERSION = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf-8')).version;
+const BUILD_DATE = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+const pdfFile = resolve(docsDir, `物业租赁综合管理系统-使用说明书-v${APP_VERSION}.pdf`);
+
+// 生成与 GitHub 一致的标题锚点（目录内部跳转用）
+function slugify(text) {
+  return text.trim().toLowerCase().replace(/[.,:：、（）()]/g, '').replace(/\s+/g, '-');
+}
 
 function mdToHtml(md) {
   let html = md;
@@ -22,10 +30,21 @@ function mdToHtml(md) {
     return `<div style="text-align:center;margin:16px 0"><img src="data:${mime};base64,${b64}" alt="${alt}" style="max-width:100%;height:auto;border:1px solid #e0e0e0;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.1)" /><p style="font-size:9pt;color:#999;margin:6px 0 0">${alt}</p></div>`;
   });
 
-  // 标题
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  // 围栏代码块（先于其它规则处理，块内不再做 Markdown 替换）
+  const codeBlocks = [];
+  html = html.replace(/```[a-zA-Z]*\n([\s\S]*?)```/g, (m, body) => {
+    const esc = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    codeBlocks.push(`<pre>${esc}</pre>`);
+    return `@@CODEBLOCK${codeBlocks.length - 1}@@`;
+  });
+
+  // 标题（带锚点 id，供目录跳转）
+  html = html.replace(/^### (.+)$/gm, (m, t) => `<h3 id="${slugify(t)}">${t}</h3>`);
+  html = html.replace(/^## (.+)$/gm, (m, t) => `<h2 id="${slugify(t)}">${t}</h2>`);
+  html = html.replace(/^# (.+)$/gm, (m, t) => `<h1 id="${slugify(t)}">${t}</h1>`);
+
+  // 链接 [文案](#锚点 或 URL)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
   // 粗体
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -72,14 +91,21 @@ function mdToHtml(md) {
   // 清理
   html = html.replace(/<p>\s*<\/p>/g, '');
   html = html.replace(/<p>\s*(<h[123]|<table|<ul|<ol|<hr|<blockquote|<div)/g, '$1');
-  html = html.replace(/(<\/h[123]>|<\/table>|<\/ul>|<\/ol>|<\/blockquote>|<\/div>)\s*<\/p>/g, '$1');
+  html = html.replace(/(<\/h[123]>|<\/table>|<\/ul>|<\/ol>|<\/blockquote>|<\/div>|<\/pre>)\s*<\/p>/g, '$1');
+  html = html.replace(/<p>\s*(<pre)/g, '$1');
+
+  // 还原代码块
+  html = html.replace(/@@CODEBLOCK(\d+)@@/g, (m, i) => codeBlocks[Number(i)]);
 
   return html;
 }
 
 async function main() {
   console.log('[PDF] Reading Markdown...');
-  const md = readFileSync(mdFile, 'utf-8');
+  let md = readFileSync(mdFile, 'utf-8');
+  // 去掉 Markdown 自带的一级标题与版本引用行 —— PDF 由下方模板统一渲染标题块，
+  // 避免与 .md 在 GitHub 上直读时的标题重复。
+  md = md.replace(/^#\s+.+\r?\n(\s*\r?\n)?(>\s+.+\r?\n)?/, '');
   const bodyHtml = mdToHtml(md);
 
   const fullHtml = `<!DOCTYPE html>
@@ -155,15 +181,34 @@ async function main() {
     margin: 12px 0;
   }
   img { page-break-inside: avoid; }
+  pre {
+    background: #f5f7fa;
+    border: 1px solid #e0e4ea;
+    border-left: 3px solid #0A3D62;
+    padding: 8px 12px;
+    font-family: "Consolas", monospace;
+    font-size: 9pt;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    page-break-inside: avoid;
+  }
+  a { color: #1a5276; text-decoration: none; }
   .header-info { text-align: right; font-size: 9pt; color: #999; margin-bottom: 24px; }
 </style>
 </head>
 <body>
 <h1>物业租赁综合管理系统 — 使用说明书</h1>
-<p class="header-info">版本 v1.0.3 | 2026年6月7日</p>
+<p class="header-info">版本 v${APP_VERSION} | ${BUILD_DATE}</p>
 ${bodyHtml}
 </body>
 </html>`;
+
+  // --html: 额外落地中间 HTML，便于排查 Markdown 转换问题
+  if (process.argv.includes('--html')) {
+    const htmlPath = resolve(docsDir, '.manual-preview.html');
+    writeFileSync(htmlPath, fullHtml, 'utf-8');
+    console.log('[PDF] HTML written: ' + htmlPath);
+  }
 
   console.log('[PDF] Launching browser...');
   const browser = await chromium.launch();
@@ -180,7 +225,7 @@ ${bodyHtml}
     margin: { top: '1.8cm', bottom: '2cm', left: '2cm', right: '2cm' },
     printBackground: true,
     displayHeaderFooter: true,
-    headerTemplate: '<div style="font-size:8pt;color:#999;text-align:center;width:100%;padding:0 2cm;">物业租赁综合管理系统 — 使用说明书 v1.0.3</div>',
+    headerTemplate: `<div style="font-size:8pt;color:#999;text-align:center;width:100%;padding:0 2cm;">物业租赁综合管理系统 — 使用说明书 v${APP_VERSION}</div>`,
     footerTemplate: '<div style="font-size:8pt;color:#999;text-align:center;width:100%;padding:0 2cm;">第 <span class="pageNumber"></span> 页 / 共 <span class="totalPages"></span> 页</div>',
   });
 

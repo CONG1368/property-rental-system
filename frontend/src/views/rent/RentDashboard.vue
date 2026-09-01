@@ -40,11 +40,11 @@ import VChart from 'vue-echarts';
 use([CanvasRenderer, LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent]);
 
 const kpis = ref([
-  { label: '当月收缴率', value: '--', color: '#00B894' },
-  { label: '逾期率', value: '--', color: '#FF6B35' },
-  { label: '当月应收(万)', value: '--', color: '#0A3D62' },
-  { label: '当月实收(万)', value: '--', color: '#F6B93B' },
-  { label: '欠费户数', value: '--', color: '#FF6B35' },
+  { label: '当月收缴率', value: '--', color: '#10b981' },
+  { label: '逾期率', value: '--', color: '#f97316' },
+  { label: '当月应收(万)', value: '--', color: '#4f7cf7' },
+  { label: '当月实收(万)', value: '--', color: '#f59e0b' },
+  { label: '欠费户数', value: '--', color: '#f97316' },
 ]);
 
 const trendOption = ref({});
@@ -60,9 +60,9 @@ function buildTrendChart(months: string[], dueData: number[], collectedData: num
     xAxis: { type: 'category', data: months, axisLabel: { rotate: 45, fontSize: 10 } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => (v / 10000).toFixed(0) + '万' } },
     series: [
-      { name: '应收', type: 'line', data: dueData, smooth: true, lineStyle: { color: '#0A3D62' }, itemStyle: { color: '#0A3D62' } },
-      { name: '实收', type: 'line', data: collectedData, smooth: true, lineStyle: { color: '#00B894' }, itemStyle: { color: '#00B894' } },
-      { name: '欠费', type: 'line', data: overdueData, smooth: true, lineStyle: { color: '#FF6B35' }, itemStyle: { color: '#FF6B35' } },
+      { name: '应收', type: 'line', data: dueData, smooth: true, lineStyle: { color: '#4f7cf7' }, itemStyle: { color: '#4f7cf7' } },
+      { name: '实收', type: 'line', data: collectedData, smooth: true, lineStyle: { color: '#10b981' }, itemStyle: { color: '#10b981' } },
+      { name: '欠费', type: 'line', data: overdueData, smooth: true, lineStyle: { color: '#f97316' }, itemStyle: { color: '#f97316' } },
     ],
   };
 }
@@ -75,7 +75,7 @@ function buildOverdueChart(months: string[], rates: number[]) {
     yAxis: { type: 'value', axisLabel: { formatter: '{value}%' } },
     series: [{
       type: 'line', data: rates, smooth: true, areaStyle: { color: 'rgba(255,107,53,0.15)' },
-      lineStyle: { color: '#FF6B35' }, itemStyle: { color: '#FF6B35' },
+      lineStyle: { color: '#f97316' }, itemStyle: { color: '#f97316' },
     }],
   };
 }
@@ -100,7 +100,7 @@ function buildDunningChart(data: { level: string; count: number }[]) {
     xAxis: { type: 'value', axisLabel: { formatter: '{value}' } },
     yAxis: { type: 'category', data: data.map(d => d.level), axisLabel: { fontSize: 11 } },
     series: [{
-      type: 'bar', data: data.map(d => ({ value: d.count, itemStyle: { color: d.count > 0 ? '#FF6B35' : '#B2BEC3' } })),
+      type: 'bar', data: data.map(d => ({ value: d.count, itemStyle: { color: d.count > 0 ? '#f97316' : '#B2BEC3' } })),
       barMaxWidth: 30, label: { show: true, position: 'right' },
     }],
   };
@@ -111,11 +111,11 @@ onMounted(async () => {
     const res = await request.get('/dashboard/rent');
     const d = res.data;
     kpis.value = [
-      { label: '当月收缴率', value: d.collectionRate + '%', color: '#00B894' },
-      { label: '逾期率', value: d.overdueRate + '%', color: '#FF6B35' },
-      { label: '当月应收(万)', value: (d.monthlyDue / 10000).toFixed(1), color: '#0A3D62' },
-      { label: '当月实收(万)', value: (d.monthlyCollected / 10000).toFixed(1), color: '#F6B93B' },
-      { label: '欠费户数', value: String(d.arrearsCount), color: '#FF6B35' },
+      { label: '当月收缴率', value: d.collectionRate + '%', color: '#10b981' },
+      { label: '逾期率', value: d.overdueRate + '%', color: '#f97316' },
+      { label: '当月应收(万)', value: (d.monthlyDue / 10000).toFixed(1), color: '#4f7cf7' },
+      { label: '当月实收(万)', value: (d.monthlyCollected / 10000).toFixed(1), color: '#f59e0b' },
+      { label: '欠费户数', value: String(d.arrearsCount), color: '#f97316' },
     ];
 
     if (d.trend) {
@@ -144,7 +144,7 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .kpi-card { text-align: center; cursor: pointer; }
 .kpi-label { font-size: 12px; color: #7F8C8D; margin-bottom: 8px; }
 .kpi-value { font-size: 28px; font-weight: 700; }

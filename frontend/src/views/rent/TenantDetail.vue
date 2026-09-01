@@ -51,6 +51,9 @@
             <el-button size="small" @click="$router.push('/contract/detail/' + row.id)">查看</el-button>
           </template>
         </el-table-column>
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
       <el-empty v-if="!tenant.contracts?.length" description="暂无合同" />
     </el-card>

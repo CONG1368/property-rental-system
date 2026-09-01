@@ -37,7 +37,8 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="8" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
       <el-table-column type="selection" width="45" />
       <el-table-column prop="name" label="房源名称" width="180" />
       <el-table-column prop="buildingName" label="楼栋" width="80">
@@ -73,6 +74,9 @@
           </el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无房源" description="新增房源或使用批量导入，快速建立房源台账" />
+      </template>
     </el-table>
 
     <el-pagination

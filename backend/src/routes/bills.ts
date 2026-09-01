@@ -6,7 +6,9 @@ import Property from '../models/Property.js';
 import PaymentRecord from '../models/PaymentRecord.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { Op } from 'sequelize';
+import { getScopedContractIds, recordInScope } from '../services/data-scope.js';
 import { reconcilePayment } from '../services/payment-reconciler.js';
+import { requirePermission } from '../middleware/rbac.js';
 
 const router = Router();
 
@@ -23,6 +25,8 @@ router.get('/', async (req: AuthRequest, res) => {
     }
     if (period) where.period = period;
     if (contractId) where.contractId = Number(contractId);
+    const bScope = await getScopedContractIds(req.userId);
+    if (Array.isArray(bScope)) where.contractId = { [Op.in]: bScope };
 
     const { count, rows } = await Bill.findAndCountAll({
       where,
@@ -46,7 +50,7 @@ router.get('/', async (req: AuthRequest, res) => {
 import { generateBills } from '../services/bill-generator.js';
 
 // POST /api/bills — 手动创建账单
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requirePermission('rent', 'create'), async (req: AuthRequest, res) => {
   try {
     const { contractId, period, rentAmount, waterFee, electricFee, propertyFee, otherAmount, dueDate } = req.body;
     if (!contractId || !period || !dueDate) {
@@ -86,7 +90,7 @@ router.post('/', async (req: AuthRequest, res) => {
 });
 
 // DELETE /api/bills/:id — 删除账单
-router.delete('/:id', async (req: AuthRequest, res) => {
+router.delete('/:id', requirePermission('rent', 'delete'), async (req: AuthRequest, res) => {
   try {
     const bill = await Bill.findByPk(req.params.id);
     if (!bill) return res.status(404).json({ code: 404, message: '账单不存在' });
@@ -102,7 +106,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 });
 
 // POST /api/bills/generate — 手动生成账单
-router.post('/generate', async (req: AuthRequest, res) => {
+router.post('/generate', requirePermission('rent', 'create'), async (req: AuthRequest, res) => {
   try {
     const count = await generateBills();
     res.json({ code: 200, message: `成功生成${count}条账单`, data: { generated: count } });
@@ -164,6 +168,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
       ],
     });
     if (!bill) return res.status(404).json({ code: 404, message: '账单不存在' });
+    if (!(await recordInScope(bill, req.userId, 'bill'))) return res.status(403).json({ code: 403, message: '权限不足' });
     res.json({ code: 200, data: bill });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });
@@ -171,7 +176,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // PUT /api/bills/:id — 更新账单
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission('rent', 'update'), async (req: AuthRequest, res) => {
   try {
     const bill = await Bill.findByPk(req.params.id);
     if (!bill) return res.status(404).json({ code: 404, message: '账单不存在' });
@@ -183,7 +188,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
 });
 
 // POST /api/bills/:id/pay — 记录收款（对接对账引擎）
-router.post('/:id/pay', async (req: AuthRequest, res) => {
+router.post('/:id/pay', requirePermission('rent', 'approve'), async (req: AuthRequest, res) => {
   try {
     const bill = await Bill.findByPk(req.params.id);
     if (!bill) return res.status(404).json({ code: 404, message: '账单不存在' });

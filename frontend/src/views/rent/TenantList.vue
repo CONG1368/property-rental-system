@@ -24,7 +24,8 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <el-table :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
       <el-table-column type="selection" width="45" />
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column label="证件类型" width="100"><template #default="{ row }">{{ idTypeLabel(row.idType) }}</template></el-table-column>
@@ -38,6 +39,9 @@
           <el-popconfirm title="确定删除该租客?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template></el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无租客" description="新增租客后即可签订合同、生成账单" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 
@@ -47,6 +51,9 @@
         <el-form-item label="证件类型" prop="idType"><el-select v-model="form.idType" style="width:100%"><el-option label="身份证" value="身份证" /><el-option label="营业执照" value="营业执照" /><el-option label="护照" value="护照" /></el-select></el-form-item>
         <el-form-item label=" ">
           <IdCardReadButton mode="fill" @success="onIdCardRead" />
+          <el-upload :show-file-list="false" :auto-upload="false" :on-change="onOcrIdCard" accept="image/*" style="margin-left:8px">
+            <el-button size="small" type="primary">AI识别身份证</el-button>
+          </el-upload>
         </el-form-item>
         <el-form-item label="证件号" prop="idNumber"><el-input v-model="form.idNumber" /></el-form-item>
         <el-form-item label="手机号" prop="phone"><el-input v-model="form.phone" /></el-form-item>
@@ -64,7 +71,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import request from '@/api/request';
+import request, { apiBaseURL } from '@/api/request';
 import IdCardReadButton from '@/components/IdCardReadButton.vue';
 import { IdCardData } from '@/composables/useIdCardReader';
 
@@ -80,7 +87,7 @@ const selectedIds = computed(() => selectedRows.value.map(r => r.id));
 
 function idTypeLabel(v: string): string { return ({ '身份证': '身份证', '营业执照': '营业执照', '护照': '护照' } as Record<string, string>)[v] || v; }
 
-const form = ref({ name: '', idType: '身份证', idNumber: '', phone: '', email: '', contactPerson: '', status: '待入住', notes: '' });
+const form = ref({ name: '', idType: '身份证', idNumber: '', phone: '', email: '', contactPerson: '', status: '待入住', gender: '', birthDate: '', idAddress: '', notes: '' });
 const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   idType: [{ required: true, message: '请选择证件类型', trigger: 'change' }],
@@ -103,11 +110,11 @@ async function fetchData() {
 
 function showDialog(row?: any) {
   editingId.value = row?.id || null;
-  if (row) { form.value = { name: row.name, idType: row.idType, idNumber: row.idNumber, phone: row.phone, email: row.email || '', contactPerson: row.contactPerson || '', status: row.status, notes: row.notes || '' }; }
+  if (row) { form.value = { name: row.name, idType: row.idType, idNumber: row.idNumber, phone: row.phone, email: row.email || '', contactPerson: row.contactPerson || '', status: row.status, gender: row.gender || '', birthDate: row.birthDate || '', idAddress: row.idAddress || '', notes: row.notes || '' }; }
   dialogVisible.value = true;
 }
 
-function resetForm() { editingId.value = null; form.value = { name: '', idType: '身份证', idNumber: '', phone: '', email: '', contactPerson: '', status: '待入住', notes: '' }; }
+function resetForm() { editingId.value = null; form.value = { name: '', idType: '身份证', idNumber: '', phone: '', email: '', contactPerson: '', status: '待入住', gender: '', birthDate: '', idAddress: '', notes: '' }; }
 
 async function handleSubmit() {
   await formRef.value?.validate();
@@ -149,6 +156,22 @@ async function batchDelete() {
   fetchData();
 }
 
+async function onOcrIdCard(file: any) {
+  try {
+    const fd = new FormData(); fd.append('image', file?.raw || file); fd.append('docType', 'id-card');
+    const token = localStorage.getItem('accessToken') || '';
+    const resp = await fetch(apiBaseURL + '/ocr/recognize', { method: 'POST', headers: token ? { Authorization: 'Bearer ' + token } : {}, body: fd });
+    const data = await resp.json();
+    if (data.code !== 200) return ElMessage.error(data.message || '识别失败');
+    const f = data.data?.fields || {};
+    if (f.name) form.value.name = f.name;
+    if (f.idNumber) form.value.idNumber = f.idNumber;
+    if (f.gender) form.value.gender = f.gender;
+    if (f.birthDate) form.value.birthDate = f.birthDate;
+    if (f.address) form.value.idAddress = f.address;
+    ElMessage.success('AI 识别完成，请核对证件号');
+  } catch { ElMessage.error('识别失败'); }
+}
 function onIdCardRead(data: IdCardData) {
   form.value.name = data.name;
   form.value.idType = '身份证';

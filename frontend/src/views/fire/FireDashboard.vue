@@ -50,6 +50,9 @@
             <el-table-column prop="propertyName" label="房源" width="120" />
             <el-table-column prop="status" label="状态" width="90"><template #default="{row}"><el-tag :type="row.status==='已过期'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
             <el-table-column prop="nextCheckDate" label="下次检查" width="110" />
+                      <template #empty>
+              <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+            </template>
           </el-table>
         </el-card>
       </el-col>
@@ -68,7 +71,7 @@
     <el-row :gutter="12" style="margin-top:16px">
       <el-col :span="6" v-for="link in quickLinks" :key="link.path">
         <div class="quick-btn" @click="$router.push(link.path)">
-          <span style="font-size:20px;margin-right:6px">{{ link.icon }}</span><span>{{ link.label }}</span>
+          <el-icon :size="20" style="margin-right:6px;vertical-align:-4px"><component :is="link.icon" /></el-icon><span>{{ link.label }}</span>
         </div>
       </el-col>
     </el-row>
@@ -77,14 +80,15 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { Search, Box, Warning, Bell } from '@element-plus/icons-vue'
 import request from '@/api/request'
 
 const stats = ref<any>({})
 const quickLinks = [
-  { path: '/fire/inspections', label: '新增检查', icon: '🔍' },
-  { path: '/fire/equipment', label: '器材管理', icon: '🧯' },
-  { path: '/fire/violations', label: '违规记录', icon: '⚠️' },
-  { path: '/fire/drills', label: '演练记录', icon: '🔔' },
+  { path: '/fire/inspections', label: '新增检查', icon: Search },
+  { path: '/fire/equipment', label: '器材管理', icon: Box },
+  { path: '/fire/violations', label: '违规记录', icon: Warning },
+  { path: '/fire/drills', label: '演练记录', icon: Bell },
 ]
 
 onMounted(async () => {
@@ -96,10 +100,10 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .kpi-row { .kpi-card { background: #fff; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   &.warn { border-left: 3px solid #e6a23c; } &.danger { border-left: 3px solid #f56c6c; }
-  .kpi-value { font-size: 28px; font-weight: 700; color: #0A3D62; } .kpi-label { font-size: 13px; color: #909399; margin-top: 4px; }
+  .kpi-value { font-size: 28px; font-weight: 700; color: #1f2430; } .kpi-label { font-size: 13px; color: #909399; margin-top: 4px; }
 }}
 .quick-btn { background: #fff; border-radius: 8px; padding: 14px 16px; cursor: pointer; text-align: center; font-size: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); &:hover { background: #f0f5ff; } }
 </style>

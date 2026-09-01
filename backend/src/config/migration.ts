@@ -29,7 +29,20 @@ const MIGRATION_DEFINITIONS: ColumnMigration[] = [
       { name: 'buildingName', sqliteType: 'VARCHAR(50)', defaultValue: "''" },
       { name: 'roomNumber', sqliteType: 'VARCHAR(20)', defaultValue: "''" },
       { name: 'buildingOrder', sqliteType: 'INTEGER', defaultValue: '0' },
+      { name: 'projectId', sqliteType: 'INTEGER', defaultValue: 'NULL' },
       { name: 'floorOrder', sqliteType: 'INTEGER', defaultValue: '0' },
+    ],
+  },
+  {
+    tableName: 'fixed_assets',
+    columns: [
+      { name: 'lastDepreciationPeriod', sqliteType: 'VARCHAR(7)', defaultValue: "''" },
+    ],
+  },
+  {
+    tableName: 'work_orders',
+    columns: [
+      { name: 'facilityId', sqliteType: 'INTEGER', defaultValue: 'NULL' },
     ],
   },
   {
@@ -44,6 +57,23 @@ const MIGRATION_DEFINITIONS: ColumnMigration[] = [
       { name: 'idValidTo', sqliteType: 'VARCHAR(10)', defaultValue: "''" },
       { name: 'idPhoto', sqliteType: 'TEXT', defaultValue: "''" },
       { name: 'pendingClauses', sqliteType: 'TEXT', defaultValue: "'[]'" },
+      { name: 'loginPin', sqliteType: 'VARCHAR(6)', defaultValue: "''" },
+    ],
+  },
+  {
+    tableName: 'users',
+    columns: [
+      { name: 'projectIds', sqliteType: 'TEXT', defaultValue: "'[]'" },
+    ],
+  },
+  {
+    tableName: 'system_configs',
+    columns: [
+      { name: 'configGroup', sqliteType: 'VARCHAR(50)', defaultValue: "'其他'" },
+      { name: 'valueType', sqliteType: 'VARCHAR(20)', defaultValue: "'string'" },
+      { name: 'isSensitive', sqliteType: 'INTEGER', defaultValue: '0' },
+      { name: 'builtIn', sqliteType: 'INTEGER', defaultValue: '0' },
+      { name: 'extra', sqliteType: 'TEXT', defaultValue: "'{}'" },
     ],
   },
 ];

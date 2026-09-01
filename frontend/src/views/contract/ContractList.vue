@@ -32,7 +32,8 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <el-table
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="9" />
+    <el-table v-show="!(loading && !tableData.length)"
       :data="tableData" stripe v-loading="loading"
       @row-click="onRowClick"
       @selection-change="(rows: any[]) => selectedRows = rows"
@@ -91,6 +92,9 @@
           </el-popconfirm>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无合同" description="从「合同起草」创建新合同，或调整筛选条件重试" />
+      </template>
     </el-table>
     <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 
@@ -279,7 +283,7 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff; }
 .batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }

@@ -59,7 +59,7 @@
         <div class="card-title">实时告警</div>
         <div class="alert-ticker">
           <div class="alert-list" ref="alertListRef">
-            <div v-for="(a, i) in alerts" :key="i" class="alert-item">⚠ {{ a }}</div>
+            <div v-for="(a, i) in alerts" :key="i" class="alert-item"><el-icon :size="13" style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ a }}</div>
             <div v-if="alerts.length === 0" class="alert-empty">暂无告警</div>
           </div>
         </div>
@@ -70,6 +70,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { Warning } from '@element-plus/icons-vue';
 import { getRoomStats, getRoomAnalytics } from '@/api/properties';
 import { useWebSocket } from '@/composables/useWebSocket';
 import VChart from 'vue-echarts';
@@ -214,11 +215,37 @@ const sankeyOption = computed(() => {
     }
   });
   nodeSet.forEach(n => nodes.push({ name: n }));
-  statusFlow.value.forEach((f: any) => {
-    if (f.oldStatus && f.newStatus) {
-      links.push({ source: f.oldStatus, target: f.newStatus, value: Number(f.count) || 1 });
+
+  // 桑基图要求有向无环图（DAG），但真实房态流转天然带环：
+  // 空置→已锁定→空置、已出租→退租中→已出租 都是正常业务，直接塞给 ECharts 会抛
+  // "Sankey is a DAG, the original data has cycle!" 并让整个大屏白屏。
+  // 处理：按流转次数从高到低加入，遇到会形成环的边就丢弃（保留主干流向），并做自环过滤。
+  const adjacency = new Map<string, Set<string>>();
+  const reachable = (from: string, to: string): boolean => {
+    // 判断 to 是否已能到达 from —— 若能，则再加 from→to 就成环
+    const stack = [to];
+    const seen = new Set<string>();
+    while (stack.length) {
+      const cur = stack.pop()!;
+      if (cur === from) return true;
+      if (seen.has(cur)) continue;
+      seen.add(cur);
+      (adjacency.get(cur) || new Set()).forEach((n) => stack.push(n));
     }
-  });
+    return false;
+  };
+
+  const sorted = statusFlow.value
+    .filter((f: any) => f.oldStatus && f.newStatus && f.oldStatus !== f.newStatus)
+    .slice()
+    .sort((a: any, b: any) => (Number(b.count) || 0) - (Number(a.count) || 0));
+
+  for (const f of sorted) {
+    if (reachable(f.oldStatus, f.newStatus)) continue;   // 丢弃成环的次要流向
+    links.push({ source: f.oldStatus, target: f.newStatus, value: Number(f.count) || 1 });
+    if (!adjacency.has(f.oldStatus)) adjacency.set(f.oldStatus, new Set());
+    adjacency.get(f.oldStatus)!.add(f.newStatus);
+  }
   return {
     tooltip: { trigger: 'item' },
     series: [{

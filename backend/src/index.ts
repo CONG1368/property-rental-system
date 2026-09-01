@@ -147,12 +147,32 @@ async function start() {
     await seedContractTemplates();
     await seedIdCardReaders();
     await seedFireSafety();
+    // 业务枚举数据字典统一（幂等）
+    const { seedBusinessDicts, seedDefaultFlows } = await import('./services/dict-seed.js');
+    const dictCount = await seedBusinessDicts();
+    const flowCount = await seedDefaultFlows();
+    if (dictCount > 0) console.log('[Seed] Business dicts seeded:', dictCount);
     console.log('[Seed] All seed data ready');
   } catch (err: any) {
     console.error('[Seed] Data initialization error:', err.message);
     console.error('[Seed] Server is running — seed data will be retried on next restart');
   } finally {
     seedDataReady = true;
+  }
+
+  // Phase 3.5：定时任务调度器
+  // 必须在种子数据之后启动——账单生成等任务依赖基础数据；
+  // 默认开启，设 CRON_ENABLED=false 可关闭（运行中也可在「系统运维」页切换）
+  const cronEnabled = String(process.env.CRON_ENABLED ?? 'true').toLowerCase() !== 'false';
+  if (cronEnabled) {
+    try {
+      const { scheduler } = await import('./jobs/scheduler.js');
+      scheduler.start();
+    } catch (err: any) {
+      console.error('[Cron] 调度器启动失败（不影响主服务）:', err.message);
+    }
+  } else {
+    console.log('[Cron] 已按 CRON_ENABLED=false 跳过调度器启动');
   }
 
   // Phase 4：Redis（可选，失败自动退化）

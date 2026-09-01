@@ -16,6 +16,9 @@
         <el-table-column prop="overallScore" label="评分" width="70" />
         <el-table-column prop="nextInspectionDate" label="下次检查" width="110" />
         <el-table-column label="操作" width="120"><template #default="{row}"><el-button link size="small" @click.stop="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template></el-table-column>
+              <template #empty>
+          <EmptyState title="暂无检查记录" description="开展消防检查后记录会在此汇总" />
+        </template>
       </el-table>
       <el-pagination v-if="total>0" style="margin-top:12px" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
     </el-card>
@@ -83,5 +86,5 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 </style>

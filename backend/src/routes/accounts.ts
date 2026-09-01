@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { Op } from 'sequelize';
 import ChartOfAccount from '../models/ChartOfAccount.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/rbac.js';
+import { auditLog } from '../middleware/audit-log.js';
 
 const router = Router();
 
-router.get('/', async (req: AuthRequest, res) => {
+router.get('/', requirePermission('finance', 'read'), async (req: AuthRequest, res) => {
   try {
     const { bookId, keyword, ids, pageSize } = req.query;
     const where: any = {};
@@ -31,14 +33,14 @@ router.get('/', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requirePermission('finance', 'create'), auditLog('科目', '新增'), async (req: AuthRequest, res) => {
   try {
     const account = await ChartOfAccount.create(req.body);
     res.json({ code: 200, data: account, message: '科目创建成功' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission('finance', 'update'), auditLog('科目', '修改'), async (req: AuthRequest, res) => {
   try {
     const account = await ChartOfAccount.findByPk(req.params.id);
     if (!account) return res.status(404).json({ code: 404, message: '科目不存在' });
@@ -47,7 +49,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
-router.delete('/:id', async (req: AuthRequest, res) => {
+router.delete('/:id', requirePermission('finance', 'delete'), auditLog('account', '科目删除'), async (req: AuthRequest, res) => {
   try {
     const account = await ChartOfAccount.findByPk(req.params.id);
     if (!account) return res.status(404).json({ code: 404, message: '科目不存在' });

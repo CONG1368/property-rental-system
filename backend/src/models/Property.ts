@@ -3,7 +3,7 @@ import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database.js';
 
 interface PropertyAttributes {
-  id: number; name: string; type: '公寓'|'厂房'|'商铺'; subType: string;
+  id: number; projectId: number | null; name: string; type: '公寓'|'厂房'|'商铺'; subType: string;
   area: number; address: string; floor: string; unit: string;
   buildingName: string; roomNumber: string; buildingOrder: number; floorOrder: number;
   waterFeeRate: number; electricFeeRate: number; propertyFeeRate: number;
@@ -13,7 +13,7 @@ interface PropertyAttributes {
 }
 
 type PropertyCreationAttributes = Optional<PropertyAttributes,
-  'id' | 'buildingName' | 'roomNumber' | 'buildingOrder' | 'floorOrder' | 'deletedAt' | 'createdAt' | 'updatedAt'
+  'id' | 'projectId' | 'buildingName' | 'roomNumber' | 'buildingOrder' | 'floorOrder' | 'deletedAt' | 'createdAt' | 'updatedAt'
 >;
 
 class Property extends BaseModel<PropertyAttributes, PropertyCreationAttributes> {
@@ -22,6 +22,7 @@ class Property extends BaseModel<PropertyAttributes, PropertyCreationAttributes>
 Property.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
   name: { type: DataTypes.STRING(100), allowNull: false },
+  projectId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
   type: { type: DataTypes.ENUM('公寓','厂房','商铺'), allowNull: false },
   subType: { type: DataTypes.STRING(50), defaultValue: '' },
   area: { type: DataTypes.DECIMAL(10, 2), allowNull: false },

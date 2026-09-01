@@ -91,7 +91,7 @@
         <el-descriptions-item label="月租金">¥{{ Number(contract.rentAmount || 0).toFixed(2) }}（大写：{{ chineseRent }}）</el-descriptions-item>
         <el-descriptions-item label="付款周期">{{ paymentCycleLabel }}</el-descriptions-item>
         <el-descriptions-item label="首期应交租金" :span="1">
-          <span style="font-weight:bold;color:#0A3D62;font-size:16px">¥{{ periodRent.toFixed(2) }}</span>
+          <span style="font-weight:bold;color:#1f2430;font-size:16px">¥{{ periodRent.toFixed(2) }}</span>
           <span style="font-size:12px;color:#909399">（大写：{{ chinesePeriodRent }}）</span>
         </el-descriptions-item>
         <el-descriptions-item label="押金">¥{{ Number(contract.depositAmount || 0).toFixed(2) }}</el-descriptions-item>
@@ -161,7 +161,7 @@
         <el-timeline>
           <el-timeline-item v-for="(c,i) in fireSafety.clauses" :key="i" :timestamp="'第'+(i+1)+'条'" placement="top">
             <el-card shadow="hover" size="small">
-              <h4 style="margin:0 0 8px;color:#0A3D62">{{ c.title || '(无标题)' }}</h4>
+              <h4 style="margin:0 0 8px;color:#1f2430">{{ c.title || '(无标题)' }}</h4>
               <p style="margin:0;font-size:13px;color:#606266;white-space:pre-wrap">{{ c.content }}</p>
             </el-card>
           </el-timeline-item>
@@ -198,6 +198,9 @@
         <el-table-column prop="name" label="文件名" min-width="200" show-overflow-tooltip />
         <el-table-column label="大小" width="100"><template #default="{ row }">{{ formatFileSize(row.size) }}</template></el-table-column>
         <el-table-column prop="uploadedAt" label="上传时间" width="170"><template #default="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template></el-table-column>
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
     </el-card>
 
@@ -212,7 +215,7 @@
           placement="top"
         >
           <el-card shadow="hover" size="small">
-            <h4 style="margin:0 0 8px 0;color:#0A3D62">{{ clause.title || '(无标题)' }}</h4>
+            <h4 style="margin:0 0 8px 0;color:#1f2430">{{ clause.title || '(无标题)' }}</h4>
             <p style="margin:0;font-size:13px;color:#606266;white-space:pre-wrap">{{ clause.content }}</p>
           </el-card>
         </el-timeline-item>

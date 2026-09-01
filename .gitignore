@@ -19,6 +19,8 @@ skills/
 .mcp.json
 .playwright-mcp/
 test_resp.json
+.regression_*.txt
+.test_api_out*.txt
 tok.json
 tok.txt
 bash.exe.stackdump
@@ -44,3 +46,18 @@ runtime/*.zip
 
 # 图标源文件（build/icon.* 入仓库）
 build/icon.png
+
+# 运行/测试产物
+backend/reports/
+test-results/
+
+# 本地临时调研文件（下划线前缀）与主题预览截图
+_*
+_preview_shots/
+
+# 根目录调试截图与 Playwright 页面快照（历史上误提交过 25 个，勿再入库）
+/*.png
+/*-snap.yml
+/page-*.yml
+/login*.yml
+/current-page.yml
