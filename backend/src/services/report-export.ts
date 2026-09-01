@@ -1,5 +1,5 @@
 import { Op, fn, col } from 'sequelize';
-import * as XLSX from 'xlsx';
+import { buildWorkbookBuffer } from '../utils/excel.js';
 import Bill from '../models/Bill.js';
 import Contract from '../models/Contract.js';
 import Property from '../models/Property.js';
@@ -114,11 +114,11 @@ export async function getReportRows(key: string, params: any): Promise<{ rows: a
 
 // 服务端多表导出：一次生成多 Sheet Excel 并返回 Buffer
 export async function buildExcelExport(reportKeys: string[], params: any): Promise<{ buffer: Buffer; filename: string }> {
-  const wb = XLSX.utils.book_new();
+  const sheets = [];
   for (const key of reportKeys) {
     const { rows, columns, title } = await getReportRows(key, params);
-    if (rows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), title.slice(0, 31));
+    if (rows.length) sheets.push({ name: title, rows, columns });
   }
-  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const buffer = await buildWorkbookBuffer(sheets);
   return { buffer, filename: `报表包_${dayjs().format('YYYYMMDD')}.xlsx` };
 }

@@ -10,20 +10,20 @@ import { AuthRequest } from '../middleware/auth.js';
 import { Op, fn, col, literal } from 'sequelize';
 import multer from 'multer';
 import path from 'path';
-import * as XLSX from 'xlsx';
+import { readSheetAsObjects } from '../utils/excel.js';
 import { transitionRoomStatus, getValidTransitions, ROOM_STATUSES } from '../services/room-status-workflow.js';
 import { broadcast } from '../websocket/index.js';
 
 const router = Router();
 const upload = multer({
   dest: 'uploads/',
-  // 10MB 上限：xlsx 解析库存在未修补的 ReDoS 告警（GHSA-5pgg-2g8v-p4x9，npm 版停更在 0.18.5），
-  // 限制输入体积可显著削弱其可利用性，且正常房源导入表远小于该值
+  // 10MB 上限（正常房源导入表远小于此），防超大文件拖垮解析
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    if (['.xls', '.xlsx'].includes(ext)) cb(null, true);
-    else cb(new Error('仅支持 Excel (.xlsx/.xls) 格式'));
+    // exceljs 只支持 .xlsx（OOXML），旧版 .xls（BIFF 二进制）不支持
+    if (ext === '.xlsx') cb(null, true);
+    else cb(new Error('仅支持 .xlsx 格式；若是老版 .xls，请在 Excel/WPS 中「另存为 .xlsx」后重试'));
   },
 });
 
@@ -590,9 +590,7 @@ router.post('/', async (req: AuthRequest, res) => {
 router.post('/import', upload.single('file'), async (req: AuthRequest, res) => {
   try {
     if (!req.file) return res.status(400).json({ code: 400, message: '请上传Excel文件' });
-    const workbook = XLSX.readFile(req.file.path);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+    const rows: any[] = await readSheetAsObjects(req.file.path);
 
     let imported = 0;
     for (const row of rows) {

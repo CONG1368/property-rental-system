@@ -21,9 +21,10 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB 上限，防 DoS
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowed = ['.xlsx', '.xls', '.csv'];
+    // exceljs 不支持旧版 .xls（BIFF 二进制），仅收 .xlsx / .csv
+    const allowed = ['.xlsx', '.csv'];
     if (allowed.includes(ext)) cb(null, true);
-    else cb(new Error('仅支持 Excel/CSV 银行对账单文件'));
+    else cb(new Error('仅支持 .xlsx / .csv 银行对账单；老版 .xls 请另存为 .xlsx 后重试'));
   },
 });
 

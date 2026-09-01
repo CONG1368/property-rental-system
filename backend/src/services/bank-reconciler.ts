@@ -1,6 +1,6 @@
 import PaymentRecord from '../models/PaymentRecord.js';
 import { Op } from 'sequelize';
-import * as XLSX from 'xlsx';
+import { readSheetAsObjects } from '../utils/excel.js';
 
 /**
  * 银行对账服务
@@ -28,13 +28,11 @@ interface ReconciliationResult {
  * @param filePath 上传的银行账单文件路径
  * @param bankFormat 银行格式：'icbc' | 'ccb' | 'boc' | 'cmb' | 'generic'
  */
-export function parseBankStatement(
+export async function parseBankStatement(
   filePath: string,
   bankFormat: string = 'generic'
-): BankStatementRow[] {
-  const workbook = XLSX.readFile(filePath);
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rawRows: any[] = XLSX.utils.sheet_to_json(sheet);
+): Promise<BankStatementRow[]> {
+  const rawRows: any[] = await readSheetAsObjects(filePath);
 
   const rows: BankStatementRow[] = [];
 
@@ -78,7 +76,7 @@ export async function reconcileBankStatement(
   startDate?: string,
   endDate?: string
 ): Promise<ReconciliationResult> {
-  const bankRows = parseBankStatement(filePath, bankFormat);
+  const bankRows = await parseBankStatement(filePath, bankFormat);
 
   // 获取系统收款记录
   const where: any = {};

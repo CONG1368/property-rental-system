@@ -204,7 +204,7 @@ use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, Canv
 import { Document, MagicStick } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
-import * as XLSX from 'xlsx';
+import { downloadWorkbook } from '@/utils/excel';
 import { exportTextPDF } from '@/utils/print-service';
 
 // ---- 周期选项 ----
@@ -377,24 +377,22 @@ async function doBatchExport() {
   if (!batchSelected.value.length) return ElMessage.warning('请至少选择一张报表');
   batchLoading.value = true;
   try {
-    const wb = XLSX.utils.book_new();
+    const sheets: { name: string; rows: any[] }[] = [];
     for (const title of batchSelected.value) {
       const r = reports.value.find((x: any) => x.title === title);
       if (!r || !r.endpoint) continue;
       try {
         const res = await request.get(r.endpoint, { params: batchBuildParams(r), silent: true });
         const d: any = res.data || {};
-        let added = false;
         for (const k of Object.keys(d)) {
           if (Array.isArray(d[k]) && d[k].length && typeof d[k][0] === 'object') {
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(d[k]), (title + '-' + k).slice(0, 31));
-            added = true;
+            sheets.push({ name: (title + '-' + k).slice(0, 31), rows: d[k] });
           }
         }
       } catch { /* 跳过失败报表 */ }
     }
-    if (!wb.SheetNames.length) return ElMessage.warning('所选报表无可导出数据');
-    XLSX.writeFile(wb, `报表包_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    if (!sheets.length) return ElMessage.warning('所选报表无可导出数据');
+    await downloadWorkbook(sheets, `报表包_${new Date().toISOString().slice(0, 10)}.xlsx`);
     ElMessage.success('批量导出成功');
   } finally { batchLoading.value = false; }
 }
@@ -484,28 +482,24 @@ async function openReport(r: any) {
 }
 
 // ---- Excel 导出 ----
-function handleExport() {
-  const wb = XLSX.utils.book_new();
+async function handleExport() {
   const title = currentReport.value?.title || '报表';
   const now = new Date().toISOString().slice(0, 10);
+  const sheets: { name: string; rows: any[] }[] = [];
+  const push = (name: string, rows: any[]) => { if (rows?.length) sheets.push({ name, rows }); };
 
   if (reportType.value === 'balance') {
-    if (reportState.assets?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.assets), '资产');
-    if (reportState.liabilities?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.liabilities), '负债');
-    if (reportState.equity?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.equity), '权益');
+    push('资产', reportState.assets); push('负债', reportState.liabilities); push('权益', reportState.equity);
   } else if (reportType.value === 'income') {
-    if (reportState.revenue?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.revenue), '收入');
-    if (reportState.costs?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.costs), '成本费用');
+    push('收入', reportState.revenue); push('成本费用', reportState.costs);
   } else if (reportType.value === 'cashflow') {
-    if (reportState.operating?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.operating), '经营活动');
-    if (reportState.investing?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.investing), '投资活动');
-    if (reportState.financing?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.financing), '筹资活动');
+    push('经营活动', reportState.operating); push('投资活动', reportState.investing); push('筹资活动', reportState.financing);
   } else {
-    if (reportState.rows?.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reportState.rows), 'Sheet1');
+    push('Sheet1', reportState.rows);
   }
 
-  if (!wb.SheetNames.length) { ElMessage.warning('没有可导出的数据'); return; }
-  XLSX.writeFile(wb, `${title}_${now}.xlsx`);
+  if (!sheets.length) { ElMessage.warning('没有可导出的数据'); return; }
+  await downloadWorkbook(sheets, `${title}_${now}.xlsx`);
   ElMessage.success('Excel导出成功');
 }
 

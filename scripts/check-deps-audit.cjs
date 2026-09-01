@@ -20,12 +20,9 @@ const FAIL_LEVEL = ORDER[levelArg] !== undefined ? ORDER[levelArg] : ORDER.high;
 // ============================================================
 // 豁免清单：上游无补丁、需要产品决策的项
 // ============================================================
-const ALLOWLIST = {
-  xlsx: {
-    reason: 'SheetJS 的 npm 包停更在 0.18.5，官方补丁只在自有 CDN 发布；替换方案（CDN 版 / 统一到 exceljs）评估中',
-    until: '2026-12-31',
-  },
-};
+// 当前为空：xlsx 已全量迁移到 exceljs（前后端均已移除依赖），无需再豁免。
+// 新增豁免必须写明理由与复审期限，过期即门禁失败。
+const ALLOWLIST = {};
 
 function auditScope(scope) {
   const cwd = path.join(root, scope);

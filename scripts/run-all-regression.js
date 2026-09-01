@@ -31,6 +31,8 @@ const nodeTests = [
   'e2e-newmodules-regression.js',
   'e2e-new-modules.js',
   'e2e-uncovered-pages.js',
+  'verify-excel-import.js',
+  'verify-websocket.js',
   'verify-dashboard.js',
   'verify-system-settings.js',
   'verify-uncovered-api.js',
@@ -85,6 +87,9 @@ staticTests.forEach(runNode);
 console.log('\n########## B 段：类型与构建门禁（无需服务） ##########');
 runCmd('frontend vue-tsc --noEmit', 'npx', ['vue-tsc', '--noEmit'], path.join(root, 'frontend'));
 runCmd('backend tsc --noEmit', 'npx', ['tsc', '--noEmit'], path.join(root, 'backend'));
+// 单元测试（纯函数，不连库不起服务，CI 可跑）
+runCmd('backend vitest', 'npx', ['vitest', 'run'], path.join(root, 'backend'));
+runCmd('frontend vitest', 'npx', ['vitest', 'run'], path.join(root, 'frontend'));
 
 // ESM 产物校验只在已构建时有意义（校验的是 backend/dist）
 if (fs.existsSync(path.join(root, 'backend/dist'))) {

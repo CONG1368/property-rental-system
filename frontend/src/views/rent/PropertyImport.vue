@@ -2,10 +2,10 @@
   <div class="property-import">
     <h2 class="page-title">批量导入房源</h2>
     <el-card>
-      <el-upload drag :auto-upload="false" :on-change="handleFileChange" :limit="1" accept=".xlsx,.xls">
+      <el-upload drag :auto-upload="false" :on-change="handleFileChange" :limit="1" accept=".xlsx">
         <el-icon :size="48" color="#2b57c9"><Upload /></el-icon>
         <div class="upload-text">将Excel文件拖到此处，或点击上传</div>
-        <template #tip><div class="upload-tip">支持 .xlsx / .xls 格式，第一行为表头</div></template>
+        <template #tip><div class="upload-tip">仅支持 .xlsx 格式，第一行为表头（老版 .xls 请先另存为 .xlsx）</div></template>
       </el-upload>
       <div v-if="previewData.length" style="margin-top:16px">
         <h4>预览数据 ({{ previewData.length }} 条)</h4>
@@ -26,7 +26,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Upload } from '@element-plus/icons-vue';
-import * as XLSX from 'xlsx';
+import { readFileAsObjects } from '@/utils/excel';
 import { importProperties } from '@/api/properties';
 
 const router = useRouter();
@@ -34,15 +34,20 @@ const previewData = ref<any[]>([]);
 const file = ref<File | null>(null);
 const importing = ref(false);
 
-function handleFileChange(uploadFile: any) {
+async function handleFileChange(uploadFile: any) {
   file.value = uploadFile.raw;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const wb = XLSX.read(e.target?.result, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    previewData.value = XLSX.utils.sheet_to_json(ws);
-  };
-  reader.readAsArrayBuffer(file.value!);
+  try {
+    // exceljs 只支持 .xlsx；老版 .xls 直接给出可操作提示，避免解析抛错后无从下手
+    if (!/\.xlsx$/i.test(file.value?.name || '')) {
+      previewData.value = [];
+      ElMessage.warning('仅支持 .xlsx 格式，老版 .xls 请在 Excel/WPS 中「另存为 .xlsx」后重试');
+      return;
+    }
+    previewData.value = await readFileAsObjects(file.value!);
+  } catch (e: any) {
+    previewData.value = [];
+    ElMessage.error('解析失败：' + (e?.message || '文件格式不正确'));
+  }
 }
 
 async function handleImport() {

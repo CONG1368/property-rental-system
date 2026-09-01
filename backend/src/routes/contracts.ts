@@ -16,7 +16,7 @@ import dayjs from 'dayjs';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import XLSX from 'xlsx';
+import { readSheetAsObjects } from '../utils/excel.js';
 import ContractTemplate from '../models/ContractTemplate.js';
 import ContractClause from '../models/ContractClause.js';
 import mammoth from 'mammoth';
@@ -37,13 +37,14 @@ const importUploadDir = 'uploads/imports';
 if (!fs.existsSync(importUploadDir)) fs.mkdirSync(importUploadDir, { recursive: true });
 const importUpload = multer({
   dest: importUploadDir,
-  // 20MB 上限：同样为 xlsx 未修补 ReDoS 的兜底缓解（Word/PDF 条款文件通常也远小于此）
+  // 20MB 上限（条款文件通常远小于此）
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const allowed = ['.xlsx', '.xls', '.docx', '.doc', '.pdf'];
+    // Excel 仅支持 .xlsx —— exceljs 不支持旧版 .xls（BIFF 二进制）
+    const allowed = ['.xlsx', '.docx', '.doc', '.pdf'];
     if (allowed.includes(ext)) cb(null, true);
-    else cb(new Error('仅支持 Excel/Word/PDF 格式'));
+    else cb(new Error('仅支持 .xlsx / Word / PDF；老版 .xls 请另存为 .xlsx 后重试'));
   },
 });
 const contractUpload = multer({
@@ -334,9 +335,7 @@ async function handleExcelImport(req: AuthRequest, res: any) {
   try {
     const file = (req as any).file;
     if (!file) return res.status(400).json({ code: 400, message: '请上传文件' });
-    const wb = XLSX.readFile(file.path);
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
+    const rows: any[] = await readSheetAsObjects(file.path);
     if (rows.length === 0) return res.status(400).json({ code: 400, message: '文件中无数据' });
 
     const result: any = { total: rows.length, matchedTenants: 0, unmatched: [] as string[], updatedContracts: 0, skippedNoContract: 0, pendingTenants: 0, _clauses: [] as any[] };

@@ -539,20 +539,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 
 ### 房态流转系统
 
-**数据模型**：`RoomStatusLog`（`backend/src/models/RoomStatusLog.ts`）— 记录每次房源状态变更的完整审计轨迹：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `propertyId` | INTEGER | 关联房源 ID |
-| `oldStatus` | STRING(20) | 变更前状态 |
-| `newStatus` | STRING(20) | 变更后状态 |
-| `action` | ENUM | `manual` / `contract_link` / `batch` / `system` |
-| `operatorId` | INTEGER | 操作人用户 ID |
-| `notes` | TEXT | 变更备注 |
-| `linkedContractId` | INTEGER (可空) | 关联合同 ID |
-| `linkedTenantId` | INTEGER (可空) | 关联租客 ID |
-
-注意：该模型 `updatedAt: false`（只有 createdAt），仅追加不可修改。
+**数据模型**：`RoomStatusLog` 记录每次房态变更的审计轨迹——`propertyId`/`oldStatus`/`newStatus`/`action`(manual|contract_link|batch|system)/`operatorId`/`notes`/`linkedContractId`/`linkedTenantId`；`updatedAt: false`，**仅追加不可修改**。
 
 **状态机规则**：`backend/src/services/room-status-workflow.ts` — 9 种房源状态，定义了严格的流转规则：
 
@@ -783,21 +770,22 @@ off('room:status-changed', callback);
 
 ### 依赖漏洞治理（当前状态与决策）
 
-生产依赖漏洞（`npm audit --omit=dev`）从 **23 降到 2**（前后端各剩 xlsx 一条）。处置分三类：
+生产依赖漏洞（`npm audit --omit=dev`）**23 → 0**（前后端均为 0）。处置分三类：
 
 1. **无痛升级**：`npm audit fix` 修掉 15 个（含唯一 critical `tar` 与多个 high），只动 lockfile。
 2. **根因替代升级**：
    - `uuid<11.1.1` 一条告警把 `node-cron`/`sequelize`/`exceljs` 三个库一起标红。后端 `uuid` 是**未被引用的直接依赖**，已删除；再用 `overrides: { "uuid": "^11.1.1" }` 抬高传递依赖版本，三个库**无需大版本升级**即消除告警。
    - `echarts` XSS（<6.1.0）：升级到 `echarts@6` + `vue-echarts@8`。5 个图表页用的是模块化 `use([...])` API，升级无需改代码；已验证类型检查、生产构建、80/80 页面回归与 4 个图表页 canvas 渲染。
    - **禁止 `npm audit fix --force`**：npm 给 `sequelize` 的"修复"是 3.30.0、`exceljs` 是 3.4.0——**都是降级**，执行会把项目打回上古版本。
-3. **上游无补丁（xlsx）**：SheetJS 的 npm 包停更在 0.18.5（registry latest 即 0.18.5），补丁只在其自有 CDN 发布。当前按 ALLOWLIST 豁免并设复审期限，同时做了缓解：解析入口加体积上限（房源导入 10MB、条款导入 20MB，银行对账早有 5MB）。**真正的解法**是替换——后端 3 处 `XLSX.readFile`（bank-reconciler / contracts / properties）迁到已在用的 `exceljs`，前端 2 处 `XLSX.read`（ClauseImport / PropertyImport）是上传前的本地预览，可下沉到后端接口。
+3. **上游无补丁 → 换库（xlsx 已彻底移除）**：SheetJS 的 npm 包停更在 0.18.5，两条 high 在 npm 渠道永远修不掉。已全量迁到 `exceljs`：后端 `utils/excel.ts`、前端 `utils/excel.ts` 提供同语义的 `readSheetAsObjects` / `buildWorkbook*`，8 处调用点改写完毕，前后端 `xlsx` 依赖均已卸载。
+   **代价（必须知道）**：exceljs **不支持旧版 .xls（BIFF 二进制）**，所有上传入口已收紧为 `.xlsx`，并给出「请另存为 .xlsx」提示（房源导入 / 条款导入 / 银行对账）。回归脚本 `verify-excel-import.js` 覆盖导入解析、.xls 拒绝、多表导出。
 
 ### 全链路回归（发版前必跑）
 
-**一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **18 项**、分三段执行，全通过退出码 0：
+**一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **23 项**、分三段执行，全通过退出码 0：
 
 - **A 段 静态门禁**（无需服务）：`check-static-rules` → `check-contrast` → `check-deps-audit`（生产依赖漏洞，需 registry，离线自动跳过；上游无补丁项走 ALLOWLIST 豁免且有复审期限）
-- **B 段 类型与构建门禁**（无需服务）：`frontend vue-tsc --noEmit` → `backend tsc --noEmit` → `verify-esm-build`（仅当 `backend/dist` 存在，否则显式跳过、不计失败）
+- **B 段 类型/单测/构建门禁**（无需服务）：`vue-tsc` → `tsc` → **backend vitest（12 用例）** → **frontend vitest（11 用例）** → `verify-esm-build`（仅当 `backend/dist` 存在，否则显式跳过、不计失败）
 - **C 段 运行时回归**（需 dev）：见下方顺序
 
 `npm run test:static` 只跑 A+B 段——**这是唯一能在纯 CI 环境（checkout + install）跑通的部分**，C 段依赖本地 dev 服务。
@@ -808,7 +796,7 @@ off('room:status-changed', callback);
 
 **注意**：CI 与钩子都只是**检查**，真正的"不通过就合不进去"要靠仓库 ruleset 的 required status checks（见 `protect-main`）。
 
-C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modules` → `e2e-uncovered-pages` → `verify-dashboard` → `verify-system-settings` → `verify-uncovered-api` → `verify-ux-states` → `permission-regression` → `e2e-permission-matrix` → `e2e-confirm-password` → `verify-external-providers`（tsx 运行） → `test-api.sh`（自动探测 Git Bash，找不到则显式跳过、不计失败）。
+C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modules` → `e2e-uncovered-pages` → `verify-excel-import` → `verify-websocket` → `verify-dashboard` → `verify-system-settings` → `verify-uncovered-api` → `verify-ux-states` → `permission-regression` → `e2e-permission-matrix` → `e2e-confirm-password` → `verify-external-providers`（tsx 运行） → `test-api.sh`（自动探测 Git Bash，找不到则显式跳过、不计失败）。
 
 **顺序约束**：`permission-regression` 必须在 `e2e-permission-matrix` 之前——后者会写入角色权限定制（结束时通过 `/api/permissions/reset` 还原），顺序颠倒会污染前者的基线断言。
 
@@ -846,9 +834,11 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-system-settings.js` | 系统设置模块运行时回归（登录/配置只读/二次确认/非管理员/审计/字典/运维，9 用例）；需先启动 dev 后端 |
 | `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
 | `e2e-new-modules.js` | 新增模块 E2E |
-| `run-all-regression.js` | **全链路回归入口**：串联 18 项，分 A 静态 / B 类型构建 / C 运行时 三段；`--static` 只跑 A+B |
+| `run-all-regression.js` | **全链路回归入口**：串联 23 项，分 A 静态 / B 类型+单测+构建 / C 运行时 三段；`--static` 只跑 A+B |
 | `verify-uncovered-api.js` | 零覆盖模块 API 回归（door-locks 全生命周期 + 读卡器/通知/审批请求/简报/导出/租户登录/OCR/智能问数/物业自动化，50 用例）；对种子门锁只做净零操作 |
 | `e2e-uncovered-pages.js` | 零覆盖页面渲染回归（消防 5 页 + 房态看板 3 页 + 门锁/起草/条款导入/打印设置/读卡器/参数/运维/门户，18 页 80 用例，带截图） |
+| `verify-excel-import.js` | Excel 链路回归（房源/条款导入解析、.xls 拒绝、服务端多表导出，12 用例）；迁 exceljs 后的守护 |
+| `verify-websocket.js` | WebSocket 广播回归（房态变更/批量变更事件、载荷结构、断开后服务健康，11 用例）；对种子房源做净零流转 |
 | `check-deps-audit.cjs` | **依赖漏洞门禁**（`npm audit --omit=dev`，high/critical 阻断；xlsx 等上游无补丁项在 ALLOWLIST 豁免并带复审期限） |
 | `check-static-rules.cjs` | **静态铁律门禁**（6 条：ANTI-EMOJI / 旧主题色 / 版本号硬编码 / 生产 URL 硬编码 / multer fileFilter / 财务写端点中间件），无需服务，行尾 `ci-allow:<规则号>` 可豁免 |
 | `verify-external-providers.ts` | 短信/电子签算法自检（编码规则/签名确定性/TC3 派生链/未配置降级，21 用例）；用 `cd backend && npx tsx ../scripts/xxx` 运行 |

@@ -125,7 +125,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, MagicStick } from '@element-plus/icons-vue'
-import * as XLSX from 'xlsx'
+import { readFileAsObjects, buildWorkbookBlob } from '@/utils/excel'
 import request, { apiBaseURL } from '@/api/request'
 
 const uploadRef = ref<any>(null)
@@ -163,26 +163,25 @@ function handleFileChange(file: any) {
   }
 }
 
-function parseExcel(file: File) {
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    try {
-      const wb = XLSX.read(e.target?.result, { type: 'array' })
-      const sheet = wb.Sheets[wb.SheetNames[0]]
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet)
-      excelRows.value = rows.map((r: any) => ({
-        name: r['租客姓名'] || r['name'] || '',
-        phone: r['租客手机'] || r['phone'] || '',
-        title: r['条款标题'] || r['title'] || '',
-        content: r['条款内容'] || r['content'] || '',
-        sortOrder: r['排序'] || r['sortOrder'] || 999,
-      }))
-      excelPreview.value = excelRows.value.slice(0, 10)
-    } catch {
-      ElMessage.error('Excel 解析失败')
+async function parseExcel(file: File) {
+  try {
+    // exceljs 只支持 .xlsx；老版 .xls 先给出可操作提示
+    if (!/\.xlsx$/i.test(file.name)) {
+      ElMessage.warning('仅支持 .xlsx 格式，老版 .xls 请在 Excel/WPS 中「另存为 .xlsx」后重试')
+      return
     }
+    const rows = await readFileAsObjects(file)
+    excelRows.value = rows.map((r: any) => ({
+      name: r['租客姓名'] || r['name'] || '',
+      phone: r['租客手机'] || r['phone'] || '',
+      title: r['条款标题'] || r['title'] || '',
+      content: r['条款内容'] || r['content'] || '',
+      sortOrder: r['排序'] || r['sortOrder'] || 999,
+    }))
+    excelPreview.value = excelRows.value.slice(0, 10)
+  } catch {
+    ElMessage.error('Excel 解析失败')
   }
-  reader.readAsArrayBuffer(file)
 }
 
 async function extractDocText(file: File) {
@@ -320,17 +319,16 @@ async function importExcel() {
   if (excelRows.value.length === 0) { ElMessage.warning('无数据可导入'); return }
   importing.value = true
   try {
-    const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(excelRows.value.map((r: any) => ({
-      '租客姓名': r.name,
-      '租客手机': r.phone,
-      '条款标题': r.title,
-      '条款内容': r.content,
-      '排序': r.sortOrder,
-    })))
-    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
-    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
-    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const blob = await buildWorkbookBlob([{
+      name: 'Sheet1',
+      rows: excelRows.value.map((r: any) => ({
+        '租客姓名': r.name,
+        '租客手机': r.phone,
+        '条款标题': r.title,
+        '条款内容': r.content,
+        '排序': r.sortOrder,
+      })),
+    }])
     const fd = new FormData()
     fd.append('file', blob, 'import.xlsx')
     const res = await request.post('/contracts/import-clauses', fd)

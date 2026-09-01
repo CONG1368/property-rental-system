@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import { writeWorkbookFile } from '../utils/excel.js';
 import path from 'path';
 import fs from 'fs';
 import { Op } from 'sequelize';
@@ -165,11 +165,11 @@ async function exportCit(opts: TaxExportOptions): Promise<string> {
 /**
  * 写入导出文件
  */
-function writeDataFile(
+async function writeDataFile(
   data: Record<string, string>[],
   opts: TaxExportOptions,
   fileName: string
-): string {
+): Promise<string> {
   const exportDir = path.join(process.cwd(), 'exports');
   if (!fs.existsSync(exportDir)) {
     fs.mkdirSync(exportDir, { recursive: true });
@@ -194,10 +194,7 @@ function writeDataFile(
   }
 
   // 默认 Excel
-  const workbook = XLSX.utils.book_new();
-  const sheet = XLSX.utils.json_to_sheet(data);
-  XLSX.utils.book_append_sheet(workbook, sheet, '税务数据');
   const filePath = path.join(exportDir, `${fileName}.xlsx`);
-  XLSX.writeFile(workbook, filePath);
+  await writeWorkbookFile(filePath, { name: '税务数据', rows: data });
   return filePath;
 }

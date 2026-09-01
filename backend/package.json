@@ -7,6 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "node ../scripts/fix-esm-imports.js && tsc && node ../scripts/verify-esm-build.js",
     "start": "node dist/index.js",
+    "test": "vitest run",
     "db:migrate": "npx sequelize-cli db:migrate",
     "db:seed": "npx sequelize-cli db:seed:all"
   },
@@ -32,8 +33,7 @@
     "sequelize": "^6.37.1",
     "sqlite3": "^6.0.1",
     "word-extractor": "^1.0.4",
-    "ws": "^8.16.0",
-    "xlsx": "^0.18.5"
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -46,7 +46,8 @@
     "@types/node-cron": "^3.0.11",
     "@types/ws": "^8.5.10",
     "tsx": "^4.7.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.11"
   },
   "overrides": {
     "uuid": "^11.1.1"

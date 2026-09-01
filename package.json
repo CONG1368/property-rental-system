@@ -11,6 +11,7 @@
     "check:deps": "node scripts/check-deps-audit.cjs",
     "hooks:install": "node scripts/install-hooks.cjs",
     "typecheck": "cd frontend && npx vue-tsc --noEmit && cd ../backend && npx tsc --noEmit",
+    "test:unit": "cd backend && npx vitest run && cd ../frontend && npx vitest run",
     "dev": "npm run dev:clean && concurrently --kill-others --prefix-colors \"cyan,green\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:clean": "powershell -ExecutionPolicy Bypass -File scripts/kill-dev.ps1",
     "dev:frontend": "cd frontend && npm run dev",

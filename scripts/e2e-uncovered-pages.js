@@ -75,6 +75,12 @@ function check(name, cond, detail) {
     return false;
   }
   await login();
+  // 冷启动时 Vite 首次编译 dashboard chunk 可能超过固定等待，轮询而不是一次性断言
+  const loginDeadline = Date.now() + 20000;
+  while (Date.now() < loginDeadline && page.url().indexOf('/dashboard') < 0) {
+    await page.waitForTimeout(1000);
+    if (page.url().indexOf('/login') >= 0) await login();
+  }
   check('登录进入系统', page.url().indexOf('/dashboard') >= 0, page.url().split('#')[1]);
 
   for (let i = 0; i < PAGES.length; i++) {
