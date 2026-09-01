@@ -43,6 +43,9 @@
             <el-tag :type="row.status === '已缴' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
+              <template #empty>
+          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+        </template>
       </el-table>
       <el-empty v-if="!dayBills.length" description="当日无账单" />
     </el-drawer>
@@ -97,7 +100,7 @@ onMounted(() => loadCalendar());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .calendar-cell { cursor: pointer; text-align: center; padding: 4px; }
 .day-text { font-size: 14px; }
 .day-stats { margin-top: 2px; }

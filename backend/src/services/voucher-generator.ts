@@ -4,13 +4,22 @@ import Bill from '../models/Bill.js';
 import ChartOfAccount from '../models/ChartOfAccount.js';
 import dayjs from 'dayjs';
 
+/**
+ * 归一化操作人 ID：支付回调、定时任务等**系统触发**场景没有登录用户，
+ * 传 0 会触发 users 表外键约束（SQLITE_CONSTRAINT: FOREIGN KEY constraint failed），
+ * 故统一转为 null（Voucher.createdBy 允许为空）。
+ */
+function normalizeOperator(userId?: number | null): number | null {
+  return userId && userId > 0 ? userId : null;
+}
+
 async function getAccountId(code: string): Promise<number> {
   const acct = await ChartOfAccount.findOne({ where: { code }, attributes: ['id'], raw: true });
   return (acct as any)?.id || 0;
 }
 
 // 收租收入 → 自动生成凭证（租金/物业费/水电费分拆）
-export async function generateRentVoucher(billId: number, userId: number): Promise<void> {
+export async function generateRentVoucher(billId: number, userId?: number | null): Promise<void> {
   const bill = await Bill.findByPk(billId);
   if (!bill || bill.status !== '已缴') return;
 
@@ -28,7 +37,7 @@ export async function generateRentVoucher(billId: number, userId: number): Promi
   const voucher = await Voucher.create({
     bookId: 1, voucherNo,
     date: bill.paidDate || new Date(), period, type: '收',
-    summary: `收租-${bill.billNo}`, status: '已过账', createdBy: userId,
+    summary: `收租-${bill.billNo}`, status: '已过账', createdBy: normalizeOperator(userId),
   });
 
   const totalAmount = Number(bill.totalAmount);
@@ -58,7 +67,7 @@ export async function generateRentVoucher(billId: number, userId: number): Promi
 }
 
 // 费用审批通过 → 自动生成凭证
-export async function generateExpenseVoucher(expenseId: number, userId: number): Promise<void> {
+export async function generateExpenseVoucher(expenseId: number, userId?: number | null): Promise<void> {
   const Expense = (await import('../models/Expense.js')).default;
   const expense = await Expense.findByPk(expenseId);
   if (!expense || expense.status !== '已批准') return;
@@ -86,7 +95,7 @@ export async function generateExpenseVoucher(expenseId: number, userId: number):
     type: '付',
     summary: `费用支出-${expense.category}`,
     status: '已过账',
-    createdBy: userId,
+    createdBy: normalizeOperator(userId),
   });
 
   // 借: 费用科目  贷: 银行存款

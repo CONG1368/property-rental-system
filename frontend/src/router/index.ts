@@ -9,6 +9,12 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: false },
   },
   {
+    path: '/portal',
+    name: 'TenantPortal',
+    component: () => import('@/views/rent/TenantPortal.vue'),
+    meta: { requiresAuth: false, title: '租户自助服务' },
+  },
+  {
     path: '/',
     component: () => import('@/components/layout/AppLayout.vue'),
     meta: { requiresAuth: true },
@@ -22,6 +28,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '首页概览', icon: 'HomeFilled' },
       },
       // ====== 收租管理 ======
+      {
+        path: 'rent/leads',
+        name: 'LeadList',
+        component: () => import('@/views/rent/LeadList.vue'),
+        meta: { title: '招租线索', icon: 'Compass' },
+      },
+      {
+        path: 'rent/move-ins',
+        name: 'MoveInList',
+        component: () => import('@/views/rent/MoveInList.vue'),
+        meta: { title: '入住交接', icon: 'CirclePlus' },
+      },
       {
         path: 'rent/properties',
         name: 'PropertyList',
@@ -105,6 +123,156 @@ const routes: RouteRecordRaw[] = [
         name: 'DoorLockDetail',
         component: () => import('@/views/rent/DoorLockDetail.vue'),
         meta: { title: '门锁详情', hidden: true },
+      },
+      {
+        path: 'rent/tenant-credit',
+        name: 'TenantCredit',
+        component: () => import('@/views/rent/TenantCredit.vue'),
+        meta: { title: '租客风控', icon: 'Aim' },
+      },
+      {
+        path: 'rent/pricing',
+        name: 'PricingCenter',
+        component: () => import('@/views/rent/PricingCenter.vue'),
+        meta: { title: '租金定价', icon: 'PriceTag' },
+      },
+      {
+        path: 'rent/deposits',
+        name: 'DepositList',
+        component: () => import('@/views/rent/DepositList.vue'),
+        meta: { title: '押金台账', icon: 'Coin' },
+      },
+      {
+        path: 'rent/checkouts',
+        name: 'CheckoutList',
+        component: () => import('@/views/rent/CheckoutList.vue'),
+        meta: { title: '退租管理', icon: 'RefreshRight' },
+      },
+      {
+        path: 'property/parking',
+        name: 'ParkingList',
+        component: () => import('@/views/rent/ParkingList.vue'),
+        meta: { title: '停车管理', icon: 'Van' },
+      },
+      {
+        path: 'property/complaints',
+        name: 'ComplaintList',
+        component: () => import('@/views/rent/ComplaintList.vue'),
+        meta: { title: '投诉建议', icon: 'ChatDotRound' },
+      },
+      {
+        path: 'property/residents',
+        name: 'ResidentList',
+        component: () => import('@/views/rent/ResidentList.vue'),
+        meta: { title: '住户档案', icon: 'User' },
+      },
+      {
+        path: 'property/facilities',
+        name: 'FacilityList',
+        component: () => import('@/views/rent/FacilityList.vue'),
+        meta: { title: '设施设备', icon: 'Monitor' },
+      },
+      {
+        path: 'property/work-orders',
+        name: 'WorkOrderList',
+        component: () => import('@/views/rent/WorkOrderList.vue'),
+        meta: { title: '报修工单', icon: 'Tools' },
+      },
+      {
+        path: 'property/ops-dashboard',
+        name: 'PropertyOpsDashboard',
+        component: () => import('@/views/rent/PropertyOpsDashboard.vue'),
+        meta: { title: '物业运营看板', icon: 'DataAnalysis' },
+      },
+      {
+        path: 'property/vendors',
+        name: 'VendorList',
+        component: () => import('@/views/rent/VendorList.vue'),
+        meta: { title: '外包供应商', icon: 'Suitcase' },
+      },
+      {
+        path: 'property/meters',
+        name: 'MeterReading',
+        component: () => import('@/views/rent/MeterReading.vue'),
+        meta: { title: '抄表计费', icon: 'Odometer' },
+      },
+      {
+        path: 'property/announcements',
+        name: 'AnnouncementList',
+        component: () => import('@/views/rent/AnnouncementList.vue'),
+        meta: { title: '公告发布', icon: 'BellFilled' },
+      },
+      {
+        path: 'property/common-revenues',
+        name: 'CommonRevenueList',
+        component: () => import('@/views/rent/CommonRevenueList.vue'),
+        meta: { title: '公共收益', icon: 'Money' },
+      },
+      {
+        path: 'property/inventory',
+        name: 'InventoryList',
+        component: () => import('@/views/rent/InventoryList.vue'),
+        meta: { title: '仓库物料', icon: 'Box' },
+      },
+      {
+        path: 'property/tenant-portal',
+        name: 'TenantServicePortal',
+        component: () => import('@/views/rent/TenantServicePortal.vue'),
+        meta: { title: '租户服务', icon: 'Service' },
+      },
+      {
+        path: 'property/decorations',
+        name: 'DecorationList',
+        component: () => import('@/views/property/DecorationList.vue'),
+        meta: { title: '装修管理', icon: 'Tools' },
+      },
+      {
+        path: 'property/maintenance-plans',
+        name: 'MaintenancePlanList',
+        component: () => import('@/views/property/MaintenancePlanList.vue'),
+        meta: { title: '维保计划', icon: 'Calendar' },
+      },
+      {
+        path: 'property/property-tasks',
+        name: 'PropertyTaskList',
+        component: () => import('@/views/property/PropertyTaskList.vue'),
+        meta: { title: '排班与质检', icon: 'Calendar' },
+      },
+      {
+        path: 'property/projects',
+        name: 'ProjectList',
+        component: () => import('@/views/rent/ProjectList.vue'),
+        meta: { title: '项目管理', icon: 'OfficeBuilding' },
+      },
+      {
+        path: 'property/business-briefing',
+        name: 'BusinessBriefing',
+        component: () => import('@/views/rent/BusinessBriefing.vue'),
+        meta: { title: '经营简报', icon: 'Document' },
+      },
+      {
+        path: 'property/briefing-archive',
+        name: 'BriefingArchive',
+        component: () => import('@/views/rent/BriefingArchive.vue'),
+        meta: { title: '月度简报', icon: 'Files' },
+      },
+      {
+        path: 'property/patrols',
+        name: 'PatrolList',
+        component: () => import('@/views/property/PatrolList.vue'),
+        meta: { title: '巡更管理', icon: 'Location' },
+      },
+      {
+        path: 'property/visitors',
+        name: 'VisitorList',
+        component: () => import('@/views/property/VisitorList.vue'),
+        meta: { title: '访客管理', icon: 'Postcard' },
+      },
+      {
+        path: 'property/equipment-certifications',
+        name: 'EquipmentCertList',
+        component: () => import('@/views/property/EquipmentCertList.vue'),
+        meta: { title: '特种设备', icon: 'Aim' },
       },
       // ====== 消防管理 ======
       {
@@ -204,6 +372,30 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/finance/FinanceDashboard.vue'),
         meta: { title: '财务看板', icon: 'DataBoard' },
       },
+      {
+        path: 'finance/fixed-assets',
+        name: 'FixedAssetList',
+        component: () => import('@/views/finance/FixedAssetList.vue'),
+        meta: { title: '固定资产', icon: 'Box' },
+      },
+      {
+        path: 'finance/bank-reconciliation',
+        name: 'BankReconciliation',
+        component: () => import('@/views/finance/BankReconciliation.vue'),
+        meta: { title: '银行对账', icon: 'CreditCard' },
+      },
+      {
+        path: 'finance/cost-allocation',
+        name: 'CostAllocation',
+        component: () => import('@/views/finance/CostAllocation.vue'),
+        meta: { title: '成本分摊', icon: 'Share' },
+      },
+      {
+        path: 'finance/invoices',
+        name: 'InvoiceList',
+        component: () => import('@/views/finance/InvoiceList.vue'),
+        meta: { title: '发票管理', icon: 'Tickets' },
+      },
       // ====== 合同管理 ======
       {
         path: 'contract/list',
@@ -290,6 +482,48 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/IdCardReaderSettings.vue'),
         meta: { title: '身份证读卡器', icon: 'Reading' },
       },
+      {
+        path: 'system/approval-flows',
+        name: 'ApprovalFlowConfig',
+        component: () => import('@/views/system/ApprovalFlowConfig.vue'),
+        meta: { title: '审批流程', icon: 'SetUp' },
+      },
+      {
+        path: 'system/permissions',
+        name: 'PermissionMatrix',
+        component: () => import('@/views/system/PermissionMatrix.vue'),
+        meta: { title: '权限矩阵', icon: 'Lock' },
+      },
+      {
+        path: 'system/dicts',
+        name: 'DictList',
+        component: () => import('@/views/system/DictList.vue'),
+        meta: { title: '数据字典', icon: 'Collection' },
+      },
+      {
+        path: 'system/params',
+        name: 'SystemParams',
+        component: () => import('@/views/system/SystemParams.vue'),
+        meta: { title: '系统参数', icon: 'Setting' },
+      },
+      {
+        path: 'system/ops',
+        name: 'SystemOps',
+        component: () => import('@/views/system/SystemOps.vue'),
+        meta: { title: '系统运维', icon: 'Monitor' },
+      },
+      {
+        path: 'search',
+        name: 'GlobalSearch',
+        component: () => import('@/views/system/GlobalSearch.vue'),
+        meta: { title: '全局检索', icon: 'Search' },
+      },
+      {
+        path: 'approval-center',
+        name: 'ApprovalCenter',
+        component: () => import('@/views/system/ApprovalCenter.vue'),
+        meta: { title: '审批中心', icon: 'Stamp' },
+      },
     ],
   },
 ];
@@ -302,9 +536,10 @@ const router = createRouter({
 // 路由路径 → 允许访问的角色
 const routeRoleMap: Record<string, string[]> = {
   'rent': ['管理员', '总经理', '收租主管', '收租员'],
+  'property': ['管理员', '总经理', '物业经理', '维修工'],
   'finance': ['管理员', '总经理', '财务主管', '会计', '出纳'],
   'contract': ['管理员', '总经理', '合同主管', '法务'],
-  'fire': ['管理员', '总经理', '收租主管', '收租员', '合同主管'],
+  'fire': ['管理员', '总经理', '安全主管'],
   'system': ['管理员'],
 };
 
@@ -347,6 +582,7 @@ router.beforeEach((to, _from, next) => {
   // 角色权限检查：始终从 JWT 解析（localStorage 可能有编码问题）
   if (token && to.path !== '/login' && to.path !== '/dashboard' && to.path !== '/') {
     const moduleKey = to.path.startsWith('/rent') ? 'rent' :
+      to.path.startsWith('/property') ? 'property' :
       to.path.startsWith('/finance') ? 'finance' :
       to.path.startsWith('/contract') ? 'contract' :
       to.path.startsWith('/fire') ? 'fire' :

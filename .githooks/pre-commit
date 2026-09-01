@@ -1,0 +1,20 @@
+#!/bin/sh
+# 提交前门禁：只跑秒级静态检查（不做类型检查，避免拖慢每次提交）
+# 紧急绕过：git commit --no-verify（会在 CI 上被再次拦截）
+
+echo "[pre-commit] 静态铁律门禁..."
+node scripts/check-static-rules.cjs || {
+  echo ""
+  echo "[pre-commit] 提交被拒绝：静态铁律未通过。"
+  echo "  修复后重新提交；确属误报可在该行加注释 ci-allow:<规则号>。"
+  exit 1
+}
+
+echo "[pre-commit] WCAG 对比度门禁..."
+node scripts/check-contrast.cjs > /dev/null || {
+  echo ""
+  echo "[pre-commit] 提交被拒绝：对比度检查未通过，详见 node scripts/check-contrast.cjs"
+  exit 1
+}
+
+echo "[pre-commit] 通过"

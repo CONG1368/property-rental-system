@@ -4,6 +4,9 @@ import Contract from '../models/Contract.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { Op } from 'sequelize';
 import { checkDuplicateIdNumber, mapCardDataToTenantForm } from '../services/id-card-service.js';
+import { calculateCreditScore } from '../services/credit-scorer.js';
+import { getScopedTenantIds, recordInScope } from '../services/data-scope.js';
+import { requirePermission } from '../middleware/rbac.js';
 
 const router = Router();
 
@@ -20,6 +23,8 @@ router.get('/', async (req: AuthRequest, res) => {
     }
     if (creditGrade) where.creditGrade = creditGrade;
     if (status) where.status = status;
+    const tScope = await getScopedTenantIds(req.userId);
+    if (Array.isArray(tScope)) where.id = { [Op.in]: tScope };
     const { count, rows } = await Tenant.findAndCountAll({
       where,
       limit: Number(pageSize),
@@ -33,7 +38,7 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 // POST /api/tenants — 创建租客
-router.post('/', async (req: AuthRequest, res) => {
+router.post('/', requirePermission('rent', 'create'), async (req: AuthRequest, res) => {
   try {
     // 检查身份证号是否重复
     if (req.body.idNumber) {
@@ -50,6 +55,36 @@ router.post('/', async (req: AuthRequest, res) => {
   }
 });
 
+// GET /api/tenants/credit-scores — 租客征信列表（含评分/等级）
+router.get('/credit-scores', async (req: AuthRequest, res) => {
+  try {
+    const { page = 1, pageSize = 20, keyword, creditGrade } = req.query;
+    const where: any = {};
+    if (keyword) where[Op.or] = [{ name: { [Op.like]: `%${keyword}%` } }, { phone: { [Op.like]: `%${keyword}%` } }];
+    if (creditGrade) where.creditGrade = creditGrade;
+    const { count, rows } = await Tenant.findAndCountAll({
+      where, limit: Number(pageSize), offset: (Number(page) - 1) * Number(pageSize),
+      order: [['creditScore', 'DESC']],
+    });
+    res.json({ code: 200, data: { total: count, list: rows, page: Number(page), pageSize: Number(pageSize) } });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
+// POST /api/tenants/:id/recompute-credit — 重新评估租客征信评分
+router.post('/:id/recompute-credit', requirePermission('rent', 'update'), async (req: AuthRequest, res) => {
+  try {
+    const tenant = await Tenant.findByPk(req.params.id);
+    if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });
+    const { score, grade } = await calculateCreditScore(Number(req.params.id));
+    await tenant.update({ creditScore: score, creditGrade: grade } as any);
+    res.json({ code: 200, data: { score, grade }, message: '征信评分已更新' });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message });
+  }
+});
+
 // GET /api/tenants/:id — 租客详情（含关联合同）
 router.get('/:id', async (req: AuthRequest, res) => {
   try {
@@ -57,6 +92,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
       include: [{ model: Contract, as: 'contracts' }],
     });
     if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });
+    if (!(await recordInScope(tenant, req.userId, 'tenant'))) return res.status(403).json({ code: 403, message: '权限不足' });
     res.json({ code: 200, data: tenant });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });
@@ -64,7 +100,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
 });
 
 // PUT /api/tenants/:id — 更新租客
-router.put('/:id', async (req: AuthRequest, res) => {
+router.put('/:id', requirePermission('rent', 'update'), async (req: AuthRequest, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });
@@ -76,7 +112,7 @@ router.put('/:id', async (req: AuthRequest, res) => {
 });
 
 // POST /api/tenants/:id/check-in — 入住办理
-router.post('/:id/check-in', async (req: AuthRequest, res) => {
+router.post('/:id/check-in', requirePermission('rent', 'approve'), async (req: AuthRequest, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });
@@ -88,7 +124,7 @@ router.post('/:id/check-in', async (req: AuthRequest, res) => {
 });
 
 // DELETE /api/tenants/:id — 删除租客
-router.delete('/:id', async (req: AuthRequest, res) => {
+router.delete('/:id', requirePermission('rent', 'delete'), async (req: AuthRequest, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });
@@ -106,7 +142,7 @@ router.delete('/:id', async (req: AuthRequest, res) => {
 });
 
 // POST /api/tenants/:id/check-out — 退租办理
-router.post('/:id/check-out', async (req: AuthRequest, res) => {
+router.post('/:id/check-out', requirePermission('rent', 'approve'), async (req: AuthRequest, res) => {
   try {
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });

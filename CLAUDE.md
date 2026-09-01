@@ -6,7 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. **任务进度更新**：每次完成一个开发任务后，必须用表格实时更新任务进度（含任务编号、名称、状态、变更文件清单），并列出后续剩余开发任务。
 2. **语言要求**：开发全程和思考全程必须都用中文显示。所有与用户的沟通、代码注释、文档内容均使用中文。
-3. **多Agent并行 + 代码审计**：凡规划任务超过2个，一律采用多Agent并发执行以加快开发进度。所有任务完成后，必须有一个Agent专门进行代码质量审计（检查重复代码、未使用变量、类型安全、安全漏洞、性能问题），审计结果以表格形式输出。
 
 ## 项目概述
 
@@ -27,8 +26,21 @@ npm run dev:backend
 # 全局构建（前端→后端→Electron 打包）
 npm run build
 
-# 自动化 API 全量测试（需先启动 dev 后端）
+# 自动化 API 全量测试（69 用例，需先启动 dev 后端；Windows 用 Git Bash）
 bash test-api.sh
+& 'C:\Program Files\Git\bin\bash.exe' ./test-api.sh
+
+# 全链路回归（23 项串联，需先启动 dev）
+npm run test:regression
+
+# 只跑单元测试（vitest：backend/tests + frontend/tests，纯函数，不需服务）
+npm run test:unit
+
+# 仅无服务依赖的门禁（静态铁律 + 对比度 + 双端类型检查 + ESM 产物校验，CI 可直接跑）
+npm run test:static
+
+# 单跑静态铁律门禁（emoji/主题色/版本号/生产URL/multer/财务中间件）
+npm run check:rules
 
 # 后端 TypeScript 类型检查（不生成输出）
 cd backend && npx tsc --noEmit
@@ -45,7 +57,8 @@ cd frontend && npm run build   # vue-tsc + vite build 输出到 frontend/dist/
 # 打包 Electron 安装包
 npm run build:electron         # 先完成前后端构建，再运行此命令
 
-# 生成软件使用说明书 PDF（需先启动 dev 后端）
+# 重拍说明书截图 → 再生成说明书 PDF（均需先启动 dev）
+node scripts/capture-manual-screenshots.js
 node scripts/generate-manual-pdf.js
 ```
 
@@ -59,9 +72,10 @@ node scripts/generate-manual-pdf.js
 |---|------|---------|
 | 前端框架 | Vue 3 Composition API (`<script setup lang="ts">`) | 3.4 |
 | UI 库 | Element Plus + @element-plus/icons-vue | 2.5 |
-| 图表 | ECharts 5 + vue-echarts 6 | - |
+| 图表 | ECharts 6 + vue-echarts 8 | - |
 | PDF 导出 | Electron printToPDF（文字PDF，主路径）+ html2canvas/jspdf（截图回退） | 打印/导出 |
 | 文档解析 | mammoth (.docx) + word-extractor (.doc) + pdf-parse v2 (.pdf) | 条款文本提取 |
+| Excel 读写 | **exceljs**（前后端统一，已彻底移除 xlsx；仅支持 .xlsx） | 导入/导出 |
 | 状态管理 | Pinia | 2.1 |
 | 路由 | Vue Router 4 (hash 模式) | 4.3 |
 | HTTP 客户端 | Axios (拦截器自动附加 Bearer token + 401 自动刷新) | - |
@@ -84,24 +98,18 @@ node scripts/generate-manual-pdf.js
 │       ├── router/            # 路由定义（hash 模式，token 导航守卫）
 │       ├── composables/       # Vue3 组合式函数（useWebSocket / useIdCardReader）
 │       ├── utils/             # 工具模块（打印服务/头像/凭证存储）
-│       ├── views/             # 页面组件（48+个）
-│       │   ├── dashboard/     # 首页概览
-│       │   ├── rent/          # 租赁管理（房源/租客/账单/门锁/催缴/房态看板）
-│       │   ├── finance/       # 财务管理（账套/科目/凭证/费用/税务/预算/报表/看板）
-│       │   ├── contract/      # 合同管理（列表/详情/起草/审批/看板/到期/续约/模板/合规）
-│       │   ├── fire/          # 消防管理（看板/检查/器材/违规/演练）
-│       │   └── system/        # 系统设置（用户/打印设置/审计日志/身份证读卡器）
+│       ├── views/             # 页面组件（86 个）：dashboard / rent / property / finance / contract / fire / system
 │       └── api/request.ts     # Axios 实例（baseURL=/api，拦截器处理 token/401）
 ├── backend/                   # Express 后端（ESM 模块）
 │   └── src/
 │       ├── index.ts           # 入口：连接DB→迁移→同步表→种子数据→启动HTTP+WS
 │       ├── app.ts             # Express 应用（helmet/cors/morgan/json/路由/错误处理）
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
-│       ├── models/            # Sequelize 模型（30个数据模型 + index/BaseModel）
-│       ├── routes/            # Express 路由（24个模块 + index，统一挂载 /api 前缀）
-│       ├── middleware/        # auth（JWT验证）/ rbac / audit-log / validate / rate-limiter / error-handler
-│       ├── services/          # 业务服务层（19个服务）
-│       ├── jobs/scheduler.ts  # 4个 cron 定时任务
+│       ├── models/            # Sequelize 模型（65 个模型 + index/BaseModel）
+│       ├── routes/            # Express 路由（66 个模块 + index，统一挂载 /api 前缀）
+│       ├── middleware/        # auth / rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
+│       ├── services/          # 业务服务层（38 个）
+│       ├── jobs/scheduler.ts  # 7 个 cron 定时任务（任务注册表）
 │       └── websocket/         # WebSocket 广播
 ├── electron/                  # Electron 主进程 + preload
 ├── runtime/                   # 运行时资源（打包时复制到安装目录）
@@ -159,7 +167,7 @@ const resp = await fetch('/api/contracts/extract-clause-text', { ... });
 
 影响的调用方式：原生 `fetch`、`el-upload` 的 `:action` prop、`new WebSocket()` URL。Axios 实例（`request.post/get/...`）不受影响——其 `baseURL` 已配置为 `apiBaseURL`。
 
-当前已验证安全的文件：`health.ts`（已处理 PROD 判断）、`useWebSocket.ts`（已处理 PROD 判断）、`TopNav.vue`（导入 apiBaseURL）、`ContractDetail.vue`（导入 apiBaseURL）、`ClauseImport.vue`（已修复）、`ContractDraft.vue`（已修复，移除本地重复定义）。
+此项已由静态门禁 R4 自动检查（`scripts/check-static-rules.cjs`），不再维护人工清单。
 
 **Axios FormData 上传注意**：axios 1.6+ 检测到 FormData 时会自动覆盖默认 `Content-Type`。但如果遇到 multer 收不到文件（返回"请上传文件"），**改用原生 fetch**：
 
@@ -211,7 +219,27 @@ Phase 3: 后台种子数据（seedChartOfAccounts → seedAllDemoData → seedDo
 Phase 4: connectRedis()（可选，失败自动退化）
 ```
 
-**注意**：`scheduler.start()` 已不再自动调用；定时任务需手动触发或通过外部机制调度。
+Phase 3.5：`scheduler.start()` 在种子数据之后挂载 7 个定时任务（`CRON_ENABLED=false` 可关闭）。
+
+### 定时任务调度器
+
+`backend/src/jobs/scheduler.ts` 用**任务注册表**组织 7 个 cron 任务，**定时触发与手动触发共用同一份 `run()`**，避免两条路径行为分叉：
+
+| key | 任务 | 调度 | 幂等性 |
+|---|---|---|---|
+| `bill-generation` | 账单生成 | 每日 02:00 | 同合同同期间已存在则跳过 |
+| `dunning` | 催缴升级 | 每日 08:00 | 按逾期状态重算 |
+| `contract-expiry` | 合同到期检查 | 每日 07:00 | 状态幂等 |
+| `depreciation` | 固定资产折旧 | 每月 1 日 02:00 | **期间水位线**（见下） |
+| `property-automation` | 物业自动化 | 每日 09:00 | 会重复发站内信 |
+| `monthly-briefing` | 月度经营简报 | 每月 1 日 09:30 | 覆盖同月 PDF |
+| `door-lock-cleanup` | 门锁密码清理 | 每日 08:30 | 幂等 |
+
+**折旧必须幂等（踩过的坑）**：`runMonthlyDepreciation()` 是**累加**操作，同月跑两次会重复计提。`FixedAsset.lastDepreciationPeriod`（YYYY-MM，已在迁移清单）作为水位线，本期已计提的资产跳过；累计折旧另有「原值−残值」封顶。新增累加型定时任务必须照此设计。
+
+**接口**：`GET /system-ops/cron`（真实 `started` + 每任务 `lastRun`）、`POST /system-ops/cron/run/:key`（手动触发，带审计）、`POST /system-ops/cron/toggle`（启停，二次确认）。前端「系统运维」页可查看状态并逐个「立即执行」。
+
+**历史坑**：`started` 曾用 `typeof scheduler.start === 'function'` 判断，永远为 true——页面显示"在跑"而调度器根本没启动。状态字段必须取真实运行态。
 
 ### Redis 可选/退化机制
 
@@ -219,10 +247,18 @@ Phase 4: connectRedis()（可选，失败自动退化）
 
 ### 文件上传配置
 
-- 上传目录：`backend/uploads/`（可通过 `UPLOAD_DIR` 环境变量覆盖）
-- 大小限制：**仅用户头像上传限制 2MB**（`routes/users.ts`），其余上传区（合同附件、消防检查附件、房源导入、条款导入等）均无文件大小限制
-- multer 实例在各路由文件中独立定义，`fileFilter` 按路由各自配置允许的文件扩展名。**所有 multer 实例都必须有 fileFilter**（安全要求），防火墙安全：`contracts.ts`（条款导入 + 合同附件）、`fireSafety.ts`（消防附件）、`properties.ts`（房源导入仅 .xlsx/.xls）、`users.ts`（头像 2MB）
-- `config/index.ts` 中的 `upload.allowedTypes` 为历史遗留，未被实际引用
+- 上传目录：`backend/uploads/`（`UPLOAD_DIR` 可覆盖）；`upload.allowedTypes` 为历史遗留
+- multer 实例按路由独立定义，**每个都必须有 fileFilter**（R5 强制），当前限制：
+
+| 入口 | 扩展名 | 体积上限 |
+|---|---|---|
+| 头像 `users.ts` | 图片 | 2MB |
+| 房源导入 `properties.ts` | **仅 .xlsx** | 10MB |
+| 条款导入 `contracts.ts` | **.xlsx** / Word / PDF | 20MB |
+| 银行对账 `bankReconciliation.ts` | **.xlsx** / .csv | 5MB |
+| 合同附件 / 消防附件 | 文档+图片 | 无上限 |
+
+**旧版 .xls 一律拒绝**（exceljs 不支持 BIFF），提示用户「另存为 .xlsx」。
 - **重要**：前端 `el-upload` 必须通过 `name` prop 指定字段名，必须与后端 multer `.array('xxx')` / `.single('xxx')` 的字段名完全一致，否则 multer 返回 `Unexpected field`。后端当前使用：`files`（合同/消防附件）、`avatar`（头像）、`file`（房源导入/条款导入/文本提取）
 
 **中文文件名编码修复**：multer/busboy 解析 `Content-Disposition` 头的非 ASCII 文件名时可能按 Latin-1 解码，导致 UTF-8 中文变成乱码。修复方法：
@@ -248,18 +284,15 @@ function decodeFilename(name: string): string {
 `electron/main.ts`：
 
 1. `app.whenReady()` → `buildMenu()`（中文菜单栏，macOS/Windows 自适应）→ `spawnBackend()` → `createWindow()`
-2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/物业租赁综合管理系统/data/`，三通道并行检测后端就绪（stdout 多关键字 + 5s 兜底 + HTTP 健康检查轮询 `/api/health`，**60s 安全超时**，适应首次安装建库+迁移+种子数据）
+2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/property-rental-system/data/`（`getPath('userData')` 取 package.json 的 **name** 而非 productName，文档别写成中文名），三通道并行检测后端就绪（stdout 多关键字 + 5s 兜底 + HTTP 健康检查轮询 `/api/health`，**60s 安全超时**，适应首次安装建库+迁移+种子数据）
 3. IPC 通道：`get-app-version`、`get-backend-status`、`get-backend-url`、`export-pdf`、`print-html`、`save-file-dialog`、`open-file-dialog`、`read-id-card`
 4. 开发模式窗口加载 `http://localhost:5173`，生产模式加载 `file://` 协议
 5. 生产模式禁止开发者工具（拦截 `devtools-opened` 事件）
+6. **两个真实生产坑（发版必记）**：① 版本号不能运行时读 package.json（在 app.asar 里读不到）——改为构建期 `scripts/gen-build-version.cjs` 注入 `BUILD_VERSION`；② 终端一关，主进程 `console.log` 后端 stdout 抛 **EPIPE 崩主进程**——stdout/stderr 写入包 try/catch，且 `main.ts` 对 `process.stdout/stderr` 加全局 `stream.on('error')`
 
-### 外部服务 — Mock 优先
+### RBAC 权限体系（双层防护 + 可配置化 + 二次确认）
 
-支付回调（微信/支付宝）、短信（阿里云/腾讯云）、电子签章（e签宝/Fadada）、银行对账、税务导出等服务均以 Mock 模式运行。通过环境变量切换 Provider（如 `SMS_PROVIDER=aliyun`），日志写入 `backend/logs/` 目录下的 JSONL 文件。
-
-### RBAC 权限体系（双层防护）
-
-**后端层** — 两个中间件配合使用：
+**后端层** — 三个中间件配合使用：
 
 ```typescript
 // requireRole — 路由级粗粒度隔离（routes/index.ts 中挂载）
@@ -267,13 +300,26 @@ router.use('/properties', authMiddleware, requireRole('管理员', '收租主管
 
 // requirePermission — 操作级细粒度控制（routes/*.ts 路由 Handler 中）
 router.post('/', requirePermission('rent', 'create'), async (req, res) => { ... });
+
+// requireConfirmPassword — 不可逆操作二次确认（操作者重新输入本人密码）
+router.delete('/:id', requirePermission('finance','delete'), requireConfirmPassword('删除发票'), handler);
 ```
 
-角色权限定义见 `middleware/rbac.ts`，9 角色 × 6 操作（create/read/update/delete/approve/export），管理员和总经理拥有全部/只读全局权限。
+**角色与权限（12 角色，定义见 `middleware/rbac.ts`）**：管理员 / 总经理 / 收租主管 / 收租员 / 财务主管 / 会计 / 出纳 / 合同主管 / 法务 / 物业经理 / 维修工 / 安全主管。
+
+**角色 × 模块 × 6 操作**（create/read/update/delete/approve/export）。管理员拥有全部；总经理只读+审批+导出；财务角色（财务主管/会计/出纳）权限分级（如出纳仅 read/update，禁 create/delete/approve）。
+
+**权限可配置化（重要）**：
+- `services/permission-service.ts` 的 `getRolePerms(role)` 读取的是**生效权限**：以 `rbac.ts` 默认为基底，用 `role_permissions` 表（DB 定制）逐模块覆盖——未覆盖模块保留默认与 `'*'` 全局兜底。
+- `requirePermission` 已改为**异步读 DB 定制**（不再静态读 `rolePermissions`）；precedence 为**模块优先**（`perms[module] ?? perms['*']`），与权限矩阵页面的 `effBaseline` 一致。
+- 权限矩阵页面 `/system/permissions`（`views/system/PermissionMatrix.vue`）支持**可搜索 + 批量** + 保存/回退前**管理员密码二次确认**；后端 `/api/permissions`（`routes/permissionConfig.ts`）PUT/DELETE/reset 均要求 `confirmPassword`。
+- 权限变更使用 `auditLog('权限配置', ...)`，越权尝试（`requirePermission` 拒绝）会额外写入 `越权尝试` 审计。
+
+**审计（enhanced `middleware/audit-log.ts`）**：拦截 `res.json`，记录**所有到达的响应**——2xx=成功（action 原名）、4xx/5xx=失败（action 追加 `(失败)` 标记）。配合 `requirePermission` 的 `越权尝试` 记录，敏感操作的成功/失败/越权均可追查。
 
 **前端层** — 路由守卫 + 菜单过滤：
 
-- `router/index.ts` 的 `routeRoleMap` 按路径前缀（rent/finance/contract/system）限制角色访问
+- `router/index.ts` 的 `routeRoleMap` 按路径前缀（rent/property/finance/contract/fire/system）限制角色访问
 - `Sidebar.vue` 从 JWT 解析 userRole，隐藏无权模块的菜单项
 - JWT 过期检测（`isTokenExpired`）：解析 exp 字段，不依赖后端 401
 
@@ -291,7 +337,7 @@ Access Token payload 包含用户身份信息，前后端均可直接解析使�
   userId: number;
   username: string;
   displayName: string;
-  role: string;          // 9 种角色之一
+  role: string;          // 12 种角色之一（见 middleware/rbac.ts）
   permissions: object;   // 保留字段
   iat: number;
   exp: number;           // 4h 过期
@@ -354,23 +400,26 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 
 | 维度 | 状态 |
 |------|------|
-| 后端路由 25+ 个模块 | 全部实现 |
-| 后端服务 22 个 | 17 完整 + 3 待第三方 SDK |
-| 前端页面 48+ 个 | 全部功能完整 |
+| 后端路由模块 | 全部实现（66 个路由模块） |
+| 后端服务 | 全部完整（38 个业务服务） |
+| 前端页面 | 全部功能完整（86 个页面） |
 | 前端 TypeScript | 0 错误 |
 | 后端 TypeScript | 0 错误 |
 
 **已完成的完整新模块**：消防综合管理（4 模型 + 22 端点 + 6 页面）、条款批量导入（3 格式）、合同消防约定、合同起草附件上传。
 
-**仅剩的 3 项工作**（均需第三方服务账号，非代码缺陷）：
+**物业租赁/物业管理增强模块（新增）**：租客征信风控（credit-scorer）、押金全生命周期台账（Deposit）、退租-交接-押金流程（Checkout）、固定资产折旧管理（FixedAsset）、报修工单（WorkOrder）、设施设备维保（Facility + FacilityMaintenance）、抄表计费（Meter + MeterReading）、停车管理（ParkingSpace + ParkingRecord）、投诉建议（Complaint）、住户/业主档案（Resident）、公告发布（Announcement）、公共收益（CommonRevenue）、外包供应商（Vendor）、仓库物料（Material + InventoryRecord）、物业管理运营看板（PropertyOpsDashboard）。
 
-| 文件 | 待接入 SDK |
-|------|-----------|
-| `services/e-signature.ts` | e签宝 / 法大大 API |
-| `services/sms-service.ts` | 阿里云 SMS / 腾讯云 SMS |
-| `services/notification.ts` 微信/邮件 | 微信公众号模板消息 / nodemailer SMTP |
+**外部服务已全部完成真实实现（零第三方依赖）**，只需在 `.env` 填入账号密钥即可启用，留空则自动降级 Mock：
 
-Mock 模式下这三项均可正常运行（写日志文件），不影响开发调试。
+| 服务 | 实现文件 | 技术要点 |
+|------|----------|---------|
+| 短信 | `services/sms-service.ts` | 阿里云 V1 签名（HMAC-SHA1）+ 腾讯云 TC3-HMAC-SHA256，原生 fetch，无 SDK |
+| 电子签章 | `services/e-signature.ts` | e签宝开放平台 v3（token 缓存 + 并发去重 + 状态映射） |
+| 邮件 | `services/mailer.ts` | 内置 SMTP 客户端（node:tls/net，AUTH LOGIN + STARTTLS + RFC 2047 中文主题），无 nodemailer |
+| 微信 | `services/wechat-provider.ts` | 公众号模板消息（access_token 缓存 + 40001 自动重试） |
+
+**降级契约**：未配置密钥时 `isSmsConfigured()` / `isESignConfigured()` / `isMailerConfigured()` / `isWechatConfigured()` 均为 false，调用返回失败对象或走 Mock 写日志（`backend/logs/*.jsonl`），**绝不抛异常中断业务流程**（通知/催缴不是主流程）。配置说明见 `.env.example` 与 `docs/外部服务接入指南.md`；算法自检 `cd backend && npx tsx ../scripts/verify-external-providers.ts`（21 用例，无需真实账号）。
 
 ### 消防综合管理模块
 
@@ -380,7 +429,7 @@ Mock 模式下这三项均可正常运行（写日志文件），不影响开发
 
 **路由**：`/api/fire-safety`（22 个端点），挂载于消防管理角色组（管理员/收租主管/收租员/合同主管/总经理），RBAC 中新增 `fire` 模块权限。
 
-**前端**：`views/fire/` 目录下 6 个页面 — `FireDashboard.vue`（综合看板，含 KPI 卡片、器材状态/检查结果/违规统计、过期器材和待整改列表）、`FireInspectionList.vue`（检查记录 CRUD + 弹窗表单，含 6 项检查 checkbox）、`FireInspectionDetail.vue`（检查详情 + 关联违规）、`FireEquipmentList.vue`（器材台账，过期/即将过期行颜色高亮）、`FireViolationList.vue`（违规记录 + 标记整改操作）、`FireDrillList.vue`（演练记录 CRUD）。
+**前端**：`views/fire/` 6 个页面 — 看板（KPI+器材/检查/违规统计）、检查记录（CRUD，6 项检查 checkbox）、检查详情（关联违规）、器材台账（过期行高亮）、违规记录（标记整改）、演练记录。
 
 **侧边栏**：新增"消防管理"菜单组（在合同管理和系统设置之间），`Sidebar.vue` 中 `canAccessFire` 控制可见性。
 
@@ -427,9 +476,7 @@ if (contentText.length < 50) { /* 扫描件提示 */ }
 
 **待处理条款桥接机制（pendingClauses）**：导入条款时**无论租客是否已有合同**，都同时存入 `tenant.pendingClauses`（确保新建合同时也能自动加载）。ContractDraft.vue 的 `loadPendingClausesForCurrentTenant()` 在编辑初始化、租客切换、模板加载后三个时机调用。**注意**：API 返回 `pendingClauses` 可能是 JSON 字符串，前端需 `JSON.parse` 处理。
 
-**条款模板同步（syncToTemplate）**：导入条款时自动按业态创建 `常用条款模板-{公寓/厂房/商铺}`，`content.isAuto: true` 标记。TemplateList.vue 对自动模板显示「自动」标签。ContractDraft 选择房源时自动匹配：默认模板 > 常用条款模板（该业态）> 同类型模板。
-
-**前端**：`ClauseImport.vue` — 侧边栏「合同管理→条款导入」入口。上传区支持拖拽+点击。Word/PDF 上传后自动触发智能拆分。模板选择下拉可指定同步目标。
+**条款模板同步（syncToTemplate）**：按业态自动建 `常用条款模板-{公寓/厂房/商铺}`（`content.isAuto: true`，模板列表显示「自动」标签）；ContractDraft 选房源时匹配优先级：默认模板 > 该业态常用模板 > 同类型模板。入口在侧边栏「合同管理→条款导入」。
 
 ### 种子数据就绪机制
 
@@ -437,7 +484,7 @@ if (contentText.length < 50) { /* 扫描件提示 */ }
 
 ### Axios 静默模式
 
-`request.ts` 支持 `silent: true` 配置项，非关键 API 调用可跳过 `ElMessage.error` toast。同时内置 3 秒相同错误消息去重。
+`request.ts` 的 `silent: true` 可跳过 `ElMessage.error` toast；内置 3 秒相同错误去重。
 
 ### PDF 导出引擎（print-service.ts）
 
@@ -459,9 +506,7 @@ buildContractHTML() → Electron IPC 'export-pdf' → BrowserWindow 渲染
 - 每个 block 独立 `html2canvas` 渲染（scale 1.5），超长 block 按页均分切片
 - `printNative()`（原生打印）也走 Electron IPC `print-html` → `webContents.print()` 弹出系统对话框
 
-**IPC 通道**（`electron/main.ts`）：
-- `export-pdf`：临时文件 → 隐藏 BrowserWindow → `printToPDF()` → 保存对话框
-- `print-html`：临时文件 → 隐藏 BrowserWindow → `webContents.print()` → 系统打印对话框
+**IPC 通道**（`electron/main.ts`）：`export-pdf` 与 `print-html` 都是「临时文件 → 隐藏 BrowserWindow → printToPDF()/print()」。
 
 **前端 API**（`preload.ts` → `env.d.ts`）：
 ```typescript
@@ -490,7 +535,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 - **表格单元格**：`td()` 辅助函数已内置 `normLines(value).join('<br>')`，多行值自动处理
 - **屏幕端展示**：Vue 模板中使用 `white-space:pre-wrap` 保留换行
 
-已修复/验证的文件：`ContractPrint.ts`（合同条款、消防条款、其他约定、td()）、`TenantInfoPrint.ts`（备注 含 `\r\n` 兼容+行高）、`TenantDetail.vue`（页面备注）、`ReportCenter.vue`（报表单元格）、`ContractDetail.vue`（条款内容+消防违规处罚）、`FireInspectionDetail.vue`（备注）、`ContractApproval.vue`（条款内容）。
+已覆盖：5 个打印模板 + ContractDetail / TenantDetail / ReportCenter / FireInspectionDetail / ContractApproval 的多行字段。
 
 ### 门锁管理架构
 
@@ -506,20 +551,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 
 ### 房态流转系统
 
-**数据模型**：`RoomStatusLog`（`backend/src/models/RoomStatusLog.ts`）— 记录每次房源状态变更的完整审计轨迹：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `propertyId` | INTEGER | 关联房源 ID |
-| `oldStatus` | STRING(20) | 变更前状态 |
-| `newStatus` | STRING(20) | 变更后状态 |
-| `action` | ENUM | `manual` / `contract_link` / `batch` / `system` |
-| `operatorId` | INTEGER | 操作人用户 ID |
-| `notes` | TEXT | 变更备注 |
-| `linkedContractId` | INTEGER (可空) | 关联合同 ID |
-| `linkedTenantId` | INTEGER (可空) | 关联租客 ID |
-
-注意：该模型 `updatedAt: false`（只有 createdAt），仅追加不可修改。
+**数据模型**：`RoomStatusLog` 记录每次房态变更的审计轨迹——`propertyId`/`oldStatus`/`newStatus`/`action`(manual|contract_link|batch|system)/`operatorId`/`notes`/`linkedContractId`/`linkedTenantId`；`updatedAt: false`，**仅追加不可修改**。
 
 **状态机规则**：`backend/src/services/room-status-workflow.ts` — 9 种房源状态，定义了严格的流转规则：
 
@@ -563,11 +595,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 
 `backend/src/config/migration.ts` — 轻量级 Schema 迁移方案，解决 Sequelize `sync()` 只建新表不修改已有列的限制。
 
-**设计思路**：
-- 定义 `MIGRATION_DEFINITIONS` 数组，每项指定表名和待添加的列（名称 + SQLite 类型 + 默认值）
-- 启动时在 `sync()` **之前**执行，确保新表（由 sync 创建）和已有表（由迁移补齐）均包含完整列
-- 对每个列执行 `addColumnIfNotExists()`：SQLite 用 `PRAGMA table_info()` 检查，MySQL 用 `try/catch` 捕获 `Duplicate column` 错误
-- 迁移完成后执行 `backfillPropertyRoomInfo()` 数据回填：从已有房源的 `name` 字段解析出 `buildingName` 和 `roomNumber`（支持楼层命名法 `XF-YY` 和顺次命名法纯数字结尾两种模式）
+**设计思路**：`MIGRATION_DEFINITIONS` 声明「表 + 待补列（名称/SQLite 类型/默认值）」，在 `sync()` **之前**执行——新表由 sync 建、旧表由迁移补列；`addColumnIfNotExists()` 在 SQLite 用 `PRAGMA table_info()` 检查、MySQL 靠捕获 `Duplicate column`；之后 `backfillPropertyRoomInfo()` 从房源 `name` 回填 `buildingName`/`roomNumber`（兼容 `XF-YY` 与纯数字结尾两种命名）。
 
 **当前迁移清单**：
 
@@ -615,15 +643,7 @@ off('room:status-changed', callback);
 - 生产模式（Electron `file://` 协议）下自动回退到 `ws://localhost:3001/ws`
 - 消息解析失败静默忽略（容错设计）
 
-**当前使用的事件**：
-- `room:status-changed` — 单个房态变更后广播
-- `room:batch-status-changed` — 批量房态变更后广播
-- `contract:created` — 合同创建
-- `contract:deleted` — 合同删除
-- `contract:renewed` — 合同续约
-- `contract:status-changed` — 合同状态变更
-- `id-card:read-success` — 身份证读卡成功
-- `id-card:read-failure` — 身份证读卡失败
+**当前事件**：`room:status-changed` / `room:batch-status-changed` / `contract:created|deleted|renewed|status-changed` / `id-card:read-success|read-failure`。
 
 ### 房态看板前端架构
 
@@ -635,17 +655,7 @@ off('room:status-changed', callback);
 | `RoomDashboard.vue` | `/rent/room-kanban/dashboard` | 数据大屏：暗色主题，KPI 卡片 + ECharts 可视化（玫瑰饼图/柱图/仪表盘/热力图/趋势线/桑基图 + 告警跑马灯） |
 | `RoomBatchGenerate.vue` | `/rent/room-kanban/batch-gen` | 批量生成房间表单：配置楼栋名称、起止楼层、每层房间数、命名规则、默认面积 |
 
-**7 个组件**（全部在 `frontend/src/components/` 下）：
-
-| 组件 | 职责 |
-|------|------|
-| `RoomCard.vue` | 单个房间卡片：9 种状态颜色映射 + 门锁状态图标 + 租客/合同到期信息 |
-| `RoomGrid.vue` | CSS Grid 自适应布局容器，循环渲染 RoomCard |
-| `RoomTableView.vue` | el-table 表格视图（含 selection 列、排序、状态标签、门锁图标） |
-| `RoomStatsPanel.vue` | KPI 统计面板：总房源/已出租/空置/入住率/维护中 |
-| `BuildingFloorSelector.vue` | 楼栋+楼层联动筛选器（el-radio-group 切换） |
-| `RoomQuickActionDrawer.vue` | 房间快捷操作抽屉：信息描述 + 状态变更下拉 + 门锁操作 + 最近变更时间线 |
-| `BatchStatusDialog.vue` | 批量状态更新对话框：选择目标状态 + 备注，提交到 `PATCH /properties/rooms/batch-status` |
+**7 个组件**（`frontend/src/components/`）：`RoomCard`（9 状态色 + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，未挂载使用）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
 
 **数据流**：
 1. `RoomStatusKanban` 调用 `GET /properties/rooms/kanban` 获取完整数据（含楼栋分组、楼层分组、门锁、租客关联）
@@ -657,18 +667,9 @@ off('room:status-changed', callback);
 
 ### 打印功能架构
 
-**打印服务**：`frontend/src/utils/print-service.ts` — 统一封装三种打印模式：
-- `native`：调用 `window.electronAPI.printHTML(html)` → Electron 开隐藏 BrowserWindow → `webContents.print()` 弹出系统打印对话框
-- `pdf`（Electron）：`printDocument()` → `exportTextPDF()` → IPC `export-pdf` → `printToPDF()` 生成真正文字 PDF
-- `pdf`（浏览器回退）：`printDocument()` → `printPDF()` → html2canvas + jsPDF 截图方案
-- 页面尺寸由 HTML 模板内 `@page` CSS 决定，`preferCSSPageSize: true` 自动适配
+（打印服务三种模式见上文「PDF 导出引擎」，此处只记模板与入口）
 
-**打印模板**：`frontend/src/components/print/` 下 5 个纯函数（数据→HTML 字符串，内联 CSS）：
-- `ContractPrint.ts` — 租赁合同（法律标准格式 + 双方签章位 + 公司 Logo）
-- `TenantInfoPrint.ts` — 租客信息表 + 关联合同列表
-- `BillPrint.ts` — 账单明细（费用分项表 + 金额大写）
-- `ReceiptPrint.ts` — 收款收据（80mm 热敏小票格式）
-- `ContractBatchPrint.ts` — 合同批量汇总表
+**打印模板**：`frontend/src/components/print/` 下 5 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+签章位+Logo）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）。
 
 **打印入口**：合同详情页（头部打印下拉：直接打印 / 导出PDF）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
 
@@ -676,7 +677,7 @@ off('room:status-changed', callback);
 
 **后端 API**：`/api/system-configs`（admin 权限）— `GET /keys?keys=k1,k2` 批量查询配置、`PUT /:key` 保存单个配置（upsert 模式）。
 
-**Electron IPC**：`main.ts` 注册 8 个 IPC handler：`export-pdf`（文字PDF导出+保存对话框）、`print-html`（系统打印对话框）、`read-id-card`（预留硬件SDK）、`save-file-dialog`/`open-file-dialog`（文件对话框）、`get-app-version`/`get-backend-status`/`get-backend-url`（状态查询）。`preload.ts` 通过 `contextBridge.exposeInMainWorld('electronAPI', {...})` 暴露到渲染进程。
+**Electron IPC**：`main.ts` 注册 8 个 handler（见上文生命周期章节），`preload.ts` 用 `contextBridge.exposeInMainWorld('electronAPI', {...})` 暴露到渲染进程。
 
 ### 身份证读卡器模块
 
@@ -691,10 +692,7 @@ off('room:status-changed', callback);
 
 **路由**：`/api/id-card-readers`（8 个端点），挂载于管理员角色。`/api/tenants` POST 创建时自动检测重复身份证号（409 冲突）。
 
-**前端**：
-- `useIdCardReader` composable — 设备列表获取、读卡触发、自动寻找在线设备
-- `IdCardReadButton.vue` — 通用读卡按钮（Props: `readerId?`/`mode`，Emit: `@success`/`@error`）
-- `IdCardReaderSettings.vue` — 设备管理页面（`/system/id-card-readers`）
+**前端**：`useIdCardReader`（设备列表/读卡触发/自动选在线设备）、`IdCardReadButton.vue`（Props `readerId?`/`mode`，Emit `@success`/`@error`）、`IdCardReaderSettings.vue`（`/system/id-card-readers`）。
 
 **Electron IPC**：`read-id-card` 通道（当前返回 Mock 提示，预留 SDK 接入点）。
 
@@ -702,13 +700,7 @@ off('room:status-changed', callback);
 
 `Contract.billingConfig`（JSON 类型）是合同的元数据容器，**新增可选配置项时不需修改模型列**，只需在表单、打印模板、详情页三处同步即可。当前字段：
 
-| 字段组 | 字段 | 说明 |
-|--------|------|------|
-| 费用 | `feeItems[]` | `{ name, amount, unit }` |
-| 收款 | `paymentMethod` / `bankName` / `bankAccountNumber` / `bankAccountName` | 收款方式及银行账号 |
-| 税务 | `taxType` / `taxRate` / `invoiceType` | 含税/不含税、税率、发票类型 |
-| 细则 | `lateFeeRate` / `depositTerms` / `maintenanceParty` / `terminationNotice` / `renewalNotice` / `subletAllowed` | 滞纳金/押金/维修/转租/解约/续约 |
-| 附件 | `attachments[]` | `{ name, path, size, uploadedAt }` |
+费用 `feeItems[]{name,amount,unit}`；收款 `paymentMethod`/`bankName`/`bankAccountNumber`/`bankAccountName`；税务 `taxType`/`taxRate`/`invoiceType`；细则 `lateFeeRate`/`depositTerms`/`maintenanceParty`/`terminationNotice`/`renewalNotice`/`subletAllowed`；附件 `attachments[]{name,path,size,uploadedAt}`。
 
 **注意**：新增 billingConfig 字段时，必须同步修改 3 个位置：ContractDraft.vue（表单+变量+`buildBillingConfig`+编辑回填）、ContractPrint.ts（`ContractPrintData` 接口+打印内容）、ContractDetail.vue（展示+`handlePrint` 传参）。
 
@@ -718,10 +710,113 @@ off('room:status-changed', callback);
 
 `GET /api/approvals` 返回的合同数据现在包含 `clauses`、`billingConfig` 和 Tenant 关联（`include: [{ model: Tenant, as: 'tenant' }]`），使审批页可直接显示租客名称。
 
-### 已知孤立文件
+### 财务模块安全加固（权限/审计/审批/状态机）
 
-- `frontend/src/views/rent/PaymentRecord.vue` — 收款功能已集成在 BillList 详情抽屉中，无路由注册
-- `frontend/src/components/RoomTableView.vue` — 表格视图组件已定义（在 `components.d.ts` 中全局注册），但未在现有页面中使用。如需表格/网格切换功能，可在 RoomStatusKanban 中引入
+1. **写操作统一防护**：财务全部路由（vouchers/expenses/budgets/accounts/accountBooks/tax/fixedAssets/invoices/bankReconciliation/costAllocation）的每个 POST/PUT/DELETE 都必须同时挂 `requirePermission('finance', 动作)` + `auditLog(模块, 动作)`（已 100% 覆盖）。动作映射：POST=create、PUT=update、DELETE=delete、审批/作废/红冲/折旧=approve、导出=export。
+2. **不可逆操作二次确认**：发票作废/红冲/删除、资产删除/折旧、凭证作废、账套修改、费用审批、权限变更，均需操作者重新输入本人密码。后端 `middleware/confirm-password.ts` 的 `requireConfirmPassword(label)`（读 body/query 的 `confirmPassword` + bcrypt 校验）；前端 `utils/confirm-password.ts` 的 `confirmWithPassword(msg)`（DELETE 用 `{ data: { confirmPassword } }`）。
+3. **权限可配置化**：`role_permissions` 表 + `services/permission-service.ts`；`requirePermission` 异步读 DB 定制，precedence **模块优先**（`perms[module] ?? perms['*']`）。`/api/permissions` 的 PUT/DELETE/reset 均要求 `confirmPassword`。
+4. **审计增强**（`middleware/audit-log.ts`）：记录所有到达的 `res.json`——2xx=成功、4xx/5xx=失败（action 加 `(失败)`）；越权拒绝额外写 `越权尝试`。
+5. **凭证状态机**（`services/voucher-status-machine.ts`）：`草稿→待复核→待审核→已过账→已作废`（终态）；已过账只能→已作废，**禁止回退**。非法流转返回 400。
+6. **报表角色矩阵**：`reportAuthz` 以 `services/report-registry.ts` 每报表声明的 `roles` 为唯一权威，未登记报表一律 403。
+7. **审批引擎**（`services/approval-bridge.ts`）：`submitApproval(opts, userId)` 按 `bizType` 匹配 `FlowDefinition`，无流程则静默跳过。默认流程：合同（合同主管→总经理）、预算/费用（财务主管→总经理）。终审通过联动业务状态，驳回回滚。
+8. **内控细则**：大额费用（`amount >= LARGE_EXPENSE_THRESHOLD`，默认 5000）自动进审批；已批准预算禁改金额（400）；invoices/fixedAssets/vouchers/accountBooks 的 PUT 均字段白名单化，状态只能走审批端点。
+9. **其他**：tax 计算 5 分钟 TTL 缓存（`ttl-cache.ts`）；分页钳制 `page≥1`、`1≤pageSize≤200`；发票号冲突自动重试≤3 次；发票状态机 issue 仅待开票、void 拒已作废/已红冲、redflush 仅已开票。
+
+### 系统设置模块安全加固
+
+1. **打印配置只读放行**：`/system-configs` 路由级仅挂 `authMiddleware`（不再是 requireAdmin），因 `GET /keys` 需供**非管理员角色**在打印/导出场景读取公司抬头/Logo/签章，且返回**完整值不脱敏**；写操作在路由文件内部挂 `requireAdmin` + `requireConfirmPassword` + `auditLog`。
+2. **系统参数中心**（`SystemParams.vue`）：`SystemConfig` 新增 `configGroup`/`valueType`/`isSensitive`/`builtIn`/`extra` 五列（已在迁移清单）。分组筛选 + 增删改（均二次确认）+ 内置项禁删；`POST /batch` 批量保存；敏感值由前端打码。
+3. **审计日志筛选 + 导出**：`buildWhere()` 支持 module/userId/action/keyword/status(success|fail)/日期范围；`GET /export` 返回带 BOM 的 CSV。
+4. **用户安全**（`users.ts`）：角色枚举校验（`VALID_ROLES = ALL_ROLES`）、字段白名单 `pickUserFields`（剔除 id/passwordHash/username）、**最后管理员保护**（删除或降权最后一名管理员返回 400，且不能删自己）、删除/重置密码需二次确认。
+5. **审计开关**：`isAuditEnabled()`（5 秒 TTL 读 `system_configs.audit_enabled`），关闭时跳过落库；`GET/POST /system-ops/audit-toggle` 切换（二次确认）。
+6. **系统运维页**（`/system-ops`，requireAdmin）：`GET /info`（版本/Node/平台/内存/DB/用户数/时长）、`GET /cron`、审计开关、`GET /backup`（SQLite 备份下载，二次确认）。**独立挂载**避免被参数路由吞噬。
+7. **数据字典**（`/dicts`，requireAdmin）：`GET /types`、**`GET /types/:code`（返回类型 + 其下 items，按 sortOrder 排序）**、POST/PUT/DELETE；两个 DELETE 均带 `requireConfirmPassword` + `auditLog`（级联破坏性操作）。
+
+### 首页概览模块增强
+
+1. **口径修正**：`/dashboard/overview` 提供 `occupiedProperties`/`totalContracts`/`occupancyRate`（已出租房源÷总房源）；「在租合同」进度用 `activeContracts/totalContracts`。**收缴率统一为金额口径**（已缴金额÷应收金额，不是份数比）。
+2. **预警统一**：逾期账单 + 即将到期合同统一复用 `/dashboard/alerts`（`overdueBills`/`overdueCount`/`expiringContracts`），不再单独请求 `/contracts/expiry-calendar`。
+3. **今日待办**（`/dashboard/todo-summary`）：汇总 9 类待办计数，按 severity(high/mid/low)→count 降序、过滤 count>0；每项带 `module`（rent/property/finance/contract/fire），**前端按 JWT 角色 + roleModuleMap 过滤**，避免低权限角色看到高权限模块计数。
+4. **多模块看板**：三个 tab 复用既有接口——`/properties/rooms/stats`、`/property-analytics/dashboard`、`/fire-safety/dashboard`（**裸路径 `/fire-safety` 是 404，必须用子路径**）。基础组 `Promise.all` 并发，**P2 组按 tab 懒加载**（无权限角色不白跑 403），所有 ref 有空结构兜底。
+5. **自动刷新**：60s 弱轮询 + WS 事件静默刷新（300ms 防抖，不闪加载态），`onUnmounted` 清理定时器与订阅。
+6. **系统信息条**：`version` 取自根 package.json（缓存一次），`uptimeSeconds` 取 `process.uptime()`。回归脚本 `scripts/verify-dashboard.js`（16 用例）。
+
+### UI 主题体系 — 湛蓝玻璃拟物
+
+全站视觉统一为「湛蓝玻璃拟物（Glassmorphism·湛蓝）」，完整规范见 `docs/UI设计准则.md`（唯一权威）。要点：
+
+**1. 设计令牌集中在 `frontend/src/styles/variables.scss`**：强调色 `$color-primary: #4f7cf7`（全站唯一强调色）、渐变底 `$color-bg`、玻璃面 `$color-bg-elev: rgba(255,255,255,.62)`、白描边 `$color-border`、文字三阶（`#1f2430`/`#3a4354`/`#5b6472`）、大圆角（8/14/20px）、玻璃阴影（外阴影 + 内高光）。**页面内禁止硬编码主题色字面量**。
+
+**2. Element Plus 变量覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary`、圆角、填充色、边框色统一玻璃化；`.el-card`/`.el-dialog`/`.el-popper`/输入框统一 `backdrop-filter: blur(14px)`。
+
+**3. ANTI-EMOJI（铁律）**：UI 与代码中禁用 emoji，一律用 `@element-plus/icons-vue` 线性图标。
+- `utils/avatars.ts` 已重构为图标方案：`avatarIcons`（键名→组件）+ `roleAvatars`（角色→键名+渐变底）+ `presetAvatars`（可选头像）+ **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容数据库里已存的 emoji 头像）。渲染方式：`<el-icon><component :is="resolveAvatarIcon(key)" /></el-icon>`。
+- 首页 `HomeDashboard.vue` 的 `iconMap` 已语义化（`home/users/money/trend/bell/doc/chart/coin/check/alert/warn/list`），KPI/待办/快捷入口的 `icon` 字段存语义键而非 emoji。
+
+**4. 存量色值迁移脚本 `scripts/theme-migrate.cjs`**：旧色（`#0A3D62`/`#F6B93B`/`#00B894`/`#FF6B35`/`#82CCDD`/`#1a5f8a`）→新令牌；`#0A3D62` 按语境二分——CSS `color:` 文字色→`#1f2430`，背景/边框/图表色→`#4f7cf7`。**自动跳过 `frontend/src/components/print/`**（打印模板面向纸质，保留深墨蓝）。
+
+**5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**（此前 Login 硬编码 1.0.2 与实际 1.0.3 不符）。
+
+**6. 交互态（Rule 5）— 骨架屏 + 统一空态**：两个全局自动注册组件位于 `frontend/src/components/common/`：
+- `TableSkeleton.vue`（首屏骨架，shimmer 动效 + 逐行淡入，替代通用转圈）
+- `EmptyState.vue`（图标 + 标题 + 引导说明 + 可选操作按钮，props：`title/description/icon/actionText/compact`）
+
+标准接法（已覆盖 **68 个列表页**）：`<TableSkeleton v-if="loading && !list.length" />` + `<el-table v-show="!(loading && !list.length)">` + `<template #empty><EmptyState ... /></template>`。批量接入用 `scripts/apply-loading-states.cjs`（`--dry` 预演），验收用 `scripts/verify-ux-states.cjs`。按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景（Anti-Card Overuse）。
+
+**7. 无障碍配色（WCAG 2.1 AA）**：原色只满足 UI 组件 3:1，作正文最低仅 1.72:1，故拆分用途——
+- **文字/链接/细线图标**用加深变体：`$color-primary-text: #2b57c9`（hover `#1e50bd`）、`$color-success-text: #0a7652`、`$color-warning-text: #8a5200`、`$color-danger-text: #bf2626`、次要文字 `$color-text-subtle: #5f6675`（原 #8b93a3）
+- **交互控件边界**用 `$color-border-control: #6f8299`（`--el-border-color`，SC 1.4.11 强制 ≥3:1）；白描边仅作装饰轮廓
+- **深色顶栏**上的主色/红点用 `$color-on-dark-primary: #a8c2fc` / `$color-on-dark-danger: #fca5a5`
+- **实心按钮**（primary/success/warning/danger）底色在 `global.scss` 覆盖为加深变体，使白字达 5.6–6.4:1
+- **原色保留**用于填充、标签底、图表系列色、进度条、KPI 大号数值（品牌湛蓝 `#4f7cf7` 未被替换）
+
+自检门禁：`node scripts/check-contrast.cjs`（46 条清单，覆盖玻璃面/页面底/深色顶栏三类背景与 alpha 合成；当前 46/46 通过 + 2 条装饰性豁免）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 的文字色）。详见 `docs/对比度检查报告.md`。
+
+### 依赖漏洞治理（当前状态与决策）
+
+生产依赖漏洞（`npm audit --omit=dev`）**23 → 0**（前后端均为 0）。处置分三类：
+
+1. **无痛升级**：`npm audit fix` 修掉 15 个（含唯一 critical `tar` 与多个 high），只动 lockfile。
+2. **根因替代升级**：
+   - `uuid<11.1.1` 一条告警把 `node-cron`/`sequelize`/`exceljs` 三个库一起标红。后端 `uuid` 是**未被引用的直接依赖**，已删除；再用 `overrides: { "uuid": "^11.1.1" }` 抬高传递依赖版本，三个库**无需大版本升级**即消除告警。
+   - `echarts` XSS（<6.1.0）：升级到 `echarts@6` + `vue-echarts@8`。5 个图表页用模块化 `use([...])` API，无需改代码。
+   - **禁止 `npm audit fix --force`**：npm 给 `sequelize` 的"修复"是 3.30.0、`exceljs` 是 3.4.0——**都是降级**，执行会把项目打回上古版本。
+3. **上游无补丁 → 换库（xlsx 已彻底移除）**：SheetJS 的 npm 包停更在 0.18.5，两条 high 在 npm 渠道永远修不掉。已全量迁到 `exceljs`：后端 `utils/excel.ts`、前端 `utils/excel.ts` 提供同语义的 `readSheetAsObjects` / `buildWorkbook*`，8 处调用点改写完毕，前后端 `xlsx` 依赖均已卸载。
+   **代价（必须知道）**：exceljs **不支持旧版 .xls（BIFF 二进制）**，所有上传入口已收紧为 `.xlsx`，并给出「请另存为 .xlsx」提示（房源导入 / 条款导入 / 银行对账）。回归脚本 `verify-excel-import.js` 覆盖导入解析、.xls 拒绝、多表导出。
+
+### 全链路回归（发版前必跑）
+
+**一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **23 项**、分三段执行，全通过退出码 0：
+
+- **A 段 静态门禁**（无需服务）：`check-static-rules` → `check-contrast` → `check-deps-audit`（生产依赖漏洞，需 registry，离线自动跳过；上游无补丁项走 ALLOWLIST 豁免且有复审期限）
+- **B 段 类型/单测/构建门禁**（无需服务）：`vue-tsc` → `tsc` → **backend vitest（12 用例）** → **frontend vitest（11 用例）** → `verify-esm-build`（仅当 `backend/dist` 存在，否则显式跳过、不计失败）
+- **C 段 运行时回归**（需 dev）：见下方顺序
+
+`npm run test:static` 只跑 A+B 段——**这是唯一能在纯 CI 环境（checkout + install）跑通的部分**，C 段依赖本地 dev 服务。
+
+**GitHub Actions**：`.github/workflows/ci.yml` 在 push / PR 时跑 `npm run test:static`。两个必须记住的环境约束（都是踩出来的）：
+- **Node 22**（不能用 20）：Node 20 上 jsdom 报 `webidl.util.markAsUncloneable is not a function`，frontend vitest 起不了 worker。
+- **用 `npm install` 而非 `npm ci`，且前后端不加 `--ignore-scripts`**：npm 12 的 lockfile 只记录当前平台的 esbuild 等可选原生包，Linux runner 上 `npm ci` 报 "Missing @esbuild/... from lock file"；跳过脚本则 better-sqlite3 拿不到原生绑定。根依赖仍带 `--ignore-scripts`（Electron/Playwright 二进制走环境变量跳过）。
+
+C 段运行时回归不在流水线内，发版前须本地跑 `npm run test:regression`。
+
+**本地钩子**：`.githooks/`（`npm run hooks:install` 设 `core.hooksPath`，postinstall 自动执行）。pre-commit 跑秒级静态铁律+对比度，pre-push 跑 `npm run test:static`。钩子扫的是**工作区**而非暂存区，紧急用 `--no-verify` 绕过，但 CI 仍会拦。`.gitattributes` 强制 `.githooks/**` 用 LF——CRLF 会让 Git Bash 报 bad interpreter 导致钩子静默失效。
+
+**注意**：CI 与钩子都只是**检查**，真正的"不通过就合不进去"要靠仓库 ruleset 的 required status checks（见 `protect-main`）。
+
+C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modules` → `e2e-uncovered-pages` → `verify-excel-import` → `verify-websocket` → `verify-dashboard` → `verify-system-settings` → `verify-uncovered-api` → `verify-ux-states` → `permission-regression` → `e2e-permission-matrix` → `e2e-confirm-password` → `verify-external-providers`（tsx 运行） → `test-api.sh`（自动探测 Git Bash，找不到则显式跳过、不计失败）。
+
+**顺序约束**：`permission-regression` 必须在 `e2e-permission-matrix` 之前——后者会写入角色权限定制（结束时通过 `/api/permissions/reset` 还原），顺序颠倒会污染前者的基线断言。
+
+**测试数据卫生（踩过的坑，务必遵守）**：
+1. **唯一化**：租客 `idNumber` 有唯一校验（重复返回 409），房源/合同编号也应带时间戳，否则脚本**第二次运行必挂**。
+2. **清理顺序**：先删合同 → 再删租客/房源。租客存在关联合同时后端拒绝删除，残留租客会让下次运行的整条合同链路失败。
+3. **中文编码**：Windows bash 下 `curl -d` 直传中文会编码损坏并写入脏数据（曾导致页面乱码检测失败），中文 body 一律用 `--data-binary "@临时文件"`。
+4. **清理脏数据时禁止用宽泛通配**：`contractNo like 'CT-%'` 会连同演示种子合同 `CT-2024-001~005` 一起删掉。若误删，删除 `CT-2024-001` 会让 `seedAllDemoData()` 判定为"未初始化"，**重启后端即可完整重建**演示数据（房源/租客按 name 幂等复用）。
+
+**系统触发场景的外键约束（重要）**：支付回调、定时任务等没有登录用户，写库时**不能用 `userId = 0`**——`users` 表外键会拒绝，导致整个请求 500。`voucher-generator.ts` 的 `normalizeOperator()` 统一把 0/空转为 `null`（`Voucher.createdBy` 允许为空）。
+
+**后置副作用必须隔离**：`payment-reconciler.ts` 中凭证生成与信用评分都包在 try/catch 里仅告警——收款记录已落库时若让副作用抛错，支付平台收到 5xx 会**重复回调造成重复收款**。同类原则适用于所有通知/回调路径。
 
 ### scripts 脚本目录
 
@@ -729,10 +824,31 @@ off('room:status-changed', callback);
 |------|------|
 | `fix-esm-imports.js` | 修复 ESM 编译产物的 `.js` 后缀缺失 |
 | `verify-esm-build.js` | 验证后端编译产物中所有 ESM import 路径有效 |
-| `full-e2e-test.js` | 全量 E2E 测试（250+ 测试用例） |
+| `full-e2e-test.js` | 全量 E2E 测试（37 项 + 250+ 断言 + 全局乱码检查） |
 | `generate-icon.js` | 从 build/icon.png 生成各尺寸图标 |
-| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（截图 base64 内嵌，跨平台可移植） |
+| `capture-manual-screenshots.js` | 说明书截图采集（登录后批量拍 44 张写入 `docs/screenshots/`，可传 key 补拍）；需先启动 dev |
+| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（版本取根 package.json，截图 base64 内嵌，`--html` 落地中间 HTML 便于排查） |
 | `generate-proposal-pdf.js` | 从 Markdown 生成产品方案 PDF |
 | `kill-dev.ps1` | 清理占用开发端口的残留进程（`dev:clean` 调用） |
 | `installer.nsi` | NSIS 安装包脚本 |
 | `7za-wrapper.bat` | 7-Zip 便携版压缩包装器 |
+| `permission-regression.js` | 权限回归（12 角色 × 端点断言，33 用例）；需先启动 dev 后端 |
+| `e2e-permission-matrix.js` | 权限矩阵页面 E2E（角色选择/搜索/批量/二次确认弹窗，8 用例） |
+| `e2e-confirm-password.js` | 不可逆操作二次确认 E2E（发票作废：弹窗/密码/取消/成功，5 用例） |
+| `verify-system-settings.js` | 系统设置运行时回归（登录/配置只读/二次确认/非管理员/审计/字典/运维，9 用例）；需 dev |
+| `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
+| `e2e-new-modules.js` | 新增模块 E2E |
+| `run-all-regression.js` | **全链路回归入口**：串联 23 项，分 A 静态 / B 类型+单测+构建 / C 运行时 三段；`--static` 只跑 A+B |
+| `verify-uncovered-api.js` | 零覆盖模块 API 回归（door-locks + 读卡器/通知/审批/简报/导出/租户登录/OCR/智能问数/物业自动化，50 用例）；对种子门锁净零操作 |
+| `e2e-uncovered-pages.js` | 零覆盖页面渲染回归（消防 5 + 房态看板 3 + 门锁/起草/条款导入/打印设置/读卡器/参数/运维/门户，18 页 80 用例） |
+| `verify-excel-import.js` | Excel 链路回归（房源/条款导入解析、.xls 拒绝、服务端多表导出，12 用例）；迁 exceljs 后的守护 |
+| `verify-websocket.js` | WebSocket 广播回归（房态变更/批量变更事件、载荷结构、断开后服务健康，11 用例）；对种子房源做净零流转 |
+| `check-deps-audit.cjs` | **依赖漏洞门禁**（`npm audit --omit=dev`，high/critical 阻断；xlsx 等上游无补丁项在 ALLOWLIST 豁免并带复审期限） |
+| `check-static-rules.cjs` | **静态铁律门禁**（6 条：ANTI-EMOJI / 旧主题色 / 版本号硬编码 / 生产 URL 硬编码 / multer fileFilter / 财务写端点中间件），无需服务，行尾 `ci-allow:<规则号>` 可豁免 |
+| `verify-external-providers.ts` | 短信/电子签算法自检（编码规则/签名确定性/TC3 派生链/未配置降级，21 用例）；用 `cd backend && npx tsx ../scripts/xxx` 运行 |
+| `theme-migrate.cjs` | 湛蓝玻璃主题色值迁移（旧色→新令牌，跳过打印模板） |
+| `apply-loading-states.cjs` | 批量为列表页注入骨架屏 + 统一空态（`--dry` 预演） |
+| `apply-a11y-colors.cjs` | 无障碍配色迁移（文字场景语义色→ -text 变体） |
+| `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（46 条清单，可作 CI 门禁） |
+| `verify-ux-states.cjs` | 交互态验收（骨架/空态/头像图标化，10 用例）；需先启动 dev |
+| `verify-dashboard.js` | 首页概览运行时回归（overview 金额口径/todo-summary 权限过滤/rooms-stats/消防/物业运营，16 用例）；需 dev |

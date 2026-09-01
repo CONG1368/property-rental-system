@@ -5,6 +5,13 @@
   "description": "物业租赁综合管理系统",
   "main": "dist/electron/main.js",
   "scripts": {
+    "test:regression": "node scripts/run-all-regression.js",
+    "test:static": "node scripts/run-all-regression.js --static",
+    "check:rules": "node scripts/check-static-rules.cjs",
+    "check:deps": "node scripts/check-deps-audit.cjs",
+    "hooks:install": "node scripts/install-hooks.cjs",
+    "typecheck": "cd frontend && npx vue-tsc --noEmit && cd ../backend && npx tsc --noEmit",
+    "test:unit": "cd backend && npx vitest run && cd ../frontend && npx vitest run",
     "dev": "npm run dev:clean && concurrently --kill-others --prefix-colors \"cyan,green\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:clean": "powershell -ExecutionPolicy Bypass -File scripts/kill-dev.ps1",
     "dev:frontend": "cd frontend && npm run dev",
@@ -15,9 +22,10 @@
     "build:electron": "tsc -p electron/tsconfig.json && electron-builder",
     "build:icon": "node scripts/generate-icon.js",
     "clean": "rimraf dist frontend/dist backend/dist release",
-    "postinstall": "cd frontend && npm install && cd ../backend && npm install"
+    "postinstall": "node scripts/install-hooks.cjs && cd frontend && npm install && cd ../backend && npm install"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "concurrently": "^8.2.2",
     "electron": "^28.2.0",
     "electron-builder": "^24.9.1",

@@ -1,4 +1,5 @@
 import Property from '../models/Property.js';
+import { Op } from 'sequelize';
 
 /**
  * 公共费用分摊
@@ -8,10 +9,14 @@ import Property from '../models/Property.js';
  */
 export async function allocateCost(
   totalCost: number,
-  rule: 'area' | 'equal' | 'custom' = 'area'
+  rule: 'area' | 'equal' | 'custom' = 'area',
+  propertyIds?: number[]
 ): Promise<{ propertyId: number; amount: number }[]> {
+  const where: any = propertyIds && propertyIds.length
+    ? { id: { [Op.in]: propertyIds } }
+    : { status: '已出租' };
   const properties = await Property.findAll({
-    where: { status: '已出租' },
+    where,
     attributes: ['id', 'area'],
   });
 

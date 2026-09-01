@@ -43,10 +43,26 @@ async function checkGarbledText(page) {
   return { found: false };
 }
 
+// 登录（可重复调用）：main.ts 每次应用启动都会清空 token，
+// 而 dev 模式下 Vite 发现新依赖会强制整页 reload —— 中途会被踢回登录页，
+// 后续断言全部落空。所有导航前统一做一次登录态兜底。
+async function loginIfNeeded(page) {
+  if (page.url().indexOf('/login') < 0) return false;
+  await page.fill('input[placeholder="请输入用户名"]', 'admin').catch(() => {});
+  await page.fill('input[placeholder="请输入密码"]', 'admin123').catch(() => {});
+  await page.click('button:has-text("登 录")').catch(() => {});
+  await page.waitForTimeout(2000);
+  return true;
+}
+
 // 导航并截图
 async function navTo(page, hash, name) {
   await page.goto(`${BASE}/#${hash}`, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(800);
+  if (await loginIfNeeded(page)) {
+    await page.goto(`${BASE}/#${hash}`, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(800);
+  }
   const screenshotPath = path.join(SCREENSHOT_DIR, `${name.replace(/[\/\\]/g, '-')}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   const garbled = await checkGarbledText(page);
@@ -138,16 +154,15 @@ async function navTo(page, hash, name) {
   // 6a. 房源创建
   try {
     await page.goto(`${BASE}/#/rent/properties`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1000);
+    if (await loginIfNeeded(page)) await page.goto(`${BASE}/#/rent/properties`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('button:has-text("新增房源")', { timeout: 20000 });
     await page.click('button:has-text("新增房源")');
     await page.waitForTimeout(500);
     await page.fill('input[placeholder*="房源名称"]', 'E2E测试房源');
-    await page.locator('.el-select').first().click();
+    await page.locator('.el-dialog .el-select').first().click();
     await page.waitForTimeout(300);
     // 选择业态类型
-    const options = await page.locator('.el-select-dropdown__item');
-    const count = await options.count();
-    if (count > 0) await options.first().click();
+    await page.locator('.el-select-dropdown__item:visible').first().click({ timeout: 10000 }).catch(() => {});
     await page.waitForTimeout(200);
     record('房源-打开新增对话框', 'PASS');
     // 取消创建，避免脏数据
@@ -160,6 +175,7 @@ async function navTo(page, hash, name) {
   // 6b. 租客列表 — 检查表格数据
   try {
     await navTo(page, 'rent/tenants', 'func-tenants');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('租客-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {
@@ -169,6 +185,7 @@ async function navTo(page, hash, name) {
   // 6c. 账单列表
   try {
     await navTo(page, 'rent/bills', 'func-bills');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('账单-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {
@@ -178,6 +195,7 @@ async function navTo(page, hash, name) {
   // 6d. 合同列表
   try {
     await navTo(page, 'contract/list', 'func-contracts');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('合同-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {
@@ -187,6 +205,7 @@ async function navTo(page, hash, name) {
   // 6e. 凭证管理
   try {
     await navTo(page, 'finance/vouchers', 'func-vouchers');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('凭证-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {
@@ -196,6 +215,7 @@ async function navTo(page, hash, name) {
   // 6f. 用户管理
   try {
     await navTo(page, 'system/users', 'func-users');
+    await page.waitForFunction(() => document.querySelectorAll('.el-table__body-wrapper tbody tr').length > 0, { timeout: 10000 }).catch(() => {});
     const rows = await page.locator('.el-table__body-wrapper tbody tr').count();
     record('用户-列表加载', rows > 0 ? 'PASS' : 'FAIL', `${rows} 条记录`);
   } catch (e) {

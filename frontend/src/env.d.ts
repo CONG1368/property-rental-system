@@ -8,6 +8,9 @@ declare module '*.vue' {
 
 declare module 'element-plus/dist/locale/zh-cn.mjs';
 
+/** 构建时注入：根 package.json 的 version */
+declare const __APP_VERSION__: string;
+
 interface Window {
   electronAPI: {
     getAppVersion: () => Promise<string>;

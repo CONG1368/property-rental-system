@@ -1,24 +1,123 @@
 @use './variables' as *;
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+// ============================================================
+// Element Plus 主题覆盖 — 湛蓝玻璃拟物（Glassmorphism·湛蓝）
+// main.ts 中此文件在 element-plus/dist/index.css 之后引入，故覆盖生效
+// ============================================================
+html:root {
+  --el-color-primary: #4f7cf7 !important;
+  --el-color-primary-dark-2: #3b66e0 !important;
+  --el-color-primary-light-3: #7ba0f9;
+  --el-color-primary-light-5: #a1bafa;
+  --el-color-primary-light-7: #c6d6fd;
+  --el-color-primary-light-8: #d9e3fd;
+  --el-color-primary-light-9: #ecf1fe;
+  --el-color-success: #10b981 !important;
+  --el-color-warning: #f59e0b;
+  --el-color-danger: #ef4444 !important;
+  --el-color-error: #ef4444;
+  --el-text-color-primary: #1f2430 !important;
+  --el-text-color-regular: #3a4354;
+  --el-text-color-secondary: #5b6472;
+  --el-text-color-placeholder: #5f6675;
+  // 交互控件边界须 >=3:1（WCAG SC 1.4.11）；装饰性白描边保留在 -light/-lighter
+  --el-border-color: #6f8299;
+  --el-border-color-light: rgba(255,255,255,.55);
+  --el-border-color-lighter: rgba(255,255,255,.5);
+  --el-fill-color-blank: rgba(255,255,255,.62) !important;
+  --el-fill-color-light: rgba(255,255,255,.42);
+  --el-border-radius-base: 14px !important;
+  --el-border-radius-small: 8px;
+  --el-border-radius-round: 20px;
+  --el-box-shadow-light: 0 8px 32px rgba(31,41,55,.14);
 }
 
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+// 玻璃拟物渐变背景
 html, body {
   height: 100%;
   font-family: $font-family-base;
   font-size: $font-size-body;
   color: $color-text-body;
-  background-color: #F5F7FA;
+  background-color: #dde7f5;
+  background-image: linear-gradient(135deg, #e3ecfb, #dbe6f8 45%, #e0edf7);
+  background-attachment: fixed;
 }
 
-a {
-  color: $color-primary;
-  text-decoration: none;
-}
+a { color: $color-primary; text-decoration: none; }
 
+// 卡片毛玻璃：半透明 + 背景模糊 + 内高光
 .el-card {
-  border-radius: $radius-md;
+  border-radius: $radius-lg;
+  border: 1px solid rgba(255,255,255,.72);
+  background: rgba(255,255,255,.62);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 32px rgba(31,41,55,.14), inset 0 1px 0 rgba(255,255,255,.55);
+}
+
+// 弹层/对话框也做玻璃
+.el-dialog, .el-popper, .el-dropdown-menu {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  background: rgba(255,255,255,.85);
+}
+
+// 顶栏/侧边栏玻璃化（AppLayout 里 .top-nav/.sidebar 已设色，这里补充透明度）
+.el-button { transition: all .15s; }
+.el-button:active { transform: translateY(-1px) scale(.98); }
+.el-table th.el-table__cell { background-color: rgba(255,255,255,.55); }
+
+// 表单输入玻璃化（边框用可辨识的控件描边，满足 SC 1.4.11）
+.el-input__wrapper, .el-textarea__inner {
+  background: rgba(255,255,255,.6) !important;
+  box-shadow: inset 0 0 0 1px $color-border-control, inset 0 1px 0 rgba(255,255,255,.4) !important;
+}
+
+// ------------------------------------------------------------
+// 无障碍：文字/链接使用加深的 -text 变体（原色仅作填充与标签底）
+// ------------------------------------------------------------
+a { color: $color-primary-text; }
+a:hover { color: $color-primary-text-hover; }
+.el-button--primary.is-link,
+.el-button--primary.is-text,
+.el-link.el-link--primary { color: $color-primary-text; }
+.el-button--success.is-link, .el-link.el-link--success { color: $color-success-text; }
+.el-button--warning.is-link, .el-link.el-link--warning { color: $color-warning-text; }
+.el-button--danger.is-link, .el-link.el-link--danger { color: $color-danger-text; }
+
+// 实心按钮：白字须 >=4.5:1，原填充色（#4f7cf7/#10b981/#f59e0b/#ef4444）不足，
+// 故按钮底改用加深变体；标签/图表仍用原色（填充门槛 3:1 已满足）
+.el-button--primary {
+  --el-button-bg-color: #{$color-primary-text};
+  --el-button-border-color: #{$color-primary-text};
+  --el-button-hover-bg-color: #{$color-primary-text-hover};
+  --el-button-hover-border-color: #{$color-primary-text-hover};
+  --el-button-active-bg-color: #{$color-primary-text-hover};
+  --el-button-active-border-color: #{$color-primary-text-hover};
+}
+.el-button--success {
+  --el-button-bg-color: #{$color-success-text};
+  --el-button-border-color: #{$color-success-text};
+  --el-button-hover-bg-color: #0c8a60;
+  --el-button-hover-border-color: #0c8a60;
+}
+.el-button--warning {
+  --el-button-bg-color: #{$color-warning-text};
+  --el-button-border-color: #{$color-warning-text};
+  --el-button-hover-bg-color: #a06200;
+  --el-button-hover-border-color: #a06200;
+}
+.el-button--danger {
+  --el-button-bg-color: #{$color-danger-text};
+  --el-button-border-color: #{$color-danger-text};
+  --el-button-hover-bg-color: #d63030;
+  --el-button-hover-border-color: #d63030;
+}
+
+// 深色顶栏上的彩色元素需提亮（深底 #3D4D64 上原色仅 2.3:1）
+.top-nav {
+  .el-badge__content { background-color: $color-on-dark-danger !important; color: #7f1d1d !important; border-color: transparent !important; }
+  .el-icon { color: #fff; }
 }

@@ -48,7 +48,8 @@
     </div>
 
     <!-- 表格 -->
-    <el-table :data="tableData" stripe v-loading="loading" style="margin-top:12px">
+    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="8" />
+    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" style="margin-top:12px">
       <el-table-column prop="name" label="门锁名称" width="200" />
       <el-table-column label="所属房源" width="180" show-overflow-tooltip>
         <template #default="{ row }">{{ row.property?.name || '-' }}</template>
@@ -105,6 +106,9 @@
           <el-button size="small" @click="goDetail(row.id)">详情</el-button>
         </template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无门锁设备" description="登记智能门锁或传统门锁后，可在此统一管理密码与钥匙" />
+      </template>
     </el-table>
 
     <el-pagination

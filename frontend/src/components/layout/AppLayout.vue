@@ -31,7 +31,9 @@ import Breadcrumb from './Breadcrumb.vue';
   flex-direction: column;
 }
 .top-nav {
-  background: #0A3D62;
+  background: rgba(26,43,68,.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   padding: 0 20px;
   display: flex;
   align-items: center;
@@ -39,13 +41,15 @@ import Breadcrumb from './Breadcrumb.vue';
   flex-shrink: 0;
 }
 .sidebar {
-  background: #fff;
-  border-right: 1px solid #e8e8e8;
+  background: rgba(255,255,255,.55);
+  border-right: 1px solid rgba(255,255,255,.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   overflow-y: auto;
   height: 100%;
 }
 .main-content {
-  background: #f5f7fa;
+  background: transparent;
   padding: 16px;
   overflow-y: auto;
   height: 100%;

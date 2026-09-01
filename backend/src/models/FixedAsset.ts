@@ -7,6 +7,7 @@ interface FixedAssetAttributes {
   originalValue: number; residualValue: number; usefulMonths: number;
   monthlyDepreciation: number; accumulatedDepreciation: number;
   startDate: Date; status: string;
+  lastDepreciationPeriod: string;   // 最近一次计提折旧的期间 YYYY-MM，防止同月重复计提
   createdAt?: Date; updatedAt?: Date;
 }
 type FACreation = Optional<FixedAssetAttributes, 'id'|'createdAt'|'updatedAt'>;
@@ -24,5 +25,6 @@ FixedAsset.init({
   accumulatedDepreciation: { type: DataTypes.DECIMAL(12,2), defaultValue: 0 },
   startDate: { type: DataTypes.DATEONLY, allowNull: false },
   status: { type: DataTypes.STRING(20), defaultValue: '使用中' },
+  lastDepreciationPeriod: { type: DataTypes.STRING(7), defaultValue: '' },
 }, { sequelize, tableName: 'fixed_assets', indexes: [{fields:['bookId']},{fields:['status']}] });
 export default FixedAsset;

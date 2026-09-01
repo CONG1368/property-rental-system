@@ -2,7 +2,8 @@
   <div class="account-books">
     <h2 class="page-title">账套管理</h2>
     <el-button type="primary" style="margin-bottom:16px" @click="showDialog()">新增账套</el-button>
-    <el-table :data="books" stripe v-loading="loading">
+    <TableSkeleton v-if="loading && !books.length" :rows="8" :columns="7" />
+    <el-table v-show="!(loading && !books.length)" :data="books" stripe v-loading="loading">
       <el-table-column prop="name" label="账套名称" width="200" />
       <el-table-column prop="companyName" label="公司名称" width="200" />
       <el-table-column prop="currency" label="币种" width="80" />
@@ -14,6 +15,9 @@
       <el-table-column label="操作" width="160">
         <template #default="{ row }"><el-button size="small" @click="showDialog(row)">编辑</el-button></template>
       </el-table-column>
+          <template #empty>
+        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
+      </template>
     </el-table>
     <el-dialog :title="isEdit ? '编辑账套' : '新增账套'" v-model="dialogVisible" width="500px">
       <el-form :model="form" ref="formRef" label-width="100px">
@@ -31,6 +35,7 @@
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
+import { confirmWithPassword } from '@/utils/confirm-password';
 
 const books = ref<any[]>([]); const loading = ref(false);
 const dialogVisible = ref(false); const isEdit = ref(false); const editId = ref<number | null>(null);
@@ -49,7 +54,11 @@ function showDialog(row?: any) {
 
 async function handleSubmit() {
   try {
-    if (isEdit.value && editId.value) { await request.put('/account-books/' + editId.value, form.value); ElMessage.success('更新成功'); }
+    if (isEdit.value && editId.value) {
+      const pwd = await confirmWithPassword('确定修改账套「' + (form.value?.name || '') + '」? 账套变更影响所有财务数据，请输入登录密码。', '修改账套二次确认');
+      if (!pwd) return;
+      await request.put('/account-books/' + editId.value, { ...form.value, confirmPassword: pwd }); ElMessage.success('更新成功');
+    }
     else { await request.post('/account-books', form.value); ElMessage.success('创建成功'); }
     dialogVisible.value = false; fetchBooks();
   } catch {}
@@ -59,5 +68,5 @@ onMounted(() => fetchBooks());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 </style>

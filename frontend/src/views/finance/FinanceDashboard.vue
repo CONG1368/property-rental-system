@@ -90,10 +90,10 @@ const currentPeriod = ref('');
 const yearOptions = computed(() => Array.from({ length: 4 }, (_, i) => currentYear - i));
 
 const kpis = ref([
-  { label: '总收入', value: '--', color: '#00B894' },
-  { label: '总支出', value: '--', color: '#FF6B35' },
-  { label: '净利润', value: '--', color: '#0A3D62' },
-  { label: '利润率', value: '--', color: '#F6B93B' },
+  { label: '总收入', value: '--', color: '#10b981' },
+  { label: '总支出', value: '--', color: '#f97316' },
+  { label: '净利润', value: '--', color: '#4f7cf7' },
+  { label: '利润率', value: '--', color: '#f59e0b' },
 ]);
 
 const incomeTrendOption = ref({});
@@ -110,9 +110,9 @@ function buildTrendChart(data: any[], labels: string[]) {
     xAxis: { type: 'category', data: labels, axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => (v / 10000).toFixed(0) + '万' } },
     series: [
-      { name: '收入', type: 'line', data: data.map((t: any) => t.income), smooth: true, lineStyle: { color: '#00B894' }, itemStyle: { color: '#00B894' } },
-      { name: '支出', type: 'line', data: data.map((t: any) => t.expense), smooth: true, lineStyle: { color: '#FF6B35' }, itemStyle: { color: '#FF6B35' } },
-      { name: '净利润', type: 'line', data: data.map((t: any) => t.net), smooth: true, lineStyle: { color: '#0A3D62', type: 'dashed' }, itemStyle: { color: '#0A3D62' } },
+      { name: '收入', type: 'line', data: data.map((t: any) => t.income), smooth: true, lineStyle: { color: '#10b981' }, itemStyle: { color: '#10b981' } },
+      { name: '支出', type: 'line', data: data.map((t: any) => t.expense), smooth: true, lineStyle: { color: '#f97316' }, itemStyle: { color: '#f97316' } },
+      { name: '净利润', type: 'line', data: data.map((t: any) => t.net), smooth: true, lineStyle: { color: '#4f7cf7', type: 'dashed' }, itemStyle: { color: '#4f7cf7' } },
     ],
   };
 }
@@ -134,10 +134,10 @@ function buildCashFlowChart(data: any[], labels: string[]) {
 
 function updateDisplay(d: any, prefix: string) {
   kpis.value = [
-    { label: prefix + '总收入', value: '¥' + formatWan(d.totalRevenue), color: '#00B894' },
-    { label: prefix + '总支出', value: '¥' + formatWan(d.totalExpense), color: '#FF6B35' },
-    { label: prefix + '净利润', value: '¥' + formatWan(d.netProfit), color: '#0A3D62' },
-    { label: '利润率', value: d.profitMargin + '%', color: '#F6B93B' },
+    { label: prefix + '总收入', value: '¥' + formatWan(d.totalRevenue), color: '#10b981' },
+    { label: prefix + '总支出', value: '¥' + formatWan(d.totalExpense), color: '#f97316' },
+    { label: prefix + '净利润', value: '¥' + formatWan(d.netProfit), color: '#4f7cf7' },
+    { label: '利润率', value: d.profitMargin + '%', color: '#f59e0b' },
   ];
 
   if (d.expenseBreakdown && d.expenseBreakdown.length > 0) {
@@ -220,7 +220,7 @@ onMounted(() => loadData());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #0A3D62; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
 .kpi-card { text-align: center; }
 .kpi-label { font-size: 12px; color: #7F8C8D; margin-bottom: 8px; }
 .kpi-value { font-size: 28px; font-weight: 700; }

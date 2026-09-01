@@ -1,0 +1,63 @@
+name: CI
+
+# 本仓库的 CI 只跑「不依赖运行中服务」的门禁：
+#   A 段 静态铁律 + WCAG 对比度   B 段 双端类型检查 + ESM 产物校验
+# 运行时回归（full-e2e / test-api.sh 等）需要 npm run dev 起前后端，
+# 由开发者在本地执行 npm run test:regression，不在此流水线内。
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  static-gate:
+    name: 静态与类型门禁
+    runs-on: ubuntu-latest
+    env:
+      # 门禁不需要 Electron 二进制与 Playwright 浏览器，跳过下载可省数分钟
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node 20
+        uses: actions/setup-node@v4
+        with:
+          # Node 22：Node 20 上 jsdom 会报 webidl.util.markAsUncloneable is not a function，
+          # 导致 frontend vitest 的 fork worker 起不来
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+            backend/package-lock.json
+
+      # --ignore-scripts：跳过根 postinstall（会重复装子包）与 better-sqlite3 等原生编译，
+      # 类型检查/单测只需要 .d.ts 与 JS，不需要原生编译产物
+      #
+      # 用 npm install 而不是 npm ci：本机 npm 12 生成 lockfile 时，只为**当前平台**记录
+      # esbuild 之类的可选原生包（如 vitest 自带的 @esbuild/*@0.28.2），Linux runner 上
+      # npm ci 会直接报 "Missing: @esbuild/linux-x64 from lock file" 而中断。
+      # install 会按运行平台补齐这些可选依赖，其余版本仍以 lockfile 为准。
+      - name: 安装根依赖
+        run: npm install --ignore-scripts --no-audit --no-fund
+
+      # 前端/后端**不能**加 --ignore-scripts：esbuild 要靠 postinstall 落平台二进制，
+      # better-sqlite3 要靠 prebuild-install 拿原生绑定，否则 vitest 直接起不来
+      #（backend vitest 会报 "Could not locate the bindings file"）
+      - name: 安装前端依赖
+        run: npm install --no-audit --no-fund
+        working-directory: frontend
+
+      - name: 安装后端依赖
+        run: npm install --no-audit --no-fund
+        working-directory: backend
+
+      - name: 依赖漏洞门禁（生产依赖 high/critical 阻断，豁免见脚本 ALLOWLIST）
+        run: node scripts/check-deps-audit.cjs
+
+      - name: 静态门禁 + 类型检查（npm run test:static）
+        run: npm run test:static

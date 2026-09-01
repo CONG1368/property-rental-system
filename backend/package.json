@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "node ../scripts/fix-esm-imports.js && tsc && node ../scripts/verify-esm-build.js",
+    "build": "node ../scripts/gen-build-version.cjs && node ../scripts/fix-esm-imports.js && tsc && node ../scripts/verify-esm-build.js",
     "start": "node dist/index.js",
+    "test": "vitest run",
     "db:migrate": "npx sequelize-cli db:migrate",
     "db:seed": "npx sequelize-cli db:seed:all"
   },
@@ -31,10 +32,8 @@
     "pdf-parse": "^2.4.5",
     "sequelize": "^6.37.1",
     "sqlite3": "^6.0.1",
-    "uuid": "^9.0.1",
     "word-extractor": "^1.0.4",
-    "ws": "^8.16.0",
-    "xlsx": "^0.18.5"
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -45,9 +44,12 @@
     "@types/multer": "^1.4.11",
     "@types/node": "^20.11.16",
     "@types/node-cron": "^3.0.11",
-    "@types/uuid": "^9.0.7",
     "@types/ws": "^8.5.10",
     "tsx": "^4.7.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   }
 }

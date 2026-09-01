@@ -4,6 +4,17 @@ import * as fs from 'fs';
 import * as os from 'os';
 import { spawnBackend } from './spawn-backend';
 
+// ===== 全局 EPIPE 防护 =====
+// 应用常随终端/父进程管道一起启动时，父进程退出/管道关闭会让 console 写入抛 EPIPE，
+// 若未捕获会以 Uncaught Exception 直接崩掉整个 Electron 主进程（生产真实故障）。
+// 这里在进程级吞掉 stdout/stderr 的 EPIPE，同时给未包装的 console.log 加保险。
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (err: any) => {
+    if (err && err.code === 'EPIPE') { /* 管道已关，静默忽略 */ }
+    else { /* 其它写错误也一并吞掉，避免崩主进程 */ }
+  });
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 const isMac = process.platform === 'darwin';

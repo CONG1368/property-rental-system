@@ -11,7 +11,8 @@ import './styles/global.scss';
 localStorage.removeItem('accessToken');
 localStorage.removeItem('refreshToken');
 localStorage.removeItem('userRole');
-const APP_VERSION = '1.0.2';
+// 版本号由 vite.config.ts 从根 package.json 注入，禁止在此写死
+const APP_VERSION = __APP_VERSION__;
 localStorage.setItem('appVersion', APP_VERSION);
 
 const app = createApp(App);
