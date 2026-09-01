@@ -19,6 +19,8 @@ skills/
 .mcp.json
 .playwright-mcp/
 test_resp.json
+.regression_*.txt
+.test_api_out*.txt
 tok.json
 tok.txt
 bash.exe.stackdump

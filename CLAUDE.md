@@ -30,8 +30,14 @@ npm run build
 bash test-api.sh
 & 'C:\Program Files\Git\bin\bash.exe' ./test-api.sh
 
-# 全链路回归（12 项串联，需先启动 dev）
-node scripts/run-all-regression.js
+# 全链路回归（16 项串联，需先启动 dev）
+npm run test:regression
+
+# 仅无服务依赖的门禁（静态铁律 + 对比度 + 双端类型检查 + ESM 产物校验，CI 可直接跑）
+npm run test:static
+
+# 单跑静态铁律门禁（emoji/主题色/版本号/生产URL/multer/财务中间件）
+npm run check:rules
 
 # 后端 TypeScript 类型检查（不生成输出）
 cd backend && npx tsc --noEmit
@@ -799,9 +805,15 @@ off('room:status-changed', callback);
 
 ### 全链路回归（发版前必跑）
 
-**一条命令**：`node scripts/run-all-regression.js`（先启动 `npm run dev`）。串联 **12 项**并按依赖顺序执行，全通过退出码 0：
+**一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **16 项**、分三段执行，全通过退出码 0：
 
-`check-contrast`（静态门禁，无需服务） → `full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modules` → `verify-dashboard` → `verify-system-settings` → `verify-ux-states` → `permission-regression` → `e2e-permission-matrix` → `e2e-confirm-password` → `verify-external-providers`（tsx 运行） → `test-api.sh`（自动探测 Git Bash，找不到则显式跳过、不计失败）。
+- **A 段 静态门禁**（无需服务）：`check-static-rules` → `check-contrast`
+- **B 段 类型与构建门禁**（无需服务）：`frontend vue-tsc --noEmit` → `backend tsc --noEmit` → `verify-esm-build`（仅当 `backend/dist` 存在，否则显式跳过、不计失败）
+- **C 段 运行时回归**（需 dev）：见下方顺序
+
+`npm run test:static` 只跑 A+B 段——**这是唯一能在纯 CI 环境（checkout + install）跑通的部分**，C 段依赖本地 dev 服务。
+
+C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modules` → `verify-dashboard` → `verify-system-settings` → `verify-ux-states` → `permission-regression` → `e2e-permission-matrix` → `e2e-confirm-password` → `verify-external-providers`（tsx 运行） → `test-api.sh`（自动探测 Git Bash，找不到则显式跳过、不计失败）。
 
 **顺序约束**：`permission-regression` 必须在 `e2e-permission-matrix` 之前——后者会写入角色权限定制（结束时通过 `/api/permissions/reset` 还原），顺序颠倒会污染前者的基线断言。
 
@@ -839,7 +851,8 @@ off('room:status-changed', callback);
 | `verify-system-settings.js` | 系统设置模块运行时回归（登录/配置只读/二次确认/非管理员/审计/字典/运维，9 用例）；需先启动 dev 后端 |
 | `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
 | `e2e-new-modules.js` | 新增模块 E2E |
-| `run-all-regression.js` | **全链路回归入口**：串联 12 项（静态门禁 + 9 个 Node/浏览器脚本 + tsx 脚本 + 自动探测 bash 跑 test-api.sh） |
+| `run-all-regression.js` | **全链路回归入口**：串联 16 项，分 A 静态 / B 类型构建 / C 运行时 三段；`--static` 只跑 A+B |
+| `check-static-rules.cjs` | **静态铁律门禁**（6 条：ANTI-EMOJI / 旧主题色 / 版本号硬编码 / 生产 URL 硬编码 / multer fileFilter / 财务写端点中间件），无需服务，行尾 `ci-allow:<规则号>` 可豁免 |
 | `verify-external-providers.ts` | 短信/电子签算法自检（编码规则/签名确定性/TC3 派生链/未配置降级，21 用例）；用 `cd backend && npx tsx ../scripts/xxx` 运行 |
 | `theme-migrate.cjs` | 湛蓝玻璃主题色值迁移（旧色→新令牌，跳过打印模板） |
 | `apply-loading-states.cjs` | 批量为列表页注入骨架屏 + 统一空态（`--dry` 预演） |

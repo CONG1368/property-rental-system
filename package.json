@@ -6,6 +6,9 @@
   "main": "dist/electron/main.js",
   "scripts": {
     "test:regression": "node scripts/run-all-regression.js",
+    "test:static": "node scripts/run-all-regression.js --static",
+    "check:rules": "node scripts/check-static-rules.cjs",
+    "typecheck": "cd frontend && npx vue-tsc --noEmit && cd ../backend && npx tsc --noEmit",
     "dev": "npm run dev:clean && concurrently --kill-others --prefix-colors \"cyan,green\" \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:clean": "powershell -ExecutionPolicy Bypass -File scripts/kill-dev.ps1",
     "dev:frontend": "cd frontend && npm run dev",
