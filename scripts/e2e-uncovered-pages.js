@@ -59,11 +59,22 @@ function check(name, cond, detail) {
   page.on('pageerror', (e) => jsErrors.push(String(e.message || e).slice(0, 120)));
   page.on('console', (m) => { if (m.type() === 'error') jsErrors.push(m.text().slice(0, 120)); });
 
-  await page.goto(BASE + '/#/login', { waitUntil: 'networkidle', timeout: 60000 });
-  await page.fill('input[placeholder="请输入用户名"]', 'admin');
-  await page.fill('input[placeholder="请输入密码"]', 'admin123');
-  await page.click('button:has-text("登 录")');
-  await page.waitForTimeout(2500);
+  // 登录（可重复调用）。
+  // 关键：main.ts 在每次应用启动时都会清空 localStorage 里的 token（桌面版"每次启动重新登录"策略），
+  // 而 dev 模式下 Vite 发现新依赖会强制整页 reload —— 于是测试中途会被踢回登录页，
+  // 后续所有路由跳转都被守卫拦到 /login。这里提供自动重登，避免这种与代码无关的假失败。
+  async function login() {
+    await page.goto(BASE + '/#/login', { waitUntil: 'networkidle', timeout: 60000 });
+    await page.fill('input[placeholder="请输入用户名"]', 'admin');
+    await page.fill('input[placeholder="请输入密码"]', 'admin123');
+    await page.click('button:has-text("登 录")');
+    await page.waitForTimeout(2500);
+  }
+  async function ensureLoggedIn() {
+    if (page.url().indexOf('/login') >= 0) { await login(); return true; }
+    return false;
+  }
+  await login();
   check('登录进入系统', page.url().indexOf('/dashboard') >= 0, page.url().split('#')[1]);
 
   for (let i = 0; i < PAGES.length; i++) {
@@ -72,11 +83,26 @@ function check(name, cond, detail) {
     jsErrors = [];
 
     await page.evaluate((h) => { window.location.hash = h; }, hash);
-    await page.waitForTimeout(2200);
 
-    const scope = (!noMain && (await page.locator('.el-main').count()) > 0)
-      ? page.locator('.el-main').first() : page.locator('body');
-    const text = await scope.innerText();
+    // 轮询等待关键文案出现，而不是固定 sleep。
+    // 原因：dev 模式下 Vite 首次遇到新的 Element Plus 组件样式会「optimized dependencies changed → reloading」，
+    // 整页重载会把固定等待的断言打空，造成与代码无关的假失败（升级依赖后 .vite 缓存失效时尤其明显）。
+    const deadline = Date.now() + 20000;
+    let text = '';
+    while (Date.now() < deadline) {
+      await page.waitForTimeout(500);
+      try {
+        // 被 Vite reload 踢回登录页时自动重登并重新跳转
+        if (await ensureLoggedIn()) {
+          await page.evaluate((h) => { window.location.hash = h; }, hash);
+          await page.waitForTimeout(800);
+        }
+        const sc = (!noMain && (await page.locator('.el-main').count()) > 0)
+          ? page.locator('.el-main').first() : page.locator('body');
+        text = await sc.innerText();
+        if (text.indexOf(keyword) >= 0) break;
+      } catch (e) { /* 整页 reload 期间 DOM 会短暂不可用，忽略后重试 */ }
+    }
 
     await page.screenshot({ path: path.join(SHOT_DIR, String(i + 1).padStart(2, '0') + '-' + name + '.png') });
 
@@ -91,7 +117,14 @@ function check(name, cond, detail) {
     check(name + ' 无乱码', garbled.length === 0, garbled.length ? String(garbled[0]) : 'ok');
 
     if (minRows > 0) {
-      const rows = await page.locator('.el-table__body tr').count();
+      // 同理：表格数据由接口异步填充，轮询等待而非固定 sleep
+      let rows = 0;
+      const rowDeadline = Date.now() + 15000;
+      while (Date.now() < rowDeadline) {
+        rows = await page.locator('.el-table__body tr').count().catch(() => 0);
+        if (rows >= minRows) break;
+        await page.waitForTimeout(500);
+      }
       check(name + ' 表格有数据行(>=' + minRows + ')', rows >= minRows, 'rows=' + rows);
     }
   }

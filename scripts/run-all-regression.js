@@ -22,6 +22,7 @@ const STATIC_ONLY = process.argv.slice(2).some((a) => a === '--static' || a === 
 const staticTests = [
   'check-static-rules.cjs', // 6 条铁律：emoji/主题色/版本号/生产URL/multer/财务中间件
   'check-contrast.cjs',     // WCAG 2.1 AA 对比度
+  'check-deps-audit.cjs',   // 生产依赖漏洞（需 registry，离线自动跳过）
 ];
 
 // C 段：需要 dev 服务的 Node 脚本（按依赖顺序串行）

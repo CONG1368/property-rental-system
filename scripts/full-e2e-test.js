@@ -43,10 +43,26 @@ async function checkGarbledText(page) {
   return { found: false };
 }
 
+// 登录（可重复调用）：main.ts 每次应用启动都会清空 token，
+// 而 dev 模式下 Vite 发现新依赖会强制整页 reload —— 中途会被踢回登录页，
+// 后续断言全部落空。所有导航前统一做一次登录态兜底。
+async function loginIfNeeded(page) {
+  if (page.url().indexOf('/login') < 0) return false;
+  await page.fill('input[placeholder="请输入用户名"]', 'admin').catch(() => {});
+  await page.fill('input[placeholder="请输入密码"]', 'admin123').catch(() => {});
+  await page.click('button:has-text("登 录")').catch(() => {});
+  await page.waitForTimeout(2000);
+  return true;
+}
+
 // 导航并截图
 async function navTo(page, hash, name) {
   await page.goto(`${BASE}/#${hash}`, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(800);
+  if (await loginIfNeeded(page)) {
+    await page.goto(`${BASE}/#${hash}`, { waitUntil: 'networkidle', timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(800);
+  }
   const screenshotPath = path.join(SCREENSHOT_DIR, `${name.replace(/[\/\\]/g, '-')}.png`);
   await page.screenshot({ path: screenshotPath, fullPage: true });
   const garbled = await checkGarbledText(page);
@@ -138,6 +154,7 @@ async function navTo(page, hash, name) {
   // 6a. 房源创建
   try {
     await page.goto(`${BASE}/#/rent/properties`, { waitUntil: 'networkidle' });
+    if (await loginIfNeeded(page)) await page.goto(`${BASE}/#/rent/properties`, { waitUntil: 'networkidle' });
     await page.waitForSelector('button:has-text("新增房源")', { timeout: 20000 });
     await page.click('button:has-text("新增房源")');
     await page.waitForTimeout(500);

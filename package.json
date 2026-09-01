@@ -8,6 +8,7 @@
     "test:regression": "node scripts/run-all-regression.js",
     "test:static": "node scripts/run-all-regression.js --static",
     "check:rules": "node scripts/check-static-rules.cjs",
+    "check:deps": "node scripts/check-deps-audit.cjs",
     "hooks:install": "node scripts/install-hooks.cjs",
     "typecheck": "cd frontend && npx vue-tsc --noEmit && cd ../backend && npx tsc --noEmit",
     "dev": "npm run dev:clean && concurrently --kill-others --prefix-colors \"cyan,green\" \"npm run dev:frontend\" \"npm run dev:backend\"",

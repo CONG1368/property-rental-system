@@ -46,5 +46,8 @@ jobs:
         run: npm ci --ignore-scripts
         working-directory: backend
 
+      - name: 依赖漏洞门禁（生产依赖 high/critical 阻断，豁免见脚本 ALLOWLIST）
+        run: node scripts/check-deps-audit.cjs
+
       - name: 静态门禁 + 类型检查（npm run test:static）
         run: npm run test:static

@@ -93,13 +93,7 @@ node scripts/generate-manual-pdf.js
 │       ├── router/            # 路由定义（hash 模式，token 导航守卫）
 │       ├── composables/       # Vue3 组合式函数（useWebSocket / useIdCardReader）
 │       ├── utils/             # 工具模块（打印服务/头像/凭证存储）
-│       ├── views/             # 页面组件（86 个）
-│       │   ├── dashboard/     # 首页概览
-│       │   ├── rent/          # 租赁管理（房源/租客/账单/门锁/催缴/房态看板）
-│       │   ├── finance/       # 财务管理（账套/科目/凭证/费用/税务/预算/报表/看板）
-│       │   ├── contract/      # 合同管理（列表/详情/起草/审批/看板/到期/续约/模板/合规）
-│       │   ├── fire/          # 消防管理（看板/检查/器材/违规/演练）
-│       │   └── system/        # 系统设置（用户/审计日志/数据字典/打印设置/身份证读卡器/审批流程/权限矩阵/系统参数/系统运维/审批中心/全局检索）
+│       ├── views/             # 页面组件（86 个）：dashboard / rent / property / finance / contract / fire / system
 │       └── api/request.ts     # Axios 实例（baseURL=/api，拦截器处理 token/401）
 ├── backend/                   # Express 后端（ESM 模块）
 │   └── src/
@@ -168,7 +162,7 @@ const resp = await fetch('/api/contracts/extract-clause-text', { ... });
 
 影响的调用方式：原生 `fetch`、`el-upload` 的 `:action` prop、`new WebSocket()` URL。Axios 实例（`request.post/get/...`）不受影响——其 `baseURL` 已配置为 `apiBaseURL`。
 
-当前已验证安全的文件：`health.ts`（已处理 PROD 判断）、`useWebSocket.ts`（已处理 PROD 判断）、`TopNav.vue`（导入 apiBaseURL）、`ContractDetail.vue`（导入 apiBaseURL）、`ClauseImport.vue`（已修复）、`ContractDraft.vue`（已修复，移除本地重复定义）。
+此项已由静态门禁 R4 自动检查（`scripts/check-static-rules.cjs`），不再维护人工清单。
 
 **Axios FormData 上传注意**：axios 1.6+ 检测到 FormData 时会自动覆盖默认 `Content-Type`。但如果遇到 multer 收不到文件（返回"请上传文件"），**改用原生 fetch**：
 
@@ -220,7 +214,27 @@ Phase 3: 后台种子数据（seedChartOfAccounts → seedAllDemoData → seedDo
 Phase 4: connectRedis()（可选，失败自动退化）
 ```
 
-**注意**：`scheduler.start()` 已不再自动调用；定时任务需手动触发或通过外部机制调度。
+Phase 3.5：`scheduler.start()` 在种子数据之后挂载 7 个定时任务（`CRON_ENABLED=false` 可关闭）。
+
+### 定时任务调度器
+
+`backend/src/jobs/scheduler.ts` 用**任务注册表**组织 7 个 cron 任务，**定时触发与手动触发共用同一份 `run()`**，避免两条路径行为分叉：
+
+| key | 任务 | 调度 | 幂等性 |
+|---|---|---|---|
+| `bill-generation` | 账单生成 | 每日 02:00 | 同合同同期间已存在则跳过 |
+| `dunning` | 催缴升级 | 每日 08:00 | 按逾期状态重算 |
+| `contract-expiry` | 合同到期检查 | 每日 07:00 | 状态幂等 |
+| `depreciation` | 固定资产折旧 | 每月 1 日 02:00 | **期间水位线**（见下） |
+| `property-automation` | 物业自动化 | 每日 09:00 | 会重复发站内信 |
+| `monthly-briefing` | 月度经营简报 | 每月 1 日 09:30 | 覆盖同月 PDF |
+| `door-lock-cleanup` | 门锁密码清理 | 每日 08:30 | 幂等 |
+
+**折旧必须幂等（踩过的坑）**：`runMonthlyDepreciation()` 是**累加**操作，同月跑两次会重复计提。`FixedAsset.lastDepreciationPeriod`（YYYY-MM，已在迁移清单）作为水位线，本期已计提的资产跳过；累计折旧另有「原值−残值」封顶。新增累加型定时任务必须照此设计。
+
+**接口**：`GET /system-ops/cron`（真实 `started` + 每任务 `lastRun`）、`POST /system-ops/cron/run/:key`（手动触发，带审计）、`POST /system-ops/cron/toggle`（启停，二次确认）。前端「系统运维」页可查看状态并逐个「立即执行」。
+
+**历史坑**：`started` 曾用 `typeof scheduler.start === 'function'` 判断，永远为 true——页面显示"在跑"而调度器根本没启动。状态字段必须取真实运行态。
 
 ### Redis 可选/退化机制
 
@@ -401,7 +415,7 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 
 **路由**：`/api/fire-safety`（22 个端点），挂载于消防管理角色组（管理员/收租主管/收租员/合同主管/总经理），RBAC 中新增 `fire` 模块权限。
 
-**前端**：`views/fire/` 目录下 6 个页面 — `FireDashboard.vue`（综合看板，含 KPI 卡片、器材状态/检查结果/违规统计、过期器材和待整改列表）、`FireInspectionList.vue`（检查记录 CRUD + 弹窗表单，含 6 项检查 checkbox）、`FireInspectionDetail.vue`（检查详情 + 关联违规）、`FireEquipmentList.vue`（器材台账，过期/即将过期行颜色高亮）、`FireViolationList.vue`（违规记录 + 标记整改操作）、`FireDrillList.vue`（演练记录 CRUD）。
+**前端**：`views/fire/` 6 个页面 — 看板（KPI+器材/检查/违规统计）、检查记录（CRUD，6 项检查 checkbox）、检查详情（关联违规）、器材台账（过期行高亮）、违规记录（标记整改）、演练记录。
 
 **侧边栏**：新增"消防管理"菜单组（在合同管理和系统设置之间），`Sidebar.vue` 中 `canAccessFire` 控制可见性。
 
@@ -511,7 +525,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 - **表格单元格**：`td()` 辅助函数已内置 `normLines(value).join('<br>')`，多行值自动处理
 - **屏幕端展示**：Vue 模板中使用 `white-space:pre-wrap` 保留换行
 
-已修复/验证的文件：`ContractPrint.ts`（合同条款、消防条款、其他约定、td()）、`TenantInfoPrint.ts`（备注 含 `\r\n` 兼容+行高）、`TenantDetail.vue`（页面备注）、`ReportCenter.vue`（报表单元格）、`ContractDetail.vue`（条款内容+消防违规处罚）、`FireInspectionDetail.vue`（备注）、`ContractApproval.vue`（条款内容）。
+已覆盖：5 个打印模板 + ContractDetail / TenantDetail / ReportCenter / FireInspectionDetail / ContractApproval 的多行字段。
 
 ### 门锁管理架构
 
@@ -636,15 +650,7 @@ off('room:status-changed', callback);
 - 生产模式（Electron `file://` 协议）下自动回退到 `ws://localhost:3001/ws`
 - 消息解析失败静默忽略（容错设计）
 
-**当前使用的事件**：
-- `room:status-changed` — 单个房态变更后广播
-- `room:batch-status-changed` — 批量房态变更后广播
-- `contract:created` — 合同创建
-- `contract:deleted` — 合同删除
-- `contract:renewed` — 合同续约
-- `contract:status-changed` — 合同状态变更
-- `id-card:read-success` — 身份证读卡成功
-- `id-card:read-failure` — 身份证读卡失败
+**当前事件**：`room:status-changed` / `room:batch-status-changed` / `contract:created|deleted|renewed|status-changed` / `id-card:read-success|read-failure`。
 
 ### 房态看板前端架构
 
@@ -656,17 +662,7 @@ off('room:status-changed', callback);
 | `RoomDashboard.vue` | `/rent/room-kanban/dashboard` | 数据大屏：暗色主题，KPI 卡片 + ECharts 可视化（玫瑰饼图/柱图/仪表盘/热力图/趋势线/桑基图 + 告警跑马灯） |
 | `RoomBatchGenerate.vue` | `/rent/room-kanban/batch-gen` | 批量生成房间表单：配置楼栋名称、起止楼层、每层房间数、命名规则、默认面积 |
 
-**7 个组件**（全部在 `frontend/src/components/` 下）：
-
-| 组件 | 职责 |
-|------|------|
-| `RoomCard.vue` | 单个房间卡片：9 种状态颜色映射 + 门锁状态图标 + 租客/合同到期信息 |
-| `RoomGrid.vue` | CSS Grid 自适应布局容器，循环渲染 RoomCard |
-| `RoomTableView.vue` | el-table 表格视图（含 selection 列、排序、状态标签、门锁图标） |
-| `RoomStatsPanel.vue` | KPI 统计面板：总房源/已出租/空置/入住率/维护中 |
-| `BuildingFloorSelector.vue` | 楼栋+楼层联动筛选器（el-radio-group 切换） |
-| `RoomQuickActionDrawer.vue` | 房间快捷操作抽屉：信息描述 + 状态变更下拉 + 门锁操作 + 最近变更时间线 |
-| `BatchStatusDialog.vue` | 批量状态更新对话框：选择目标状态 + 备注，提交到 `PATCH /properties/rooms/batch-status` |
+**7 个组件**（`frontend/src/components/`）：`RoomCard`（9 状态色 + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，未挂载使用）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
 
 **数据流**：
 1. `RoomStatusKanban` 调用 `GET /properties/rooms/kanban` 获取完整数据（含楼栋分组、楼层分组、门锁、租客关联）
@@ -807,7 +803,7 @@ off('room:status-changed', callback);
 
 **一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **18 项**、分三段执行，全通过退出码 0：
 
-- **A 段 静态门禁**（无需服务）：`check-static-rules` → `check-contrast`
+- **A 段 静态门禁**（无需服务）：`check-static-rules` → `check-contrast` → `check-deps-audit`（生产依赖漏洞，需 registry，离线自动跳过；上游无补丁项走 ALLOWLIST 豁免且有复审期限）
 - **B 段 类型与构建门禁**（无需服务）：`frontend vue-tsc --noEmit` → `backend tsc --noEmit` → `verify-esm-build`（仅当 `backend/dist` 存在，否则显式跳过、不计失败）
 - **C 段 运行时回归**（需 dev）：见下方顺序
 
@@ -860,6 +856,7 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `run-all-regression.js` | **全链路回归入口**：串联 18 项，分 A 静态 / B 类型构建 / C 运行时 三段；`--static` 只跑 A+B |
 | `verify-uncovered-api.js` | 零覆盖模块 API 回归（door-locks 全生命周期 + 读卡器/通知/审批请求/简报/导出/租户登录/OCR/智能问数/物业自动化，50 用例）；对种子门锁只做净零操作 |
 | `e2e-uncovered-pages.js` | 零覆盖页面渲染回归（消防 5 页 + 房态看板 3 页 + 门锁/起草/条款导入/打印设置/读卡器/参数/运维/门户，18 页 80 用例，带截图） |
+| `check-deps-audit.cjs` | **依赖漏洞门禁**（`npm audit --omit=dev`，high/critical 阻断；xlsx 等上游无补丁项在 ALLOWLIST 豁免并带复审期限） |
 | `check-static-rules.cjs` | **静态铁律门禁**（6 条：ANTI-EMOJI / 旧主题色 / 版本号硬编码 / 生产 URL 硬编码 / multer fileFilter / 财务写端点中间件），无需服务，行尾 `ci-allow:<规则号>` 可豁免 |
 | `verify-external-providers.ts` | 短信/电子签算法自检（编码规则/签名确定性/TC3 派生链/未配置降级，21 用例）；用 `cd backend && npx tsx ../scripts/xxx` 运行 |
 | `theme-migrate.cjs` | 湛蓝玻璃主题色值迁移（旧色→新令牌，跳过打印模板） |

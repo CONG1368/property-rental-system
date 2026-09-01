@@ -12,16 +12,26 @@ const PAGES = [
   const page = await (await browser.newContext({ locale: 'zh-CN', viewport: { width: 1920, height: 1080 } })).newPage();
   let errors = [];
   page.on('pageerror', e => errors.push(String(e).slice(0,80)));
-  await page.goto('http://localhost:5173/#/login', { waitUntil: 'networkidle' });
-  await page.fill('input[placeholder="请输入用户名"]', 'admin');
-  await page.fill('input[placeholder="请输入密码"]', 'admin123');
-  await page.click('button:has-text("登 录")');
-  await page.waitForTimeout(2500);
+  // 登录（可重复调用）：dev 模式 Vite 发现新依赖会整页 reload，
+  // 而 main.ts 启动时清空 token，会把用例踢回登录页，故需自动重登兜底
+  const login = async () => {
+    await page.goto('http://localhost:5173/#/login', { waitUntil: 'networkidle' });
+    await page.fill('input[placeholder="请输入用户名"]', 'admin');
+    await page.fill('input[placeholder="请输入密码"]', 'admin123');
+    await page.click('button:has-text("登 录")');
+    await page.waitForTimeout(2500);
+  };
+  await login();
   let pass = 0, fail = 0; const failed = [];
   for (const [name, hash] of PAGES) {
     errors = [];
     await page.evaluate(h => { window.location.hash = h; }, hash);
     await page.waitForTimeout(1700);
+    if (page.url().includes('/login')) {   // 被 reload 踢回登录页 → 重登后重试
+      await login();
+      await page.evaluate(h => { window.location.hash = h; }, hash);
+      await page.waitForTimeout(1700);
+    }
     const bad = await page.locator('vite-error-overlay').count();
     const hasContent = (await page.locator('body').innerText()).length > 40;
     if (!bad && hasContent && errors.length === 0) { pass++; }
