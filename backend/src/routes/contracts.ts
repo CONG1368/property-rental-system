@@ -37,6 +37,8 @@ const importUploadDir = 'uploads/imports';
 if (!fs.existsSync(importUploadDir)) fs.mkdirSync(importUploadDir, { recursive: true });
 const importUpload = multer({
   dest: importUploadDir,
+  // 20MB 上限：同样为 xlsx 未修补 ReDoS 的兜底缓解（Word/PDF 条款文件通常也远小于此）
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const allowed = ['.xlsx', '.xls', '.docx', '.doc', '.pdf'];

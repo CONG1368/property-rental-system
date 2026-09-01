@@ -17,6 +17,9 @@ import { broadcast } from '../websocket/index.js';
 const router = Router();
 const upload = multer({
   dest: 'uploads/',
+  // 10MB 上限：xlsx 解析库存在未修补的 ReDoS 告警（GHSA-5pgg-2g8v-p4x9，npm 版停更在 0.18.5），
+  // 限制输入体积可显著削弱其可利用性，且正常房源导入表远小于该值
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (['.xls', '.xlsx'].includes(ext)) cb(null, true);

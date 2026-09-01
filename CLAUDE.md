@@ -102,9 +102,9 @@ node scripts/generate-manual-pdf.js
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
 │       ├── models/            # Sequelize 模型（65 个模型 + index/BaseModel）
 │       ├── routes/            # Express 路由（66 个模块 + index，统一挂载 /api 前缀）
-│       ├── middleware/        # auth（JWT验证）/ rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
-│       ├── services/          # 业务服务层（38 个服务，含 permission-service / approval-bridge / voucher-status-machine / mailer / wechat-provider 等）
-│       ├── jobs/scheduler.ts  # 4个 cron 定时任务
+│       ├── middleware/        # auth / rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
+│       ├── services/          # 业务服务层（38 个）
+│       ├── jobs/scheduler.ts  # 7 个 cron 定时任务（任务注册表）
 │       └── websocket/         # WebSocket 广播
 ├── electron/                  # Electron 主进程 + preload
 ├── runtime/                   # 运行时资源（打包时复制到安装目录）
@@ -472,7 +472,7 @@ if (contentText.length < 50) { /* 扫描件提示 */ }
 
 ### Axios 静默模式
 
-`request.ts` 支持 `silent: true` 配置项，非关键 API 调用可跳过 `ElMessage.error` toast。同时内置 3 秒相同错误消息去重。
+`request.ts` 的 `silent: true` 可跳过 `ElMessage.error` toast；内置 3 秒相同错误去重。
 
 ### PDF 导出引擎（print-service.ts）
 
@@ -494,9 +494,7 @@ buildContractHTML() → Electron IPC 'export-pdf' → BrowserWindow 渲染
 - 每个 block 独立 `html2canvas` 渲染（scale 1.5），超长 block 按页均分切片
 - `printNative()`（原生打印）也走 Electron IPC `print-html` → `webContents.print()` 弹出系统对话框
 
-**IPC 通道**（`electron/main.ts`）：
-- `export-pdf`：临时文件 → 隐藏 BrowserWindow → `printToPDF()` → 保存对话框
-- `print-html`：临时文件 → 隐藏 BrowserWindow → `webContents.print()` → 系统打印对话框
+**IPC 通道**（`electron/main.ts`）：`export-pdf` 与 `print-html` 都是「临时文件 → 隐藏 BrowserWindow → printToPDF()/print()」。
 
 **前端 API**（`preload.ts` → `env.d.ts`）：
 ```typescript
@@ -598,11 +596,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 
 `backend/src/config/migration.ts` — 轻量级 Schema 迁移方案，解决 Sequelize `sync()` 只建新表不修改已有列的限制。
 
-**设计思路**：
-- 定义 `MIGRATION_DEFINITIONS` 数组，每项指定表名和待添加的列（名称 + SQLite 类型 + 默认值）
-- 启动时在 `sync()` **之前**执行，确保新表（由 sync 创建）和已有表（由迁移补齐）均包含完整列
-- 对每个列执行 `addColumnIfNotExists()`：SQLite 用 `PRAGMA table_info()` 检查，MySQL 用 `try/catch` 捕获 `Duplicate column` 错误
-- 迁移完成后执行 `backfillPropertyRoomInfo()` 数据回填：从已有房源的 `name` 字段解析出 `buildingName` 和 `roomNumber`（支持楼层命名法 `XF-YY` 和顺次命名法纯数字结尾两种模式）
+**设计思路**：`MIGRATION_DEFINITIONS` 声明「表 + 待补列（名称/SQLite 类型/默认值）」，在 `sync()` **之前**执行——新表由 sync 建、旧表由迁移补列；`addColumnIfNotExists()` 在 SQLite 用 `PRAGMA table_info()` 检查、MySQL 靠捕获 `Duplicate column`；之后 `backfillPropertyRoomInfo()` 从房源 `name` 回填 `buildingName`/`roomNumber`（兼容 `XF-YY` 与纯数字结尾两种命名）。
 
 **当前迁移清单**：
 
@@ -674,18 +668,9 @@ off('room:status-changed', callback);
 
 ### 打印功能架构
 
-**打印服务**：`frontend/src/utils/print-service.ts` — 统一封装三种打印模式：
-- `native`：调用 `window.electronAPI.printHTML(html)` → Electron 开隐藏 BrowserWindow → `webContents.print()` 弹出系统打印对话框
-- `pdf`（Electron）：`printDocument()` → `exportTextPDF()` → IPC `export-pdf` → `printToPDF()` 生成真正文字 PDF
-- `pdf`（浏览器回退）：`printDocument()` → `printPDF()` → html2canvas + jsPDF 截图方案
-- 页面尺寸由 HTML 模板内 `@page` CSS 决定，`preferCSSPageSize: true` 自动适配
+（打印服务三种模式见上文「PDF 导出引擎」，此处只记模板与入口）
 
-**打印模板**：`frontend/src/components/print/` 下 5 个纯函数（数据→HTML 字符串，内联 CSS）：
-- `ContractPrint.ts` — 租赁合同（法律标准格式 + 双方签章位 + 公司 Logo）
-- `TenantInfoPrint.ts` — 租客信息表 + 关联合同列表
-- `BillPrint.ts` — 账单明细（费用分项表 + 金额大写）
-- `ReceiptPrint.ts` — 收款收据（80mm 热敏小票格式）
-- `ContractBatchPrint.ts` — 合同批量汇总表
+**打印模板**：`frontend/src/components/print/` 下 5 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+签章位+Logo）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）。
 
 **打印入口**：合同详情页（头部打印下拉：直接打印 / 导出PDF）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
 
@@ -693,7 +678,7 @@ off('room:status-changed', callback);
 
 **后端 API**：`/api/system-configs`（admin 权限）— `GET /keys?keys=k1,k2` 批量查询配置、`PUT /:key` 保存单个配置（upsert 模式）。
 
-**Electron IPC**：`main.ts` 注册 8 个 IPC handler：`export-pdf`（文字PDF导出+保存对话框）、`print-html`（系统打印对话框）、`read-id-card`（预留硬件SDK）、`save-file-dialog`/`open-file-dialog`（文件对话框）、`get-app-version`/`get-backend-status`/`get-backend-url`（状态查询）。`preload.ts` 通过 `contextBridge.exposeInMainWorld('electronAPI', {...})` 暴露到渲染进程。
+**Electron IPC**：`main.ts` 注册 8 个 handler（见上文生命周期章节），`preload.ts` 用 `contextBridge.exposeInMainWorld('electronAPI', {...})` 暴露到渲染进程。
 
 ### 身份证读卡器模块
 
@@ -708,10 +693,7 @@ off('room:status-changed', callback);
 
 **路由**：`/api/id-card-readers`（8 个端点），挂载于管理员角色。`/api/tenants` POST 创建时自动检测重复身份证号（409 冲突）。
 
-**前端**：
-- `useIdCardReader` composable — 设备列表获取、读卡触发、自动寻找在线设备
-- `IdCardReadButton.vue` — 通用读卡按钮（Props: `readerId?`/`mode`，Emit: `@success`/`@error`）
-- `IdCardReaderSettings.vue` — 设备管理页面（`/system/id-card-readers`）
+**前端**：`useIdCardReader`（设备列表/读卡触发/自动选在线设备）、`IdCardReadButton.vue`（Props `readerId?`/`mode`，Emit `@success`/`@error`）、`IdCardReaderSettings.vue`（`/system/id-card-readers`）。
 
 **Electron IPC**：`read-id-card` 通道（当前返回 Mock 提示，预留 SDK 接入点）。
 
@@ -763,8 +745,8 @@ off('room:status-changed', callback);
 2. **预警统一**：逾期账单 + 即将到期合同统一复用 `/dashboard/alerts`（`overdueBills`/`overdueCount`/`expiringContracts`），不再单独请求 `/contracts/expiry-calendar`。
 3. **今日待办**（`/dashboard/todo-summary`）：汇总 9 类待办计数，按 severity(high/mid/low)→count 降序、过滤 count>0；每项带 `module`（rent/property/finance/contract/fire），**前端按 JWT 角色 + roleModuleMap 过滤**，避免低权限角色看到高权限模块计数。
 4. **多模块看板**：三个 tab 复用既有接口——`/properties/rooms/stats`、`/property-analytics/dashboard`、`/fire-safety/dashboard`（**裸路径 `/fire-safety` 是 404，必须用子路径**）。基础组 `Promise.all` 并发，**P2 组按 tab 懒加载**（无权限角色不白跑 403），所有 ref 有空结构兜底。
-5. **自动刷新**：60s 弱轮询兜底 + WebSocket 事件触发静默刷新（不闪加载态），WS 事件带 300ms 防抖合并；`onUnmounted` 清理全部定时器与订阅。
-6. **系统信息条**：`version` 取自根 package.json（模块加载时缓存一次），`uptimeSeconds` 取 `process.uptime()`；`/overview` 仍挂在 `authMiddleware`（所有登录角色可见）。回归脚本 `scripts/verify-dashboard.js`（16 用例）。
+5. **自动刷新**：60s 弱轮询 + WS 事件静默刷新（300ms 防抖，不闪加载态），`onUnmounted` 清理定时器与订阅。
+6. **系统信息条**：`version` 取自根 package.json（缓存一次），`uptimeSeconds` 取 `process.uptime()`。回归脚本 `scripts/verify-dashboard.js`（16 用例）。
 
 
 
@@ -798,6 +780,17 @@ off('room:status-changed', callback);
 - **原色保留**用于填充、标签底、图表系列色、进度条、KPI 大号数值（品牌湛蓝 `#4f7cf7` 未被替换）
 
 自检门禁：`node scripts/check-contrast.cjs`（46 条清单，覆盖玻璃面/页面底/深色顶栏三类背景与 alpha 合成；当前 **46/46 通过 + 2 条装饰性豁免**，退出码 0）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 的文字色，`<script>` 段的图表/标签底色不动）。详见 `docs/对比度检查报告.md`。
+
+### 依赖漏洞治理（当前状态与决策）
+
+生产依赖漏洞（`npm audit --omit=dev`）从 **23 降到 2**（前后端各剩 xlsx 一条）。处置分三类：
+
+1. **无痛升级**：`npm audit fix` 修掉 15 个（含唯一 critical `tar` 与多个 high），只动 lockfile。
+2. **根因替代升级**：
+   - `uuid<11.1.1` 一条告警把 `node-cron`/`sequelize`/`exceljs` 三个库一起标红。后端 `uuid` 是**未被引用的直接依赖**，已删除；再用 `overrides: { "uuid": "^11.1.1" }` 抬高传递依赖版本，三个库**无需大版本升级**即消除告警。
+   - `echarts` XSS（<6.1.0）：升级到 `echarts@6` + `vue-echarts@8`。5 个图表页用的是模块化 `use([...])` API，升级无需改代码；已验证类型检查、生产构建、80/80 页面回归与 4 个图表页 canvas 渲染。
+   - **禁止 `npm audit fix --force`**：npm 给 `sequelize` 的"修复"是 3.30.0、`exceljs` 是 3.4.0——**都是降级**，执行会把项目打回上古版本。
+3. **上游无补丁（xlsx）**：SheetJS 的 npm 包停更在 0.18.5（registry latest 即 0.18.5），补丁只在其自有 CDN 发布。当前按 ALLOWLIST 豁免并设复审期限，同时做了缓解：解析入口加体积上限（房源导入 10MB、条款导入 20MB，银行对账早有 5MB）。**真正的解法**是替换——后端 3 处 `XLSX.readFile`（bank-reconciler / contracts / properties）迁到已在用的 `exceljs`，前端 2 处 `XLSX.read`（ClauseImport / PropertyImport）是上传前的本地预览，可下沉到后端接口。
 
 ### 全链路回归（发版前必跑）
 
