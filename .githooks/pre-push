@@ -1,0 +1,14 @@
+#!/bin/sh
+# 推送前门禁：跑完整的无服务依赖门禁（静态 + 对比度 + 双端类型检查 + ESM 产物校验）
+# 与 GitHub Actions 上跑的是同一条命令，本地先挡一道，避免推上去才红
+# 紧急绕过：git push --no-verify
+
+echo "[pre-push] npm run test:static（含 vue-tsc / tsc，约 1 分钟）..."
+npm run test:static || {
+  echo ""
+  echo "[pre-push] 推送被拒绝：test:static 未通过。"
+  echo "  这与 CI 的检查完全一致，先在本地修复再推。"
+  exit 1
+}
+
+echo "[pre-push] 通过"

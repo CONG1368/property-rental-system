@@ -815,6 +815,10 @@ off('room:status-changed', callback);
 
 **GitHub Actions**：`.github/workflows/ci.yml` 在 push / PR 时自动执行 `npm run test:static`（Node 20，三处 `npm ci --ignore-scripts`——类型检查只需 `.d.ts`，可跳过 better-sqlite3 原生编译与 Electron/Playwright 二进制下载）。C 段运行时回归不在流水线内，发版前须本地跑 `npm run test:regression`。
 
+**本地钩子**：`.githooks/`（`npm run hooks:install` 设 `core.hooksPath`，postinstall 自动执行）。pre-commit 跑秒级静态铁律+对比度，pre-push 跑 `npm run test:static`。钩子扫的是**工作区**而非暂存区（更严，不相关的脏文件也会拦），紧急用 `--no-verify` 绕过，但 CI 仍会拦。`.gitattributes` 强制 `.githooks/**` 用 LF——CRLF 会让 Git Bash 报 bad interpreter 导致钩子静默失效。
+
+**注意**：CI 与钩子都只是**检查**，真正的"不通过就合不进去"要靠仓库 ruleset 的 required status checks（见 `protect-main`）。
+
 C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modules` → `e2e-uncovered-pages` → `verify-dashboard` → `verify-system-settings` → `verify-uncovered-api` → `verify-ux-states` → `permission-regression` → `e2e-permission-matrix` → `e2e-confirm-password` → `verify-external-providers`（tsx 运行） → `test-api.sh`（自动探测 Git Bash，找不到则显式跳过、不计失败）。
 
 **顺序约束**：`permission-regression` 必须在 `e2e-permission-matrix` 之前——后者会写入角色权限定制（结束时通过 `/api/permissions/reset` 还原），顺序颠倒会污染前者的基线断言。
