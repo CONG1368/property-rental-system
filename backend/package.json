@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "node ../scripts/fix-esm-imports.js && tsc && node ../scripts/verify-esm-build.js",
+    "build": "node ../scripts/gen-build-version.cjs && node ../scripts/fix-esm-imports.js && tsc && node ../scripts/verify-esm-build.js",
     "start": "node dist/index.js",
     "test": "vitest run",
     "db:migrate": "npx sequelize-cli db:migrate",

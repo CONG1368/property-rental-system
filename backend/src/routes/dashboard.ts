@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { BUILD_VERSION } from '../build-version.js';
 import { AuthRequest } from '../middleware/auth.js';
 import Property from '../models/Property.js';
 import Tenant from '../models/Tenant.js';
@@ -24,17 +25,10 @@ import { fileURLToPath } from 'url';
 
 const router = Router();
 
-// 从根 package.json 读取版本（模块加载时缓存一次，避免每次 /overview 请求同步读文件）
-let cachedVersion = '';
+// 版本号在构建期烘入 BUILD_VERSION（见 scripts/gen-build-version.cjs）。
+// 不能在运行时读 package.json：生产打包后它位于 app.asar 归档里，fs.readFileSync 读不到。
 function readVersion(): string {
-  if (cachedVersion) return cachedVersion;
-  try {
-    const __dirname = path.dirname(fileURLToPath(import.meta.url));
-    const root = path.resolve(__dirname, '../../..');
-    const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
-    cachedVersion = pkg.version || '未知';
-  } catch { cachedVersion = '未知'; }
-  return cachedVersion;
+  return BUILD_VERSION || '未知';
 }
 
 // GET /dashboard/overview — 首页概览

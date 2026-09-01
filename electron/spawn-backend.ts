@@ -114,7 +114,9 @@ export function spawnBackend(): Promise<void> {
 
     backendProcess.stdout?.on('data', (data: Buffer) => {
       const msg = data.toString().trim();
-      console.log('[Backend]', msg);
+      // 从终端拉起应用、随后终端被关闭时，stdout 管道会断开 → EPIPE。
+      // 若不吞掉它，Electron 主进程会因 Uncaught Exception 直接崩掉，这是真实故障。
+      try { console.log('[Backend]', msg); } catch (e: any) { /* 管道已关，忽略 */ }
       // 检测到关键启动信息后立即启动健康检查轮询
       if (!healthCheckStarted && (msg.includes('Server running') || msg.includes('[DB] Admin user ready') || msg.includes('Tables synced'))) {
         startHealthPolling();
@@ -132,7 +134,7 @@ export function spawnBackend(): Promise<void> {
     backendProcess.stderr?.on('data', (data: Buffer) => {
       const msg = data.toString().trim();
       stderrBuffer += msg + '\n';
-      console.error('[Backend Error]', msg);
+      try { console.error('[Backend Error]', msg); } catch (e: any) { /* 管道已关，忽略 */ }
     });
 
     backendProcess.on('error', (err) => {
