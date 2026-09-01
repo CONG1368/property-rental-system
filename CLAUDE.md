@@ -57,7 +57,8 @@ cd frontend && npm run build   # vue-tsc + vite build 输出到 frontend/dist/
 # 打包 Electron 安装包
 npm run build:electron         # 先完成前后端构建，再运行此命令
 
-# 生成软件使用说明书 PDF（需先启动 dev 后端）
+# 重拍说明书截图 → 再生成说明书 PDF（均需先启动 dev）
+node scripts/capture-manual-screenshots.js
 node scripts/generate-manual-pdf.js
 ```
 
@@ -283,7 +284,7 @@ function decodeFilename(name: string): string {
 `electron/main.ts`：
 
 1. `app.whenReady()` → `buildMenu()`（中文菜单栏，macOS/Windows 自适应）→ `spawnBackend()` → `createWindow()`
-2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/物业租赁综合管理系统/data/`，三通道并行检测后端就绪（stdout 多关键字 + 5s 兜底 + HTTP 健康检查轮询 `/api/health`，**60s 安全超时**，适应首次安装建库+迁移+种子数据）
+2. `spawn-backend.ts`：生产模式使用便携 Node.js（`runtime/node/node.exe`），SQLite 数据存储在 `%APPDATA%/property-rental-system/data/`（`getPath('userData')` 取 package.json 的 **name** 而非 productName，文档别写成中文名），三通道并行检测后端就绪（stdout 多关键字 + 5s 兜底 + HTTP 健康检查轮询 `/api/health`，**60s 安全超时**，适应首次安装建库+迁移+种子数据）
 3. IPC 通道：`get-app-version`、`get-backend-status`、`get-backend-url`、`export-pdf`、`print-html`、`save-file-dialog`、`open-file-dialog`、`read-id-card`
 4. 开发模式窗口加载 `http://localhost:5173`，生产模式加载 `file://` 协议
 5. 生产模式禁止开发者工具（拦截 `devtools-opened` 事件）
@@ -825,7 +826,8 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-esm-build.js` | 验证后端编译产物中所有 ESM import 路径有效 |
 | `full-e2e-test.js` | 全量 E2E 测试（37 项 + 250+ 断言 + 全局乱码检查） |
 | `generate-icon.js` | 从 build/icon.png 生成各尺寸图标 |
-| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（截图 base64 内嵌） |
+| `capture-manual-screenshots.js` | 说明书截图采集（登录后批量拍 44 张写入 `docs/screenshots/`，可传 key 补拍）；需先启动 dev |
+| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（版本取根 package.json，截图 base64 内嵌，`--html` 落地中间 HTML 便于排查） |
 | `generate-proposal-pdf.js` | 从 Markdown 生成产品方案 PDF |
 | `kill-dev.ps1` | 清理占用开发端口的残留进程（`dev:clean` 调用） |
 | `installer.nsi` | NSIS 安装包脚本 |
