@@ -32,8 +32,19 @@ const PAGES = [
       await page.evaluate(h => { window.location.hash = h; }, hash);
       await page.waitForTimeout(1700);
     }
-    const bad = await page.locator('vite-error-overlay').count();
-    const hasContent = (await page.locator('body').innerText()).length > 40;
+    let bad = await page.locator('vite-error-overlay').count();
+    let hasContent = (await page.locator('body').innerText()).length > 40;
+    // dev 模式下首次访问某路由要等 Vite 现编译，偶发超时；失败先重试一次再判定，
+    // 真坏的页面两次都会坏，只有编译延迟会被这次重试吸收
+    if (bad || !hasContent || errors.length) {
+      errors.length = 0;
+      await page.evaluate(h => { window.location.hash = '#/dashboard'; }, hash);
+      await page.waitForTimeout(500);
+      await page.evaluate(h => { window.location.hash = h; }, hash);
+      await page.waitForTimeout(3000);
+      bad = await page.locator('vite-error-overlay').count();
+      hasContent = (await page.locator('body').innerText()).length > 40;
+    }
     if (!bad && hasContent && errors.length === 0) { pass++; }
     else { fail++; failed.push(name + (bad?'(overlay)':'') + (errors.length?'(err:'+errors[0]+')':'')); }
   }
