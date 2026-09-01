@@ -26,7 +26,9 @@ jobs:
       - name: 准备 Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 22：Node 20 上 jsdom 会报 webidl.util.markAsUncloneable is not a function，
+          # 导致 frontend vitest 的 fork worker 起不来
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
@@ -43,12 +45,15 @@ jobs:
       - name: 安装根依赖
         run: npm install --ignore-scripts --no-audit --no-fund
 
+      # 前端/后端**不能**加 --ignore-scripts：esbuild 要靠 postinstall 落平台二进制，
+      # better-sqlite3 要靠 prebuild-install 拿原生绑定，否则 vitest 直接起不来
+      #（backend vitest 会报 "Could not locate the bindings file"）
       - name: 安装前端依赖
-        run: npm install --ignore-scripts --no-audit --no-fund
+        run: npm install --no-audit --no-fund
         working-directory: frontend
 
       - name: 安装后端依赖
-        run: npm install --ignore-scripts --no-audit --no-fund
+        run: npm install --no-audit --no-fund
         working-directory: backend
 
       - name: 依赖漏洞门禁（生产依赖 high/critical 阻断，豁免见脚本 ALLOWLIST）
