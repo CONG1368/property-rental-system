@@ -393,7 +393,7 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 | Budget | `actualAmount`（实际金额） | ~~usedAmount~~ |
 | Budget | `status`（枚举：编制中/待审核/已批准） | ~~已审批~~ |
 | Expense | `bookId`（必填，关联账套） | 创建费用时必须传入 |
-| Bill | `lateFee`（滞纳金） | 模型已定义字段 |
+| Bill | `lateFee`（违约金） | 模型已定义字段 |
 | Contract | `endDate`, `rentAmount` | 续约时前端传 `newEndDate`/`newRent`，后端映射 |
 
 ### 项目完成度

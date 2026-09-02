@@ -32,7 +32,7 @@ export function buildBillHTML(data: BillPrintData): string {
     { label: '电费', amount: data.electricFee },
     { label: '物业费', amount: data.propertyFee },
     { label: '其他费用', amount: data.otherAmount },
-    { label: '滞纳金', amount: data.lateFee },
+    { label: '违约金', amount: data.lateFee },
   ].filter(item => item.amount > 0 || item.label === '房租');
 
   const rows = items.map(item => `
@@ -73,7 +73,7 @@ export function buildBillHTML(data: BillPrintData): string {
     </div>
 
     <div style="font-size:12px;color:#909399;margin-top:20px;padding-top:12px;border-top:1px dashed #e0e0e0">
-      <p>备注：请在到期日前完成缴纳，逾期将按合同约定收取滞纳金。如有疑问请联系${data.companyName}。</p>
+      <p>备注：请在到期日前完成缴纳，逾期将按合同约定收取违约金。如有疑问请联系${data.companyName}。</p>
     </div>
 
     <p style="text-align:center;font-size:11px;color:#999;margin-top:20px">打印日期：${formatDate(new Date())} &nbsp;|&nbsp; ${data.companyName}</p>

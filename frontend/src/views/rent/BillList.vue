@@ -141,7 +141,7 @@
           <el-descriptions-item label="电费">{{ '¥' + Number(billDetail.electricFee || 0).toFixed(2) }}</el-descriptions-item>
           <el-descriptions-item label="物业费">{{ '¥' + Number(billDetail.propertyFee || 0).toFixed(2) }}</el-descriptions-item>
           <el-descriptions-item label="其他费用">{{ '¥' + Number(billDetail.otherAmount || 0).toFixed(2) }}</el-descriptions-item>
-          <el-descriptions-item label="滞纳金">{{ '¥' + Number(billDetail.lateFee || 0).toFixed(2) }}</el-descriptions-item>
+          <el-descriptions-item label="违约金">{{ '¥' + Number(billDetail.lateFee || 0).toFixed(2) }}</el-descriptions-item>
           <el-descriptions-item label="实缴日期">{{ billDetail.paidDate || '-' }}</el-descriptions-item>
         </el-descriptions>
 

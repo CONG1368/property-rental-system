@@ -151,7 +151,7 @@
       <template #header><span>合同细则</span></template>
       <el-row :gutter="16">
         <el-col :span="8">
-          <el-form-item label="滞纳金比例">
+          <el-form-item label="违约金比例">
             <el-input-number v-model="lateFeeRate" :min="0" :max="1" :precision="3" :step="0.01" style="width:70%" />
             <span style="margin-left:4px;font-size:12px;color:#909399">/月</span>
           </el-form-item>

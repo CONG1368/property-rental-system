@@ -125,7 +125,7 @@
     <el-card style="margin-top:16px" v-if="contract">
       <template #header><span>合同细则</span></template>
       <el-descriptions :column="2" border size="small">
-        <el-descriptions-item label="滞纳金">{{ ((bcDetail.lateFeeRate ?? 0.05) * 100).toFixed(1) }}% / 月</el-descriptions-item>
+        <el-descriptions-item label="违约金">{{ ((bcDetail.lateFeeRate ?? 0.05) * 100).toFixed(1) }}% / 月</el-descriptions-item>
         <el-descriptions-item label="维修责任">
           {{ bcDetail.maintenanceParty === '乙方' ? '乙方负责' : bcDetail.maintenanceParty === '按约定' ? '双方按约定' : '甲方负责' }}
         </el-descriptions-item>

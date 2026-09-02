@@ -97,7 +97,7 @@ async function loadTenants() { try { const r = await request.get('/tenants', { p
 function onTenantChange(id: number) { tenant.value = tenants.value.find(t => t.id === id) || null; tab.value = 'notify'; loadMsgs(); loadContracts(); }
 
 function fillTemplate(t: string) {
-  if (t === '催缴') { notifyForm.value.title = '租金催缴提醒'; notifyForm.value.content = '您有账单尚未缴清，请及时缴纳，以免产生滞纳金。'; notifyForm.value.channel = '短信'; }
+  if (t === '催缴') { notifyForm.value.title = '租金催缴提醒'; notifyForm.value.content = '您有账单尚未缴清，请及时缴纳，以免产生违约金。'; notifyForm.value.channel = '短信'; }
   else if (t === '到期') { notifyForm.value.title = '合同到期提醒'; notifyForm.value.content = '您的租赁合同即将到期，如需续约请及时联系管理员。'; }
   else if (t === '维修') { notifyForm.value.title = '维修完成通知'; notifyForm.value.content = '您提交的报修已处理完成，感谢您的理解与支持。'; }
 }
