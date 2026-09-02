@@ -480,7 +480,7 @@ if (contentText.length < 50) { /* 扫描件提示 */ }
 
 ### 种子数据就绪机制
 
-**演示数据开关（重要）**：services/seed-status.ts 用两个 system_configs 内置布尔项控制——`demo_enabled`（是否生成演示数据，系统参数中心可改开关）与 `demo_seeded`（一次性标记）。状态：demo_enabled=0→disabled；demo_seeded=1→already；老库(有 CT-2024-001/演示房源无标记)→legacy 补标跳过；否则 run。seedAllDemoData() 各步按 contractNo/(contractId,period)/(billId,level)/(bookId,category,period) 幂等，删任意演示合同、重启都不再重建；关掉开关则完全不生成。
+**演示数据开关（重要）**：services/seed-status.ts 用两个 system_configs 内置布尔项控制——`demo_enabled`（是否生成演示数据，系统参数中心可改开关）与 `demo_seeded`（一次性标记）。状态：demo_enabled=0→disabled；demo_seeded=1→already；老库(有 CT-2024-001/演示房源无标记)→legacy 补标跳过；否则 run。seedAllDemoData() 各步按 contractNo/(contractId,period)/(billId,level)/(bookId,category,period) 幂等，删任意演示合同、重启都不再重建；demo_enabled=0 时连同门锁/消防/读卡器一并跳过，**完全不生成演示内容**。科目/合同模板/字典/审批流是功能性基线，始终幂等执行不受该开关影响。
 
 `backend/src/index.ts` 导出 `seedDataReady` 标志，Phase 3 种子数据完成后设为 `true`。`/api/health` 端点返回 `seedReady` 字段，Electron IPC `get-backend-status` 返回 `{ ok, seedReady }`，Login.vue 轮询等待种子数据就绪后才允许登录（避免首次安装时空表查询导致"后端异常"）。
 
