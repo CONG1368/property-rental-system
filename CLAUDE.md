@@ -480,7 +480,7 @@ if (contentText.length < 50) { /* 扫描件提示 */ }
 
 ### 种子数据就绪机制
 
-**演示数据一次性初始化（重要）**：seedAllDemoData() 过去只凭「是否存在 CT-2024-001」判断是否初始化，一旦用户删除任意演示合同，重启整套演示经营数据又被重建（表现为删掉的种子数据又回来了）。现改为 services/seed-status.ts 用 system_configs.demo_seeded（内置布尔项）做一次性标记：全新库→执行；老库（已有 CT-2024-001/演示房源但无标记）→ 首启补标记并跳过；已标记 → 永不重种。各生成步骤按 (contractNo)/(contractId,period)/(billId,level)/(bookId,category,period) 幂等，半途失败重启不会重复建账。**不要在 UI 里删这个配置项，也不要靠删库来清空演示数据——现在删库/删数据都不会再被重建，这是设计意图**。
+**演示数据开关（重要）**：services/seed-status.ts 用两个 system_configs 内置布尔项控制——`demo_enabled`（是否生成演示数据，系统参数中心可改开关）与 `demo_seeded`（一次性标记）。状态：demo_enabled=0→disabled；demo_seeded=1→already；老库(有 CT-2024-001/演示房源无标记)→legacy 补标跳过；否则 run。seedAllDemoData() 各步按 contractNo/(contractId,period)/(billId,level)/(bookId,category,period) 幂等，删任意演示合同、重启都不再重建；关掉开关则完全不生成。
 
 `backend/src/index.ts` 导出 `seedDataReady` 标志，Phase 3 种子数据完成后设为 `true`。`/api/health` 端点返回 `seedReady` 字段，Electron IPC `get-backend-status` 返回 `{ ok, seedReady }`，Login.vue 轮询等待种子数据就绪后才允许登录（避免首次安装时空表查询导致"后端异常"）。
 

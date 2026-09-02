@@ -29,6 +29,7 @@
           <el-table-column label="键值" min-width="220">
             <template #default="{ row }">
               <span v-if="row.isSensitive && row.configValue" class="sensitive">••••••（敏感值）</span>
+              <span v-else-if="row.valueType === 'boolean'">{{ (row.configValue === '1' || row.configValue === 'true' || row.configValue === '是') ? '是' : '否' }}</span>
               <span v-else>{{ row.configValue }}</span>
             </template>
           </el-table-column>
@@ -65,7 +66,10 @@
     <el-dialog :title="editing ? '编辑配置项' : '新增配置项'" v-model="dialogVisible" width="520px">
       <el-form label-width="100px">
         <el-form-item label="键名" required><el-input v-model="form.configKey" :disabled="!!editing" /></el-form-item>
-        <el-form-item label="键值"><el-input v-model="form.configValue" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="键值">
+          <el-switch v-if="form.valueType === 'boolean'" v-model="form.boolValue" active-text="开" inactive-text="关" />
+          <el-input v-else v-model="form.configValue" type="textarea" :rows="3" />
+        </el-form-item>
         <el-form-item label="分组">
           <el-select v-model="form.configGroup" style="width:100%">
             <el-option v-for="g in groups" :key="g" :label="g" :value="g" />
@@ -104,7 +108,8 @@ const groupFilter = ref('');
 
 const dialogVisible = ref(false);
 const editing = ref(false);
-const form = ref<any>({ configKey: '', configValue: '', configGroup: '其他', valueType: 'string', isSensitive: false, description: '' });
+const form = ref<any>({ configKey: '', configValue: '', configGroup: '其他', valueType: 'string', isSensitive: false, description: '', boolValue: true });
+function isTrue(v: any) { const s = String(v ?? '').trim().toLowerCase(); return s === '1' || s === 'true' || s === 'yes' || s === 'on' || s === '是'; }
 
 const filteredList = computed(() => {
   if (!groupFilter.value) return list.value;
@@ -131,13 +136,13 @@ async function fetchData() {
 
 function openCreate() {
   editing.value = false;
-  form.value = { configKey: '', configValue: '', configGroup: groupFilter.value || '其他', valueType: 'string', isSensitive: false, description: '' };
+  form.value = { configKey: '', configValue: '', configGroup: groupFilter.value || '其他', valueType: 'string', isSensitive: false, description: '', boolValue: true };
   dialogVisible.value = true;
 }
 
 function openEdit(row: any) {
   editing.value = true;
-  form.value = { ...row, isSensitive: !!row.isSensitive };
+  form.value = { ...row, isSensitive: !!row.isSensitive, boolValue: isTrue(row.configValue) };
   dialogVisible.value = true;
 }
 
@@ -148,9 +153,11 @@ async function handleSave() {
     const pwd = await confirmWithPassword(editing.value ? '保存系统配置需重新输入登录密码确认' : '新增系统配置需重新输入登录密码确认', '二次确认');
     if (!pwd) return;
     if (editing.value) {
-      await request.put('/system-configs/' + form.value.configKey, { configValue: form.value.configValue, description: form.value.description, confirmPassword: pwd });
+      const cv = form.value.valueType === 'boolean' ? (form.value.boolValue ? '1' : '0') : form.value.configValue;
+      await request.put('/system-configs/' + form.value.configKey, { configValue: cv, description: form.value.description, confirmPassword: pwd });
     } else {
-      await request.post('/system-configs', { ...form.value, confirmPassword: pwd });
+      const cv = form.value.valueType === 'boolean' ? (form.value.boolValue ? '1' : '0') : form.value.configValue;
+      await request.post('/system-configs', { ...form.value, configValue: cv, confirmPassword: pwd });
     }
     ElMessage.success('已保存');
     dialogVisible.value = false;

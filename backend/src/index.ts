@@ -142,7 +142,8 @@ async function start() {
   try {
     // 演示数据一次性初始化标记（system_configs.demo_seeded）：
     // 已初始化（含老库迁移补标）则不重种，避免「删掉的演示数据重启后复活」。
-    const { getDemoSeedState } = await import('./services/seed-status.js');
+    const { getDemoSeedState, ensureSeedConfig } = await import('./services/seed-status.js');
+    await ensureSeedConfig();
     const demoState = await getDemoSeedState();
     const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates, seedIdCardReaders, seedFireSafety } = await import('./services/seed-data.js');
     // 科目/模板/读卡器/消防/字典是「功能性基线」，始终幂等执行；只有演示经营数据受一次性标记管控
@@ -150,7 +151,8 @@ async function start() {
     if (demoState === 'run') {
       await seedAllDemoData();
     } else {
-      console.log('[Seed] Demo seed skipped (state=' + demoState + ') — 演示数据已初始化，不再重建');
+      const reason = demoState === 'disabled' ? '演示数据已关闭（demo_enabled=0）' : '演示数据已初始化，不再重建';
+      console.log('[Seed] Demo seed skipped (state=' + demoState + ') — ' + reason);
     }
     await seedDoorLocks();
     await seedContractTemplates();
