@@ -480,6 +480,8 @@ if (contentText.length < 50) { /* 扫描件提示 */ }
 
 ### 种子数据就绪机制
 
+**演示数据一次性初始化（重要）**：seedAllDemoData() 过去只凭「是否存在 CT-2024-001」判断是否初始化，一旦用户删除任意演示合同，重启整套演示经营数据又被重建（表现为删掉的种子数据又回来了）。现改为 services/seed-status.ts 用 system_configs.demo_seeded（内置布尔项）做一次性标记：全新库→执行；老库（已有 CT-2024-001/演示房源但无标记）→ 首启补标记并跳过；已标记 → 永不重种。各生成步骤按 (contractNo)/(contractId,period)/(billId,level)/(bookId,category,period) 幂等，半途失败重启不会重复建账。**不要在 UI 里删这个配置项，也不要靠删库来清空演示数据——现在删库/删数据都不会再被重建，这是设计意图**。
+
 `backend/src/index.ts` 导出 `seedDataReady` 标志，Phase 3 种子数据完成后设为 `true`。`/api/health` 端点返回 `seedReady` 字段，Electron IPC `get-backend-status` 返回 `{ ok, seedReady }`，Login.vue 轮询等待种子数据就绪后才允许登录（避免首次安装时空表查询导致"后端异常"）。
 
 ### Axios 静默模式
@@ -531,11 +533,10 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 }
 ```
 
-- **段落文本**（条款 content、备注 notes、消防违规处罚等）：使用 `wrapTextAsParagraphs(text, extraStyle)`，自动拆分+段落化
-- **表格单元格**：`td()` 辅助函数已内置 `normLines(value).join('<br>')`，多行值自动处理
-- **屏幕端展示**：Vue 模板中使用 `white-space:pre-wrap` 保留换行
+- **段落文本**（条款 content、备注、消防违规处罚等）：用 `wrapTextAsParagraphs(text, extraStyle)` 拆分+段落化
+- **表格单元格**：`td()` 内置 `normLines(value).join('<br>')`；**屏幕端**用 `white-space:pre-wrap`
 
-已覆盖：5 个打印模板 + ContractDetail / TenantDetail / ReportCenter / FireInspectionDetail / ContractApproval 的多行字段。
+已覆盖 5 套打印模板 + 各详情/报表页的多行字段。
 
 ### 门锁管理架构
 
@@ -753,7 +754,7 @@ off('room:status-changed', callback);
 - `utils/avatars.ts` 已重构为图标方案：`avatarIcons`（键名→组件）+ `roleAvatars`（角色→键名+渐变底）+ `presetAvatars`（可选头像）+ **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容数据库里已存的 emoji 头像）。渲染方式：`<el-icon><component :is="resolveAvatarIcon(key)" /></el-icon>`。
 - 首页 `HomeDashboard.vue` 的 `iconMap` 已语义化（`home/users/money/trend/bell/doc/chart/coin/check/alert/warn/list`），KPI/待办/快捷入口的 `icon` 字段存语义键而非 emoji。
 
-**4. 存量色值迁移脚本 `scripts/theme-migrate.cjs`**：旧色（`#0A3D62`/`#F6B93B`/`#00B894`/`#FF6B35`/`#82CCDD`/`#1a5f8a`）→新令牌；`#0A3D62` 按语境二分——CSS `color:` 文字色→`#1f2430`，背景/边框/图表色→`#4f7cf7`。**自动跳过 `frontend/src/components/print/`**（打印模板面向纸质，保留深墨蓝）。
+**4. 存量色值迁移 `scripts/theme-migrate.cjs`**：旧色→新令牌；`#0A3D62` 按语境二分（CSS `color:`→`#1f2430`，背景/图表→`#4f7cf7`）；自动跳过 `components/print/`。
 
 **5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**（此前 Login 硬编码 1.0.2 与实际 1.0.3 不符）。
 
@@ -764,13 +765,13 @@ off('room:status-changed', callback);
 标准接法（已覆盖 **68 个列表页**）：`<TableSkeleton v-if="loading && !list.length" />` + `<el-table v-show="!(loading && !list.length)">` + `<template #empty><EmptyState ... /></template>`。批量接入用 `scripts/apply-loading-states.cjs`（`--dry` 预演），验收用 `scripts/verify-ux-states.cjs`。按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景（Anti-Card Overuse）。
 
 **7. 无障碍配色（WCAG 2.1 AA）**：原色只满足 UI 组件 3:1，作正文最低仅 1.72:1，故拆分用途——
-- **文字/链接/细线图标**用加深变体：`$color-primary-text: #2b57c9`（hover `#1e50bd`）、`$color-success-text: #0a7652`、`$color-warning-text: #8a5200`、`$color-danger-text: #bf2626`、次要文字 `$color-text-subtle: #5f6675`（原 #8b93a3）
-- **交互控件边界**用 `$color-border-control: #6f8299`（`--el-border-color`，SC 1.4.11 强制 ≥3:1）；白描边仅作装饰轮廓
+- **文字/链接/细线图标**用加深变体：`$color-primary-text: #2b57c9`、`$color-success-text: #0a7652`、`$color-warning-text: #8a5200`、`$color-danger-text: #bf2626`、`$color-text-subtle: #5f6675`
+- **交互控件边界**用 `$color-border-control: #6f8299`（`--el-border-color`，≥3:1）；白描边仅装饰
 - **深色顶栏**上的主色/红点用 `$color-on-dark-primary: #a8c2fc` / `$color-on-dark-danger: #fca5a5`
 - **实心按钮**（primary/success/warning/danger）底色在 `global.scss` 覆盖为加深变体，使白字达 5.6–6.4:1
 - **原色保留**用于填充、标签底、图表系列色、进度条、KPI 大号数值（品牌湛蓝 `#4f7cf7` 未被替换）
 
-自检门禁：`node scripts/check-contrast.cjs`（46 条清单，覆盖玻璃面/页面底/深色顶栏三类背景与 alpha 合成；当前 46/46 通过 + 2 条装饰性豁免）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 的文字色）。详见 `docs/对比度检查报告.md`。
+自检门禁：`node scripts/check-contrast.cjs`（46 条清单，46/46 通过 + 2 条装饰性豁免）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 文字色）。
 
 ### 依赖漏洞治理（当前状态与决策）
 
@@ -812,7 +813,7 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 1. **唯一化**：租客 `idNumber` 有唯一校验（重复返回 409），房源/合同编号也应带时间戳，否则脚本**第二次运行必挂**。
 2. **清理顺序**：先删合同 → 再删租客/房源。租客存在关联合同时后端拒绝删除，残留租客会让下次运行的整条合同链路失败。
 3. **中文编码**：Windows bash 下 `curl -d` 直传中文会编码损坏并写入脏数据（曾导致页面乱码检测失败），中文 body 一律用 `--data-binary "@临时文件"`。
-4. **清理脏数据时禁止用宽泛通配**：`contractNo like 'CT-%'` 会连同演示种子合同 `CT-2024-001~005` 一起删掉。若误删，删除 `CT-2024-001` 会让 `seedAllDemoData()` 判定为"未初始化"，**重启后端即可完整重建**演示数据（房源/租客按 name 幂等复用）。
+4. **清理脏数据时禁止用宽泛通配**：`contractNo like 'CT-%'` 会连同种子合同一起删掉。注意演示数据现为**一次性初始化**（见上文 demo_seeded），删除后不再自动重建
 
 **系统触发场景的外键约束（重要）**：支付回调、定时任务等没有登录用户，写库时**不能用 `userId = 0`**——`users` 表外键会拒绝，导致整个请求 500。`voucher-generator.ts` 的 `normalizeOperator()` 统一把 0/空转为 `null`（`Voucher.createdBy` 允许为空）。
 
@@ -826,8 +827,8 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-esm-build.js` | 验证后端编译产物中所有 ESM import 路径有效 |
 | `full-e2e-test.js` | 全量 E2E 测试（37 项 + 250+ 断言 + 全局乱码检查） |
 | `generate-icon.js` | 从 build/icon.png 生成各尺寸图标 |
-| `capture-manual-screenshots.js` | 说明书截图采集（登录后批量拍 44 张写入 `docs/screenshots/`，可传 key 补拍）；需先启动 dev |
-| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（版本取根 package.json，截图 base64 内嵌，`--html` 落地中间 HTML 便于排查） |
+| `capture-manual-screenshots.js` | 说明书截图采集（登录后批量拍 44 张写入 `docs/screenshots/`，可传 key 补拍）；需 dev |
+| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（版本取根 package.json，截图 base64 内嵌，`--html` 排查） |
 | `generate-proposal-pdf.js` | 从 Markdown 生成产品方案 PDF |
 | `kill-dev.ps1` | 清理占用开发端口的残留进程（`dev:clean` 调用） |
 | `installer.nsi` | NSIS 安装包脚本 |
@@ -851,4 +852,3 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `apply-a11y-colors.cjs` | 无障碍配色迁移（文字场景语义色→ -text 变体） |
 | `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（46 条清单，可作 CI 门禁） |
 | `verify-ux-states.cjs` | 交互态验收（骨架/空态/头像图标化，10 用例）；需先启动 dev |
-| `verify-dashboard.js` | 首页概览运行时回归（overview 金额口径/todo-summary 权限过滤/rooms-stats/消防/物业运营，16 用例）；需 dev |

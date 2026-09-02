@@ -127,9 +127,12 @@ function seededRandom(seed: number): () => number {
 }
 
 export async function seedAllDemoData(): Promise<void> {
-  const existingContract = await Contract.findOne({ where: { contractNo: 'CT-2024-001' } });
-  if (existingContract) {
-    console.log('[Seed] Demo data already exists, skipping');
+  // 一次性初始化标记：已初始化（含老库迁移补标）则彻底跳过，
+  // 避免用户删除任意演示合同后整套演示数据又被重建。
+  const { getDemoSeedState, markDemoSeeded } = await import('./seed-status.js');
+  const state = await getDemoSeedState();
+  if (state !== 'run') {
+    console.log(`[Seed] Demo data already initialized (state=${state}), skipping`);
     return;
   }
 
@@ -143,10 +146,9 @@ export async function seedAllDemoData(): Promise<void> {
   const RENT_INCOME_ID = accountMap['6001']; // 租金收入
   const PROPERTY_INCOME_ID = accountMap['6051']; // 物业费收入
   const OTHER_INCOME_ID = accountMap['6099']; // 其他业务收入（水电费）
-  // 费用科目code→id
   const EXPENSE_ACCT_MAP: Record<string, string> = { '维修': '5002', '保洁': '5003', '安保': '5004', '办公': '5006' };
 
-  // 1. 房源
+  // 1. 房源 —— 按 name 幂等（存在则复用并刷新状态）
   const properties: any[] = [];
   for (const p of DEMO_PROPERTIES) {
     const existing = await Property.findOne({ where: { name: p.name } });
@@ -154,7 +156,7 @@ export async function seedAllDemoData(): Promise<void> {
     else { properties.push(await Property.create(p)); }
   }
 
-  // 2. 租客
+  // 2. 租客 —— 按 name 幂等
   const tenants: any[] = [];
   for (const t of DEMO_TENANTS) {
     const existing = await Tenant.findOne({ where: { name: t.name } });
@@ -162,10 +164,13 @@ export async function seedAllDemoData(): Promise<void> {
     else { tenants.push(await Tenant.create(t)); }
   }
 
-  // 3. 合同
+  // 3. 合同 —— 按 contractNo 幂等；只有真正新增的合同才走账单流水生成
   const contracts: any[] = [];
+  let createdCount = 0;
   for (const def of DEMO_CONTRACTS) {
-    contracts.push(await Contract.create({
+    const existing = await Contract.findOne({ where: { contractNo: def.contractNo } });
+    if (existing) { contracts.push(existing); continue; }
+    const c = await Contract.create({
       contractNo: def.contractNo, propertyId: properties[def.propertyIdx].id,
       tenantId: tenants[def.tenantIdx].id, startDate: new Date(def.startDate),
       endDate: new Date(def.endDate), rentAmount: def.rentAmount,
@@ -173,10 +178,12 @@ export async function seedAllDemoData(): Promise<void> {
       billingMode: '固定',
       billingConfig: { waterFee: def.waterFee, electricFee: def.electricFee, propertyFee: def.propertyFee },
       status: '执行中', signedAt: new Date(def.startDate), createdBy: 1,
-    } as any));
+    } as any);
+    contracts.push(c); createdCount++;
   }
+  console.log(`[Seed] Demo contracts: ${contracts.length} (new ${createdCount})`);
 
-  // 4. 账单 + 收款 + 凭证
+  // 4. 账单 + 收款 + 凭证 —— 按 (contractId,period)/(billId,level)/(bookId,category,period) 幂等
   const currentPeriod = dayjs().format('YYYY-MM');
   const nextPeriod = dayjs().add(1, 'month').format('YYYY-MM');
   const { sequelize } = await import('../config/database.js');
@@ -184,22 +191,25 @@ export async function seedAllDemoData(): Promise<void> {
 
   for (const contract of contracts) {
     const def = DEMO_CONTRACTS.find(d => d.contractNo === contract.contractNo)!;
+    const cfx = String((contract as any).id % 97).padStart(2, '0'); // 每合同短后缀，保证同名单号唯一
     const startMonth = dayjs(def.startDate).format('YYYY-MM');
     const cycleMonths = def.paymentCycle === '月' ? 1 : def.paymentCycle === '季' ? 3 : 12;
-    const rand = seededRandom(contract.id * 100);
+    const rand = seededRandom((contract as any).id * 100);
 
     let period = startMonth;
     while (period <= nextPeriod) {
       const periodDate = dayjs(period + '-01');
       const dueDate = periodDate.date(5).format('YYYY-MM-DD');
       const utilityAmount = def.waterFee + def.electricFee;
-      const otherAmount = 0;
-      const totalAmount = def.rentAmount + utilityAmount + def.propertyFee + otherAmount;
+      const totalAmount = def.rentAmount + utilityAmount + def.propertyFee;
       const periodNum = parseInt(period.replace('-', ''));
+
+      // 幂等：同合同同期间账单已存在则跳过
+      const billExists = await Bill.findOne({ where: { contractId: (contract as any).id, period } });
+      if (billExists) { period = periodDate.add(cycleMonths, 'month').format('YYYY-MM'); continue; }
 
       let status: string;
       let paidDate: string | null = null;
-
       if (period === nextPeriod || period === currentPeriod) {
         status = '未缴';
       } else if (periodNum >= 202604) {
@@ -217,17 +227,17 @@ export async function seedAllDemoData(): Promise<void> {
       }
 
       billSeq++;
-      const billNo = `BL-${String(billSeq).padStart(4, '0')}`;
+      const billNo = `BL-${periodNum}${cfx}`;
       const lateFee = status === '逾期' ? Math.round(totalAmount * 0.05 * 100) / 100 : 0;
 
       const bill = await Bill.create({
-        contractId: contract.id, billNo, period,
+        contractId: (contract as any).id, billNo, period,
         rentAmount: def.rentAmount,
         waterFee: def.waterFee,
         electricFee: def.electricFee,
         utilityAmount,
         propertyFee: def.propertyFee,
-        otherAmount,
+        otherAmount: 0,
         lateFee,
         totalAmount: totalAmount + lateFee,
         dueDate: new Date(dueDate),
@@ -242,33 +252,31 @@ export async function seedAllDemoData(): Promise<void> {
         await PaymentRecord.create({
           billId: bill.id, amount: payAmount,
           channel: rand() > 0.5 ? '微信支付' : '银行转账',
-          transactionNo: `TXN${period.replace('-', '')}${String(billSeq).padStart(3, '0')}`,
+          transactionNo: `TXN${period.replace('-', '')}${`${periodNum}${cfx}`}`,
           paidAt: new Date(paidDate + 'T10:00:00'), notes: '', createdBy: 1,
         } as any);
 
-        // 全额已缴 → 会计凭证（收入分拆到三个科目）
+        // 全额已缴 → 会计凭证（按摘要幂等，避免半途重跑重复建账）
         if (status === '已缴') {
-          voucherSeq++;
-          const v = await Voucher.create({
-            bookId: 1, voucherNo: `SK-${String(voucherSeq).padStart(4, '0')}`,
-            date: new Date(paidDate), period, type: '收',
-            summary: `${def.contractNo} 收租(${period})`, status: '已过账', createdBy: 1,
-          } as any);
-
-          // 借: 银行存款（全额）
-          await VoucherEntry.create({ voucherId: v.id, accountId: BANK_ID, summary: `收租(${period})`, debitAmount: totalAmount, creditAmount: 0, billId: bill.id });
-          // 贷: 租金收入
-          if (def.rentAmount > 0) {
-            await VoucherEntry.create({ voucherId: v.id, accountId: RENT_INCOME_ID, summary: `租金收入(${period})`, debitAmount: 0, creditAmount: def.rentAmount, billId: bill.id });
+          const summary = `${def.contractNo} 收租(${period})`;
+          const voucherNo = `SK-${periodNum}${cfx}`;
+          let v = await Voucher.findOne({ where: { bookId: 1, voucherNo } });
+          if (!v) {
+            v = await Voucher.create({
+              bookId: 1, voucherNo,
+              date: new Date(paidDate), period, type: '收',
+              summary, status: '已过账', createdBy: 1,
+            } as any);
+            voucherSeq++;
           }
-          // 贷: 物业费收入
-          if (def.propertyFee > 0) {
-            await VoucherEntry.create({ voucherId: v.id, accountId: PROPERTY_INCOME_ID, summary: `物业费收入(${period})`, debitAmount: 0, creditAmount: def.propertyFee, billId: bill.id });
-          }
-          // 贷: 其他业务收入（水电费）
-          const utilitySum = def.waterFee + def.electricFee;
-          if (utilitySum > 0) {
-            await VoucherEntry.create({ voucherId: v.id, accountId: OTHER_INCOME_ID, summary: `水电费收入(${period})`, debitAmount: 0, creditAmount: utilitySum, billId: bill.id });
+          const entryCount = await (await import('../models/VoucherEntry.js')).default.count({ where: { voucherId: v!.id } });
+          if (entryCount === 0) {
+            const VoucherEntry = (await import('../models/VoucherEntry.js')).default;
+            await VoucherEntry.create({ voucherId: v!.id, accountId: BANK_ID, summary: `收租(${period})`, debitAmount: totalAmount, creditAmount: 0, billId: bill.id });
+            if (def.rentAmount > 0) await VoucherEntry.create({ voucherId: v!.id, accountId: RENT_INCOME_ID, summary: `租金收入(${period})`, debitAmount: 0, creditAmount: def.rentAmount, billId: bill.id });
+            if (def.propertyFee > 0) await VoucherEntry.create({ voucherId: v!.id, accountId: PROPERTY_INCOME_ID, summary: `物业费收入(${period})`, debitAmount: 0, creditAmount: def.propertyFee, billId: bill.id });
+            const utilitySum = def.waterFee + def.electricFee;
+            if (utilitySum > 0) await VoucherEntry.create({ voucherId: v!.id, accountId: OTHER_INCOME_ID, summary: `水电费收入(${period})`, debitAmount: 0, creditAmount: utilitySum, billId: bill.id });
           }
         }
       }
@@ -276,247 +284,78 @@ export async function seedAllDemoData(): Promise<void> {
       period = periodDate.add(cycleMonths, 'month').format('YYYY-MM');
     }
   }
+  console.log(`[Seed] ${billSeq} bills (new vouchers ${voucherSeq})`);
 
-  console.log(`[Seed] ${billSeq} bills (${voucherSeq} revenue vouchers)`);
-
-  // 5. 月度费用（用原始SQL插入以设置正确的createdAt）
+  // 5. 月度费用（按 bookId+category+period 幂等）
   let expSeq = 0, expVoucherSeq = 0;
-
   for (let m = dayjs('2024-01'); m.isBefore(dayjs().add(1, 'month')); m = m.add(1, 'month')) {
     const monthStr = m.format('YYYY-MM');
     const rand = seededRandom(parseInt(monthStr.replace('-', '')));
-
     for (const cat of Object.keys(EXPENSE_MONTHLY_PLAN)) {
+      const exists = await Expense.findOne({ where: { bookId: 1, category: cat, notes: `${monthStr} ${cat}费` } });
+      if (exists) continue;
       const baseAmount = EXPENSE_MONTHLY_PLAN[cat];
       const amount = Math.round(baseAmount * (0.7 + rand() * 0.6) * 100) / 100;
       const expenseDay = 5 + Math.floor(rand() * 20);
       const ts = m.date(expenseDay).format('YYYY-MM-DD') + ' 10:00:00';
-
       expSeq++;
       await sequelize.query(
         `INSERT INTO expenses (bookId, category, amount, allocationRule, status, notes, createdBy, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         { replacements: [1, cat, amount, '{}', '已批准', `${monthStr} ${cat}费`, 1, ts, ts] }
       );
-
       if (amount > 400) {
-        expVoucherSeq++;
-        const v = await Voucher.create({
-          bookId: 1, voucherNo: `FK-${String(expVoucherSeq).padStart(4, '0')}`,
-          date: new Date(ts), period: monthStr, type: '付',
-          summary: `${cat}费(${monthStr})`, status: '已过账', createdBy: 1,
-        } as any);
-        const acctCode = EXPENSE_ACCT_MAP[cat] || '5001';
-        const acctId = accountMap[acctCode];
-        await VoucherEntry.create({ voucherId: v.id, accountId: acctId, summary: `${cat}费(${monthStr})`, debitAmount: amount, creditAmount: 0 });
-        await VoucherEntry.create({ voucherId: v.id, accountId: BANK_ID, summary: `支付${cat}费(${monthStr})`, debitAmount: 0, creditAmount: amount });
+        const voucherNo = `FK-${monthStr.replace('-', '')}-${cat}`;
+        const summary = `${cat}费(${monthStr})`;
+        let v = await Voucher.findOne({ where: { bookId: 1, voucherNo } });
+        if (!v) {
+          expVoucherSeq++;
+          v = await Voucher.create({
+            bookId: 1, voucherNo, date: new Date(ts), period: monthStr, type: '付',
+            summary, status: '已过账', createdBy: 1,
+          } as any);
+        }
+        const VoucherEntry = (await import('../models/VoucherEntry.js')).default;
+        const cnt = await VoucherEntry.count({ where: { voucherId: v!.id } });
+        if (cnt === 0) {
+          const acctCode = EXPENSE_ACCT_MAP[cat] || '5001';
+          const acctId = accountMap[acctCode];
+          await VoucherEntry.create({ voucherId: v!.id, accountId: acctId, summary, debitAmount: amount, creditAmount: 0 });
+          await VoucherEntry.create({ voucherId: v!.id, accountId: BANK_ID, summary: `支付${cat}费(${monthStr})`, debitAmount: 0, creditAmount: amount });
+        }
       }
     }
   }
+  console.log(`[Seed] ${expSeq} expenses (new expense vouchers ${expVoucherSeq})`);
 
-  console.log(`[Seed] ${expSeq} expenses (${expVoucherSeq} expense vouchers)`);
-
-  // 6. 生成催缴任务 — 确保四个级别都有演示数据
+  // 6. 生成催缴任务 —— 按 (billId, level) 幂等
   const DunningTask = (await import('../models/DunningTask.js')).default;
+  let dunningCount = 0;
+  async function addDunning(bill: any, level: number, channel: string, title: string, content: string) {
+    const exists = await DunningTask.findOne({ where: { billId: bill.id, level } });
+    if (exists) return;
+    await DunningTask.create({ billId: bill.id, level, channel, title, content, status: '已发送', sentAt: new Date() } as any);
+    dunningCount++;
+  }
   const now = dayjs();
   const today = now.format('YYYY-MM-DD');
-  let dunningCount = 0;
+  const upcomingBills = await Bill.findAll({ where: { status: '未缴', dueDate: { [Op.lte]: now.add(30, 'day').format('YYYY-MM-DD'), [Op.gte]: today } as any }, raw: true });
+  for (const b of upcomingBills) await addDunning(b, 1, '站内信', '租金到期提醒', `您的账单 ${(b as any).billNo} 即将于 ${(b as any).dueDate} 到期，金额 ¥${Number((b as any).totalAmount).toFixed(2)}，请提前准备。`);
+  const range1to30 = await Bill.findAll({ where: { status: { [Op.in]: ['逾期', '部分缴', '未缴'] }, dueDate: { [Op.lte]: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), [Op.gte]: dayjs().subtract(30, 'day').format('YYYY-MM-DD') } as any }, raw: true });
+  for (const b of range1to30) await addDunning(b, 2, '站内信', '租金催缴通知', `尊敬的租户，您的账单 ${(b as any).billNo} 已逾期，金额 ¥${Number((b as any).totalAmount).toFixed(2)}，请尽快缴纳。`);
+  const range30to60 = await Bill.findAll({ where: { status: { [Op.in]: ['逾期', '部分缴'] }, dueDate: { [Op.lte]: dayjs().subtract(30, 'day').format('YYYY-MM-DD'), [Op.gte]: dayjs().subtract(60, 'day').format('YYYY-MM-DD') } as any }, raw: true });
+  for (const b of range30to60) await addDunning(b, 3, '短信', '租金逾期催缴', `【物业催缴】您的账单 ${(b as any).billNo} 已逾期超过30天，欠费 ¥${Number((b as any).totalAmount).toFixed(2)}，请立即处理以免影响信用。`);
+  const range60plus = await Bill.findAll({ where: { status: { [Op.in]: ['逾期', '部分缴'] }, dueDate: { [Op.lte]: dayjs().subtract(60, 'day').format('YYYY-MM-DD') } as any }, raw: true });
+  for (const b of range60plus) await addDunning(b, 4, '书面', '最后催缴通知', `【最后催缴】您的账单 ${(b as any).billNo} 已逾期超过60天，欠费 ¥${Number((b as any).totalAmount).toFixed(2)}，请3日内结清，否则将按合同采取法律措施。`);
+  console.log(`[Seed] ${dunningCount} new dunning tasks`);
 
-  // 1级：到期提醒 — 未来7天内到期的账单（包含下月账单）
-  const upcomingBills = await Bill.findAll({
-    where: { status: '未缴', dueDate: { [Op.lte]: now.add(30, 'day').format('YYYY-MM-DD'), [Op.gte]: today } as any },
-    raw: true,
-  });
-  for (const b of upcomingBills) {
-    await DunningTask.create({ billId: b.id, level: 1, channel: '站内信', title: '租金到期提醒', content: `您的账单 ${b.billNo} 即将于 ${(b as any).dueDate} 到期，金额 ¥${Number(b.totalAmount).toFixed(2)}，请提前准备。`, status: '已发送', sentAt: new Date() } as any);
-    dunningCount++;
-  }
+  // 7. 门锁演示数据 —— 委托给独立的幂等 seedDoorLocks()
+  await seedDoorLocks();
 
-  // 2级：一级催缴 — 逾期1-30天（含当前月份已逾期的未缴账单）
-  const range1to30 = await Bill.findAll({
-    where: { status: { [Op.in]: ['逾期', '部分缴', '未缴'] }, dueDate: { [Op.lte]: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), [Op.gte]: dayjs().subtract(30, 'day').format('YYYY-MM-DD') } as any },
-    raw: true,
-  });
-  for (const b of range1to30) {
-    await DunningTask.create({ billId: b.id, level: 2, channel: '站内信', title: '租金催缴通知', content: `尊敬的租户，您的账单 ${b.billNo} 已逾期，金额 ¥${Number(b.totalAmount).toFixed(2)}，请尽快缴纳。`, status: '已发送', sentAt: new Date() } as any);
-    dunningCount++;
-  }
-
-  // 3级：二级催缴 — 逾期30-60天
-  const range30to60 = await Bill.findAll({
-    where: { status: { [Op.in]: ['逾期', '部分缴'] }, dueDate: { [Op.lte]: dayjs().subtract(30, 'day').format('YYYY-MM-DD'), [Op.gte]: dayjs().subtract(60, 'day').format('YYYY-MM-DD') } as any },
-    raw: true,
-  });
-  for (const b of range30to60) {
-    await DunningTask.create({ billId: b.id, level: 3, channel: '短信', title: '租金逾期催缴', content: `【物业催缴】您的账单 ${b.billNo} 已逾期超过30天，欠费 ¥${Number(b.totalAmount).toFixed(2)}，请立即处理以免影响信用。`, status: '已发送', sentAt: new Date() } as any);
-    dunningCount++;
-  }
-
-  // 4级：三级催缴 — 逾期60天以上
-  const range60plus = await Bill.findAll({
-    where: { status: { [Op.in]: ['逾期', '部分缴'] }, dueDate: { [Op.lte]: dayjs().subtract(60, 'day').format('YYYY-MM-DD') } as any },
-    raw: true,
-  });
-  for (const b of range60plus) {
-    await DunningTask.create({ billId: b.id, level: 4, channel: '书面', title: '最后催缴通知', content: `【最后催缴】您的账单 ${b.billNo} 已逾期超过60天，欠费 ¥${Number(b.totalAmount).toFixed(2)}，请3日内结清，否则将按合同采取法律措施。`, status: '已发送', sentAt: new Date() } as any);
-    dunningCount++;
-  }
-
-  console.log(`[Seed] ${dunningCount} dunning tasks created`);
-
-  // 7. 门锁演示数据（4套：2 智能 + 2 传统）
-  const demoProperties = properties; // 复用前面创建的房源
-  const smartLock1 = await DoorLock.create({
-    propertyId: demoProperties[0].id, name: '301室智能锁',
-    category: '智能门锁', lockType: '指纹密码锁',
-    manufacturer: '涂鸦智能', model: 'T1 Pro', sn: 'SN-TUYA-2024001',
-    installDate: '2024-01-15', status: '在线',
-    deviceId: 'tuya-dev-301', battery: 85,
-    firmwareVersion: 'v2.3.1', ipAddress: '192.168.1.101',
-    lastOnlineAt: new Date(),
-    notes: '主卧入户智能锁',
-  } as any);
-
-  const smartLock2 = await DoorLock.create({
-    propertyId: demoProperties[1].id, name: '1503室智能锁',
-    category: '智能门锁', lockType: '蓝牙锁',
-    manufacturer: 'Aqara', model: 'N200', sn: 'SN-AQARA-2024002',
-    installDate: '2024-03-10', status: '在线',
-    deviceId: 'aqara-dev-1503', battery: 32,
-    firmwareVersion: 'v1.8.0', ipAddress: '192.168.1.203',
-    lastOnlineAt: new Date(Date.now() - 7200000),
-    notes: '蓝牙智能锁，低电量需关注',
-  } as any);
-
-  const tradLock1 = await DoorLock.create({
-    propertyId: demoProperties[0].id, name: '201室防盗锁',
-    category: '传统门锁', lockType: '防盗门锁',
-    manufacturer: '玥玛', model: 'YM-8801', sn: 'SN-YM-2024003',
-    installDate: '2024-01-10', status: '正常',
-    lockCylinder: 'C级', material: '不锈钢', keyType: '普通钥匙',
-    totalKeyCount: 3,
-    notes: '甲级防盗门锁，C级锁芯',
-  } as any);
-
-  const tradLock2 = await DoorLock.create({
-    propertyId: demoProperties[3].id, name: 'B栋厂房大门锁',
-    category: '传统门锁', lockType: '挂锁',
-    manufacturer: '金点原子', model: 'JY-660', sn: 'SN-JY-2024004',
-    installDate: '2024-02-20', status: '正常',
-    lockCylinder: 'B级', material: '铜', keyType: '普通钥匙',
-    totalKeyCount: 4,
-    notes: '厂房大门重型挂锁',
-  } as any);
-
-  // 智能锁密码
-  await DoorLockPassword.create({
-    lockId: smartLock1.id, password: '852046',
-    passwordType: '永久', purpose: '入住',
-    tenantId: tenants[0]?.id || null,
-    startTime: new Date('2024-01-01'),
-    isActive: true, maxUseCount: 0,
-    createdBy: 1, notes: '租客张伟入住密码',
-  } as any);
-
-  await DoorLockPassword.create({
-    lockId: smartLock1.id, password: '369715',
-    passwordType: '临时', purpose: '保洁',
-    startTime: new Date('2026-05-01'),
-    endTime: new Date('2026-06-01'),
-    isActive: true, maxUseCount: 0,
-    createdBy: 1, notes: '5月保洁临时密码',
-  } as any);
-
-  await DoorLockPassword.create({
-    lockId: smartLock2.id, password: '741203',
-    passwordType: '永久', purpose: '入住',
-    tenantId: tenants[1]?.id || null,
-    startTime: new Date('2024-02-01'),
-    isActive: true, maxUseCount: 0,
-    createdBy: 1, notes: '租客李娜入住密码',
-  } as any);
-
-  // 传统锁钥匙
-  await DoorLockKey.create({
-    lockId: tradLock1.id, keyCode: 'KEY-201-001',
-    keyStatus: '在库', createdBy: 1,
-  } as any);
-  await DoorLockKey.create({
-    lockId: tradLock1.id, keyCode: 'KEY-201-002',
-    keyStatus: '在库', createdBy: 1,
-  } as any);
-  await DoorLockKey.create({
-    lockId: tradLock1.id, keyCode: 'KEY-201-003',
-    keyStatus: '借出', holderType: '租客',
-    holderName: '张伟', holderPhone: '13800008888',
-    lendTime: new Date('2026-05-10'),
-    expectedReturnTime: new Date('2026-06-10'),
-    lendReason: '租客入住',
-    createdBy: 1,
-  } as any);
-
-  await DoorLockKey.create({
-    lockId: tradLock2.id, keyCode: 'KEY-B-001',
-    keyStatus: '在库', createdBy: 1,
-  } as any);
-  await DoorLockKey.create({
-    lockId: tradLock2.id, keyCode: 'KEY-B-002',
-    keyStatus: '在库', createdBy: 1,
-  } as any);
-  await DoorLockKey.create({
-    lockId: tradLock2.id, keyCode: 'KEY-B-003',
-    keyStatus: '借出', holderType: '管理员',
-    holderName: '王经理', holderPhone: '0512-66668888',
-    lendTime: new Date('2026-04-15'),
-    expectedReturnTime: new Date('2026-05-15'),
-    lendReason: '厂房巡检',
-    createdBy: 1,
-  } as any);
-  await DoorLockKey.create({
-    lockId: tradLock2.id, keyCode: 'KEY-B-004',
-    keyStatus: '借出', holderType: '维修',
-    holderName: '韩师傅', holderPhone: '13900000000',
-    lendTime: new Date('2026-05-12'),
-    expectedReturnTime: new Date('2026-05-20'),
-    lendReason: '设备维修',
-    createdBy: 1,
-  } as any);
-
-  // 操作日志
-  const logBaseTime = Date.now();
-  const logData = [
-    { lockId: smartLock1.id, operationType: '密码开锁', operatorName: '张伟', operatorType: '租客', result: '成功', detail: '密码开锁' },
-    { lockId: smartLock1.id, operationType: '指纹开锁', operatorName: '张伟', operatorType: '租客', result: '成功', detail: '指纹开锁' },
-    { lockId: smartLock1.id, operationType: '远程开锁', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '管理员远程开锁' },
-    { lockId: smartLock1.id, operationType: '密码开锁', operatorName: '保洁阿姨', operatorType: '保洁', result: '成功', detail: '保洁密码开锁' },
-    { lockId: smartLock1.id, operationType: '告警', operatorName: '', operatorType: '系统', result: '成功', detail: '电量低于20%告警' },
-    { lockId: smartLock2.id, operationType: '蓝牙开锁', operatorName: '李娜', operatorType: '租客', result: '成功', detail: '蓝牙开锁' },
-    { lockId: smartLock2.id, operationType: '密码开锁', operatorName: '李娜', operatorType: '租客', result: '成功', detail: '密码开锁' },
-    { lockId: smartLock2.id, operationType: '告警', operatorName: '', operatorType: '系统', result: '成功', detail: '电量低于30%告警' },
-    { lockId: tradLock1.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-201-003 给 张伟（租客）' },
-    { lockId: tradLock1.id, operationType: '钥匙开锁', operatorName: '张伟', operatorType: '租客', result: '成功', detail: '钥匙开锁' },
-    { lockId: tradLock2.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-B-003 给 王经理（管理员）' },
-    { lockId: tradLock2.id, operationType: '钥匙借出', operatorName: '管理员', operatorType: '管理员', result: '成功', detail: '借出钥匙 KEY-B-004 给 韩师傅（维修）' },
-    { lockId: tradLock2.id, operationType: '钥匙开锁', operatorName: '韩师傅', operatorType: '维修', result: '成功', detail: '钥匙开锁 - 设备维修' },
-  ];
-
-  for (let i = 0; i < logData.length; i++) {
-    const l = logData[i];
-    await DoorLockLog.create({
-      lockId: l.lockId,
-      operationType: l.operationType,
-      operatorName: l.operatorName,
-      operatorType: l.operatorType,
-      result: l.result,
-      detail: l.detail,
-      createdAt: new Date(logBaseTime - (logData.length - i) * 86400000),
-    } as any);
-  }
-
-  console.log('[Seed] 4 door locks (2 smart + 2 traditional) created');
-  console.log('[Seed] Demo data complete — 3 years of operational data ready');
+  // 8. 写入一次性初始化标记：从此不再重建演示数据
+  await markDemoSeeded();
+  console.log('[Seed] Demo data complete — marked as seeded');
 }
 
-// 门锁种子数据 — 独立于演示经营数据，可单独调用
 export async function seedDoorLocks(): Promise<void> {
   const existing = await DoorLock.findOne();
   if (existing) {
