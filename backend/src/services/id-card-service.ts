@@ -1,8 +1,37 @@
 import IdCardReader from '../models/IdCardReader.js';
 import IdCardReadLog from '../models/IdCardReadLog.js';
 import Tenant from '../models/Tenant.js';
-import { getIdCardProvider, IdCardData } from './id-card-provider.js';
-export { getIdCardProvider };
+import SystemConfig from '../models/SystemConfig.js';
+import { createProvider, IdCardData, IdCardProviderMode } from './id-card-provider.js';
+
+// 确保 id_card_provider 配置项存在（内置，供系统参数中心展示/切换）
+export async function ensureIdCardConfig(): Promise<void> {
+  const row = await SystemConfig.findOne({ where: { configKey: 'id_card_provider' } });
+  if (!row) {
+    await SystemConfig.create({
+      configKey: 'id_card_provider',
+      configValue: 'mock',
+      description: '身份证读卡器 Provider：mock=演示/模拟（返回内置演示数据），real=真实读卡器（需接入厂商 SDK）',
+      configGroup: '系统',
+      valueType: 'string',
+      isSensitive: false,
+      builtIn: true,
+    } as any);
+  }
+}
+
+// 读卡 Provider 模式：system_configs.id_card_provider = 'mock'(默认) | 'real'
+export async function getIdCardProviderMode(): Promise<IdCardProviderMode> {
+  try {
+    const row = await SystemConfig.findOne({ where: { configKey: 'id_card_provider' } });
+    return ((row?.configValue as string) || 'mock') === 'real' ? 'real' : 'mock';
+  } catch { return 'mock'; }
+}
+
+export function getIdCardProvider() {
+  // 兼容旧调用：返回默认 mock provider（业务读取请走 readCard()，它会按模式选择）
+  return createProvider('mock');
+}
 import { broadcast } from '../websocket/index.js';
 import { Op } from 'sequelize';
 
@@ -66,6 +95,7 @@ export function maskIdNumber(idNumber: string): string {
 export async function readCard(readerId: number, operatorId: number): Promise<{
   success: boolean;
   data?: IdCardData;
+  mock?: boolean;
   warnings?: string[];
   error?: string;
 }> {
@@ -73,27 +103,33 @@ export async function readCard(readerId: number, operatorId: number): Promise<{
     const reader = await IdCardReader.findByPk(readerId);
     if (!reader) return { success: false, error: '设备不存在' };
 
-    const provider = getIdCardProvider();
+    const mode = await getIdCardProviderMode();
+    const provider = createProvider(mode);
     const cardData = await provider.readCard((reader as any).port || readerId.toString());
 
     // 校验
     const warnings: string[] = [];
-    const validation = validateIdNumber(cardData.idNumber);
-    if (!validation.valid) warnings.push(validation.message);
+    if (mode === 'mock') {
+      // 演示/模拟：只提示这是模拟数据，不对假身份证做真实校验（否则会误报校验位/过期）
+      warnings.push('当前为演示/模拟读卡（未接入真实读卡器 SDK），返回的是内置演示数据');
+    } else {
+      const validation = validateIdNumber(cardData.idNumber);
+      if (!validation.valid) warnings.push(validation.message);
 
-    const duplicate = await checkDuplicateIdNumber(cardData.idNumber);
-    if (duplicate.duplicate) {
-      warnings.push(`该身份证号已关联租客「${duplicate.tenant?.name}」`);
-    }
+      const duplicate = await checkDuplicateIdNumber(cardData.idNumber);
+      if (duplicate.duplicate) {
+        warnings.push(`该身份证号已关联租客「${duplicate.tenant?.name}」`);
+      }
 
-    const ageCheck = checkAge(cardData.birthDate);
-    if (ageCheck.underage) warnings.push(`年龄 ${ageCheck.age} 岁，未满18周岁`);
+      const ageCheck = checkAge(cardData.birthDate);
+      if (ageCheck.underage) warnings.push(`年龄 ${ageCheck.age} 岁，未满18周岁`);
 
-    const expiryCheck = checkExpiry(cardData.validTo);
-    if (expiryCheck.expired) {
-      warnings.push('身份证已过期');
-    } else if (expiryCheck.daysLeft <= 90) {
-      warnings.push(`身份证即将过期（剩余${expiryCheck.daysLeft}天）`);
+      const expiryCheck = checkExpiry(cardData.validTo);
+      if (expiryCheck.expired) {
+        warnings.push('身份证已过期');
+      } else if (expiryCheck.daysLeft <= 90) {
+        warnings.push(`身份证即将过期（剩余${expiryCheck.daysLeft}天）`);
+      }
     }
 
     // 更新设备最后读卡时间
@@ -115,7 +151,7 @@ export async function readCard(readerId: number, operatorId: number): Promise<{
       timestamp: Date.now(),
     });
 
-    return { success: true, data: cardData, warnings: warnings.length > 0 ? warnings : undefined };
+    return { success: true, data: cardData, mock: mode === 'mock', warnings: warnings.length > 0 ? warnings : undefined };
   } catch (err: any) {
     // 写失败日志
     await IdCardReadLog.create({

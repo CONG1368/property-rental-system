@@ -144,6 +144,8 @@ async function start() {
     // 已初始化（含老库迁移补标）则不重种，避免「删掉的演示数据重启后复活」。
     const { getDemoSeedState, ensureSeedConfig, isDemoEnabled } = await import('./services/seed-status.js');
     await ensureSeedConfig();
+    const { ensureIdCardConfig } = await import('./services/id-card-service.js');
+    await ensureIdCardConfig();
     const demoState = await getDemoSeedState();
     const demoEnabled = await isDemoEnabled();
     const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates, seedIdCardReaders, seedFireSafety } = await import('./services/seed-data.js');

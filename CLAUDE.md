@@ -548,7 +548,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 
 **前端**：`DoorLockList.vue`（统计卡片 + 品类筛选 + 动态操作按钮，智能锁显示远程开锁/临时密码、传统锁显示钥匙借出）、`DoorLockDetail.vue`（根据 `category` 动态切换标签页：基本信息/密码管理or钥匙管理/操作日志）。
 
-**种子数据**：独立函数 `seedDoorLocks()`（4 套演示门锁：2 智能 + 2 传统，含密码/钥匙/日志演示数据），在 `seedAllDemoData()` 之后调用，已有数据时自动跳过。
+**种子数据**：独立函数 `seedDoorLocks()`（4 套演示门锁：2 智能 + 2 传统），在 `seedAllDemoData()` 之后调用，已有数据时自动跳过。
 
 ### 房态流转系统
 
@@ -695,7 +695,7 @@ off('room:status-changed', callback);
 
 **前端**：`useIdCardReader`（设备列表/读卡触发/自动选在线设备）、`IdCardReadButton.vue`（Props `readerId?`/`mode`，Emit `@success`/`@error`）、`IdCardReaderSettings.vue`（`/system/id-card-readers`）。
 
-**Electron IPC**：`read-id-card` 通道（当前返回 Mock 提示，预留 SDK 接入点）。
+**读卡 Provider 模式**：system_configs.id_card_provider（内置，默认 mock）——mock=演示（返回内置数据，带 mock:true），real=真实读卡（RealIdCardProvider 为厂商 SDK 接入点，未接 SDK 报错不伪成功）。
 
 ### 合同 billingConfig — 可扩展 JSON 字段
 
@@ -769,7 +769,7 @@ off('room:status-changed', callback);
 - **交互控件边界**用 `$color-border-control: #6f8299`（`--el-border-color`，≥3:1）；白描边仅装饰
 - **深色顶栏**上的主色/红点用 `$color-on-dark-primary: #a8c2fc` / `$color-on-dark-danger: #fca5a5`
 - **实心按钮**（primary/success/warning/danger）底色在 `global.scss` 覆盖为加深变体，使白字达 5.6–6.4:1
-- **原色保留**用于填充、标签底、图表系列色、进度条、KPI 大号数值（品牌湛蓝 `#4f7cf7` 未被替换）
+- **原色保留**用于填充/标签底/图表系列/进度条/KPI 数值（品牌湛蓝不变）
 
 自检门禁：`node scripts/check-contrast.cjs`（46 条清单，46/46 通过 + 2 条装饰性豁免）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 文字色）。
 

@@ -2,7 +2,8 @@ import { Router } from 'express';
 import IdCardReader from '../models/IdCardReader.js';
 import IdCardReadLog from '../models/IdCardReadLog.js';
 import { AuthRequest } from '../middleware/auth.js';
-import { readCard, getIdCardProvider } from '../services/id-card-service.js';
+import { readCard, getIdCardProviderMode } from '../services/id-card-service.js';
+import { createProvider } from '../services/id-card-provider.js';
 
 const router = Router();
 
@@ -65,7 +66,8 @@ router.get('/:id/status', async (req: AuthRequest, res) => {
   try {
     const reader = await IdCardReader.findByPk(req.params.id);
     if (!reader) return res.status(404).json({ code: 404, message: '设备不存在' });
-    const provider = getIdCardProvider();
+    const mode = await getIdCardProviderMode();
+    const provider = createProvider(mode);
     const status = await provider.getDeviceStatus((reader as any).port || String(reader.id));
     res.json({ code: 200, data: status });
   } catch (err: any) {
@@ -78,7 +80,7 @@ router.post('/:id/read', async (req: AuthRequest, res) => {
   try {
     const result = await readCard(Number(req.params.id), req.userId || 1);
     if (result.success) {
-      res.json({ code: 200, data: result.data, warnings: result.warnings, message: '读卡成功' });
+      res.json({ code: 200, data: result.data, mock: result.mock, warnings: result.warnings, message: '读卡成功' });
     } else {
       res.status(400).json({ code: 400, message: result.error || '读卡失败' });
     }
