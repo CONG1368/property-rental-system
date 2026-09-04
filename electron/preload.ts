@@ -10,6 +10,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportPDF: (html: string, title: string) => ipcRenderer.invoke('export-pdf', html, title),
   saveFile: (options: any) => ipcRenderer.invoke('save-file-dialog', options),
   readIdCard: (provider: string, port: string) => ipcRenderer.invoke('read-id-card', provider, port),
+  openPlatformLogin: () => ipcRenderer.invoke('open-platform-login'),
+  getMeterTokenStatus: () => ipcRenderer.invoke('get-meter-token-status'),
+  stopMeterSync: () => ipcRenderer.invoke('stop-meter-sync'),
+  onSmartMeterEvent: (callback: (payload: any) => void) => { ipcRenderer.on('smart-meter', (_event, p: any) => callback(p)); },
   onMenuNavigate: (callback: (path: string) => void) => {
     ipcRenderer.on('navigate', (_event, path: string) => callback(path));
   },

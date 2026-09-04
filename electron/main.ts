@@ -270,6 +270,80 @@ ipcMain.handle('print-html', async (_event, html: string, title: string) => {
   });
 });
 
+
+// ===== 智能水电表：平台登录窗口 token 捕获 + 会话窗口内自动同步 =====
+const METER_PLATFORM_URL = 'https://bzp.iyunmu.com/index';
+const METER_API_BASE = 'https://bzp.iyunmu.com/prepaidBack';
+const smartMeterState = {
+  token: '', exp: 0, window: null as BrowserWindow | null,
+  timer: null as any, syncTimer: null as any, syncEveryMs: 10 * 60 * 1000,
+};
+
+function decodeJwtExp(t: string): number {
+  try {
+    const p = t.split('.')[1]; if (!p) return 0;
+    let b = p.replace(/-/g, '+').replace(/_/g, '/'); while (b.length % 4) b += '=';
+    const payload = JSON.parse(Buffer.from(b, 'base64').toString('utf8'));
+    return Number(payload?.exp) || 0;
+  } catch { return 0; }
+}
+
+async function syncSmartMeterOnce() {
+  if (!smartMeterState.token) return { ok: false, error: 'no-token' };
+  try {
+    const r = await fetch('http://localhost:3001/api/smart-meter/sync', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: smartMeterState.token }),
+    });
+    const j = await r.json();
+    if (r.status === 401 || j?.code === 401) { stopSmartMeterSync(); mainWindow?.webContents.send('smart-meter', { event: 'token-invalid', message: j?.message }); }
+    else mainWindow?.webContents.send('smart-meter', { event: 'synced', data: j?.data, message: j?.message });
+    return j;
+  } catch (e: any) { return { ok: false, error: String(e?.message || e) }; }
+}
+
+function startSmartMeterSyncWindow() {
+  stopSmartMeterSync();
+  if (smartMeterState.timer) return;
+  smartMeterState.syncTimer = setInterval(() => { syncSmartMeterOnce(); }, smartMeterState.syncEveryMs);
+  // 登录后立即同步一次
+  syncSmartMeterOnce();
+}
+
+function stopSmartMeterSync() {
+  if (smartMeterState.syncTimer) { clearInterval(smartMeterState.syncTimer); smartMeterState.syncTimer = null; }
+}
+
+ipcMain.handle('open-platform-login', async () => {
+  if (smartMeterState.window && !smartMeterState.window.isDestroyed()) { smartMeterState.window.focus(); return { status: 'already-open' }; }
+  const win = new BrowserWindow({ width: 1180, height: 760, title: '智能水电表 - 平台登录', webPreferences: { nodeIntegration: false, contextIsolation: true } });
+  smartMeterState.window = win;
+  // 观察发往平台 API 的请求，捕获 Authorization Bearer token
+  win.webContents.session.webRequest.onBeforeSendHeaders({ urls: [METER_API_BASE + '/*'] }, (details, cb) => {
+    const auth = details.requestHeaders['Authorization'] || details.requestHeaders['authorization'];
+    if (auth && auth.startsWith('Bearer ')) {
+      const t = auth.slice(7);
+      if (t && smartMeterState.token !== t) {
+        smartMeterState.token = t;
+        smartMeterState.exp = decodeJwtExp(t);
+        startSmartMeterSyncWindow();
+        mainWindow?.webContents.send('smart-meter', { event: 'token-captured', exp: smartMeterState.exp });
+      }
+    }
+    cb({ requestHeaders: details.requestHeaders });
+  });
+  await win.loadURL(METER_PLATFORM_URL);
+  win.on('closed', () => { smartMeterState.window = null; });
+  return { status: 'open' };
+});
+
+ipcMain.handle('get-meter-token-status', async () => {
+  const nowSec = Math.floor(Date.now() / 1000);
+  return { captured: !!smartMeterState.token, tokenExpSec: smartMeterState.exp, expired: !!(smartMeterState.exp && smartMeterState.exp <= nowSec) };
+});
+
+ipcMain.handle('stop-meter-sync', async () => { stopSmartMeterSync(); return { status: 'stopped' }; });
+
 app.whenReady().then(async () => {
   buildMenu();
   try {

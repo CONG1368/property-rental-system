@@ -54,6 +54,7 @@
       <el-menu-item index="/property/work-orders">报修工单</el-menu-item>
       <el-menu-item index="/property/facilities">设施设备</el-menu-item>
       <el-menu-item index="/property/meters">抄表计费</el-menu-item>
+    <el-menu-item index="/property/smart-meter">智能水电表</el-menu-item>
       <el-menu-item index="/property/parking">停车管理</el-menu-item>
       <el-menu-item index="/property/complaints">投诉建议</el-menu-item>
       <el-menu-item index="/property/residents">住户档案</el-menu-item>

@@ -146,6 +146,8 @@ async function start() {
     await ensureSeedConfig();
     const { ensureIdCardConfig } = await import('./services/id-card-service.js');
     await ensureIdCardConfig();
+    const { ensureMeterPlatformConfig } = await import('./services/meter-platform.js');
+    await ensureMeterPlatformConfig();
     const demoState = await getDemoSeedState();
     const demoEnabled = await isDemoEnabled();
     const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates, seedIdCardReaders, seedFireSafety } = await import('./services/seed-data.js');
