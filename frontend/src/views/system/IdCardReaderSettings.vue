@@ -75,16 +75,17 @@
         </el-form-item>
         <el-form-item label="品牌" required>
           <el-select v-model="form.brand" style="width:100%">
-            <el-option label="华视" value="华视" />
-            <el-option label="新中新" value="新中新" />
-            <el-option label="普天" value="普天" />
-            <el-option label="精伦" value="精伦" />
-            <el-option label="中控" value="中控" />
-            <el-option label="其他" value="其他" />
+            <el-option v-for="b in BRANDS" :key="b" :label="b" :value="b" />
           </el-select>
         </el-form-item>
         <el-form-item label="型号">
-          <el-input v-model="form.model" placeholder="如：CVR-100UC" />
+          <el-autocomplete
+            v-model="form.model"
+            :fetch-suggestions="queryModel"
+            placeholder="选择或输入型号，如 CVR-100UC"
+            style="width:100%"
+            clearable
+          />
         </el-form-item>
         <el-form-item label="接口类型">
           <el-select v-model="form.interfaceType" style="width:100%">
@@ -150,6 +151,25 @@ const dialogVisible = ref(false);
 const dialogTitle = computed(() => editingId.value ? '编辑设备' : '添加设备');
 const editingId = ref<number | null>(null);
 
+// 市场主流读卡器品牌 + 各品牌常用型号（型号仅作自动提示/选择，可自定义输入）
+const BRANDS = ['华视', '新中新', '普天', '精伦', '中控', '神思', '熵基科技', '汉王', '航天信息', '德生', '其他'];
+const BRAND_MODELS: Record<string, string[]> = {
+  '华视': ['CVR-100UC', 'CVR-100U', 'CVR-100M', 'CVR-300'],
+  '新中新': ['DKQ-A16D', 'DKQ-116D', 'DKQ-116SE', 'DKQ-S12'],
+  '普天': ['CPIDMR2', 'CPIDMR2/TG', 'CPIDM'],
+  '精伦': ['IDR210', 'IDR210-1', 'IDR310', 'IDR400'],
+  '中控': ['ID100', 'ID200', 'ID700', 'ID880'],
+  '熵基科技': ['ID100', 'ID120', 'ID450', 'ID880'],
+  '神思': ['SS628-100', 'SS628-100C', 'SS628-14'],
+  '汉王': ['HWI-100', 'HWI-101', 'HWI-200'],
+  '航天信息': ['Aisino ID-100', 'Aisino ID-200'],
+  '德生': ['DS-500', 'DS-1000'],
+  '其他': [],
+};
+function queryModel(q: string, cb: (arg: { value: string }[]) => void) {
+  const list = (BRAND_MODELS[form.brand] || []).filter(m => m.toLowerCase().includes(q.toLowerCase()));
+  cb(list.map(m => ({ value: m })));
+}
 const form = reactive({
   name: '', brand: '华视', model: '', interfaceType: 'USB', port: '', status: '未激活', firmwareVersion: '',
 });
