@@ -4,19 +4,26 @@ import Tenant from '../models/Tenant.js';
 import SystemConfig from '../models/SystemConfig.js';
 import { createProvider, IdCardData, IdCardProviderMode } from './id-card-provider.js';
 
-// 确保 id_card_provider 配置项存在（内置，供系统参数中心展示/切换）
+// 确保读卡器配置项存在（内置，供系统参数中心展示/切换）—— 华视 CVR-100U 真实接入所需
+const ID_CARD_CONFIGS: { key: string; value: string; desc: string }[] = [
+  { key: 'id_card_provider', value: 'mock', desc: '身份证读卡器 Provider：mock=演示/模拟（返回内置演示数据），real=真实读卡器（需接入厂商 SDK）' },
+  { key: 'id_card_dll_dir', value: '', desc: '真实读卡器 SDK 目录（放置华视 termb.dll / sdtapi.dll / UnPack.dll）；留空默认 <应用目录>/idcard' },
+  { key: 'id_card_port', value: '3', desc: '真实读卡器 COM 口编号（华视 CVR-100U 为 USB 虚拟串口，如 COM3 填 3）' },
+];
 export async function ensureIdCardConfig(): Promise<void> {
-  const row = await SystemConfig.findOne({ where: { configKey: 'id_card_provider' } });
-  if (!row) {
-    await SystemConfig.create({
-      configKey: 'id_card_provider',
-      configValue: 'mock',
-      description: '身份证读卡器 Provider：mock=演示/模拟（返回内置演示数据），real=真实读卡器（需接入厂商 SDK）',
-      configGroup: '系统',
-      valueType: 'string',
-      isSensitive: false,
-      builtIn: true,
-    } as any);
+  for (const c of ID_CARD_CONFIGS) {
+    const row = await SystemConfig.findOne({ where: { configKey: c.key } });
+    if (!row) {
+      await SystemConfig.create({
+        configKey: c.key,
+        configValue: c.value,
+        description: c.desc,
+        configGroup: '系统',
+        valueType: 'string',
+        isSensitive: false,
+        builtIn: true,
+      } as any);
+    }
   }
 }
 

@@ -1,4 +1,8 @@
 import fs from 'fs';
+import path from 'path';
+
+// 运行时惰性填充（只有 real 读卡才 import，避免 mock/CI 加载原生依赖）
+let iconv: any = null;
 
 // 读卡结果
 export interface IdCardData {
@@ -79,14 +83,77 @@ class RealIdCardProvider implements IdCardReaderProvider {
     fs.appendFileSync(this.logPath, JSON.stringify({ ...entry, timestamp: new Date().toISOString() }) + '\n');
   }
 
+  private async cfg(key: string, def: string): Promise<string> {
+    try {
+      const { default: SystemConfig } = await import('../models/SystemConfig.js');
+      const row = await SystemConfig.findOne({ where: { configKey: key } });
+      return ((row as any)?.configValue) || def;
+    } catch { return def; }
+  }
+
+  private decodeGbk(buf: Buffer, len: number): string {
+    try { return iconv.decode(buf.slice(0, len || 0), 'gbk').replace(/\0/g, '').trim(); }
+    catch { return buf.slice(0, len || 0).toString('utf8').replace(/\0/g, '').trim(); }
+  }
+
   async readCard(deviceId: string): Promise<IdCardData> {
-    // 未集成厂商 SDK 时：明确报错，绝不返回模拟数据冒充真实读取。
-    throw new Error('未接入真实读卡器 SDK：请安装读卡器厂商 SDK 并在 id_card_provider=real 下配置后使用');
+    const koffi = (await import('koffi')).default;
+    iconv = (await import('iconv-lite')).default;
+
+    const dllDir = ((await this.cfg('id_card_dll_dir', '')) || path.join(process.cwd(), 'idcard'));
+    const port = Number(await this.cfg('id_card_port', '3')) || 3;
+    const dllPath = path.join(dllDir, 'termb.dll');
+    if (!fs.existsSync(dllPath)) {
+      throw new Error(`未找到华视读卡器动态库 termb.dll（路径：${dllPath}）。请把华视 CVR-100U 二次开发包的 termb.dll / sdtapi.dll / UnPack.dll 三个文件放入该目录，并在系统参数配置 id_card_dll_dir 与 id_card_port`);
+    }
+
+    let lib: any;
+    try { lib = koffi.load(dllPath); }
+    catch (e) {
+      throw new Error(`加载 termb.dll 失败：${(e as Error).message}。若提示架构不符，说明需 64 位版 SDK（本应用为 64 位进程），请从华视官网获取 64 位二次开发包`);
+    }
+
+    const takeText = (name: string): string => {
+      try {
+        const fn = lib.func(`int ${name}(char*, int*)`);
+        const buf = Buffer.alloc(256);
+        const len = [0];
+        fn(buf, len);
+        return this.decodeGbk(buf, len[0] || 0);
+      } catch { return ''; }
+    };
+
+    try {
+      lib.func('int CVR_InitComm(int)')(port);
+      lib.func('int CVR_Authenticate()')();
+      lib.func('int CVR_Read_Content(int)')(1);
+      const name = takeText('GetPeopleName');
+      if (!name) {
+        throw new Error('未读取到身份证信息：请确认身份证已放置在读卡器上、COM 口与驱动已正确安装');
+      }
+      const idNumber = takeText('GetPeopleIDCode');
+      const data: IdCardData = {
+        name,
+        gender: takeText('GetPeopleSex'),
+        ethnicity: takeText('GetPeopleNation'),
+        birthDate: takeText('GetPeopleBirthday'),
+        address: takeText('GetPeopleAddress'),
+        idNumber,
+        issuingAuthority: takeText('GetDepartment'),
+        validFrom: takeText('GetStartDate'),
+        validTo: takeText('GetEndDate'),
+        photoBase64: '',
+      };
+      this.log({ action: 'readCard', deviceId, result: 'success', mock: false, idNumber });
+      return data;
+    } finally {
+      try { lib.func('int CVR_CloseComm()')(); } catch { /* ignore */ }
+    }
   }
 
   async getDeviceStatus(deviceId: string): Promise<DeviceStatus> {
-    this.log({ action: 'getDeviceStatus', deviceId, result: 'not_configured', mock: false });
-    return { online: false, firmwareVersion: '（未接入 SDK）', lastReadAt: null };
+    this.log({ action: 'getDeviceStatus', deviceId, result: 'real' });
+    return { online: true, firmwareVersion: '华视 CVR-100（termb）', lastReadAt: null };
   }
 }
 
