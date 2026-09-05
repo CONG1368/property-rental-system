@@ -197,9 +197,12 @@ ipcMain.handle('read-id-card', async (_event, provider: string, port: string) =>
 // 内核驱动不能“复制即用”，须经 pnputil 加入系统驱动仓库并由管理员(UAC)授权绑定设备。
 function idcardDriverDir(): string {
   const execDir = path.dirname(process.execPath);
+  // 打包后 extraResources 复制到 <安装目录>/resources/runtime/idcard-driver（注意有 resources 段）。
+  // 旧代码漏了 resources，导致打包安装版在主进程里永远找不到内置驱动而显示“未内置驱动包”。
   const cands = [
-    path.join(execDir, 'runtime', 'idcard-driver'),        // 打包：<resources>/runtime/idcard-driver
-    path.join(process.cwd(), 'runtime', 'idcard-driver'),  // dev：仓库根
+    path.join(execDir, 'resources', 'runtime', 'idcard-driver'), // 打包：<resources>/runtime/idcard-driver
+    path.join(execDir, 'runtime', 'idcard-driver'),              // 兜底：驱动直放安装根
+    path.join(process.cwd(), 'runtime', 'idcard-driver'),        // dev：仓库根
     path.join(process.cwd(), '..', 'runtime', 'idcard-driver'),
   ];
   for (const c of cands) { if (fs.existsSync(c)) return c; }
