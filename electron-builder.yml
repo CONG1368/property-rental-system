@@ -18,6 +18,20 @@ extraResources:
     to: runtime/node/
     filter:
       - "**/*"
+  # 读卡器：32 位 Python(桥运行时) + 华视 CVR-100U SDK(bridge.py + Termb/sdtapi/WltRS)
+  - from: runtime/python-x86/
+    to: runtime/python-x86/
+    filter:
+      - "**/*"
+  - from: runtime/idcard/
+    to: runtime/idcard/
+    filter:
+      - "**/*"
+  # 华视 CVR-100U 内核驱动（官方 V3.5，64 位 WHQL 签名，Win10 x64 用；pnputil 提权安装）
+  - from: runtime/idcard-driver/
+    to: runtime/idcard-driver/
+    filter:
+      - "**/*"
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

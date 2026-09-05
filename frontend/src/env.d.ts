@@ -22,7 +22,9 @@ interface Window {
     exportPDF?: (html: string, title: string) => Promise<{ success: boolean; filePath?: string | null; error?: string }>;
     saveFile?: (options: any) => Promise<any>;
     onMenuNavigate: (callback: (path: string) => void) => void;
-    openPlatformLogin?: () => Promise<{ status: string }>;
+    openPlatformLogin?: (sysToken?: string) => Promise<{ status: string }>;
+    getIdCardDriverStatus?: () => Promise<{ bundled: boolean; driverDir: string; infPath: string; installed: boolean; devicePresent: boolean; detail: string }>;
+    installIdCardDriver?: () => Promise<{ ok: boolean; message?: string; exitCode?: number | null; ready?: boolean; detail?: string }>;
     getMeterTokenStatus?: () => Promise<{ captured: boolean; tokenExpSec: number; expired: boolean }>;
     stopMeterSync?: () => Promise<{ status: string }>;
     onSmartMeterEvent?: (callback: (payload: any) => void) => void;

@@ -39,6 +39,35 @@
       </el-table>
     </el-card>
 
+    <!-- 华视读卡器内核驱动（Win10 x64 通用） -->
+    <el-card header="读卡器驱动（华视 CVR-100U / Windows）" style="margin-bottom:16px">
+      <el-row :gutter="12">
+        <el-col :span="8">
+          <div class="drv-item"><span class="drv-label">驱动器状态</span>
+            <el-tag :type="drvInstalled ? 'success' : (drvDetail ? 'danger' : 'info')" size="small">{{ drvInstalled ? '已安装' : '未安装' }}</el-tag>
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="drv-item"><span class="drv-label">设备识别</span>
+            <el-tag :type="drvDevicePresent ? 'success' : 'info'" size="small">{{ drvDevicePresent ? '已识别设备' : '未识别设备' }}</el-tag>
+          </div>
+        </el-col>
+        <el-col :span="8">
+          <div class="drv-item"><span class="drv-label">内置驱动包</span>
+            <el-tag :type="drvBundled ? 'success' : 'danger'" size="small">{{ drvBundled ? '已随包分发' : '未内置' }}</el-tag>
+          </div>
+        </el-col>
+      </el-row>
+      <div class="drv-detail">{{ drvDetail }}</div>
+      <el-alert type="info" :closable="false" show-icon style="margin-top:8px">
+        驱动目录：{{ drvDir || '已解析' }}。安装需管理员权限（将弹出 Windows 授权提示）。仅当设备管理器里出现「SDT USB设备 / 未知设备」时才需要安装。
+      </el-alert>
+      <div style="margin-top:12px">
+        <el-button size="small" @click="refreshDriverStatus">检测</el-button>
+        <el-button size="small" type="primary" :loading="drvInstalling" @click="installDriver">安装驱动（需管理员）</el-button>
+      </div>
+    </el-card>
+
     <!-- 读卡日志 -->
     <el-card header="读卡日志">
       <el-table :data="logs" size="small" v-loading="logLoading">
@@ -251,9 +280,46 @@ function statusTagType(status: string) {
   return map[status] || 'info';
 }
 
-onMounted(() => { fetchDevices(); fetchLogs(); });
+// ---- 华视读卡器内核驱动：检测 + 一键安装（桌面版） ----
+const drvBundled = ref(false);
+const drvInstalled = ref(false);
+const drvDevicePresent = ref(false);
+const drvDetail = ref('');
+const drvDir = ref('');
+const drvInstalling = ref(false);
+
+async function refreshDriverStatus() {
+  const api = (window as any).electronAPI;
+  if (!api?.getIdCardDriverStatus) { drvDetail.value = '桌面版可用；浏览器开发模式跳过。'; return; }
+  try {
+    const s: any = await api.getIdCardDriverStatus();
+    drvBundled.value = !!s.bundled;
+    drvInstalled.value = !!s.installed;
+    drvDevicePresent.value = !!s.devicePresent;
+    drvDetail.value = s.detail || '';
+    drvDir.value = s.driverDir || '';
+  } catch (e: any) { drvDetail.value = String(e?.message || e); }
+}
+
+async function installDriver() {
+  const api = (window as any).electronAPI;
+  if (!api?.installIdCardDriver) { ElMessage.warning('浏览器开发模式无法安装驱动，请在桌面版操作'); return; }
+  drvInstalling.value = true;
+  try {
+    const r: any = await api.installIdCardDriver();
+    if (r?.ok) ElMessage.success('驱动已安装' + (r.ready ? '，设备已就绪' : ''));
+    else ElMessage.error(r?.message || '驱动安装失败');
+    refreshDriverStatus();
+  } catch (e: any) { ElMessage.error(String(e?.message || e)); }
+  finally { drvInstalling.value = false; }
+}
+
+onMounted(() => { fetchDevices(); fetchLogs(); refreshDriverStatus(); });
 </script>
 
 <style lang="scss" scoped>
 .page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.drv-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.drv-label { color: #5b6472; font-size: 13px; }
+.drv-detail { margin-top: 6px; font-size: 12px; color: #5b6472; }
 </style>

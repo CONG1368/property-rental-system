@@ -183,7 +183,8 @@ function onTab() {
 async function loginAndSync() {
   timerActive.value = true;
   if ((window as any).electronAPI?.openPlatformLogin) {
-    const r: any = await (window as any).electronAPI.openPlatformLogin();
+    const sysToken = localStorage.getItem('accessToken') || '';
+    const r: any = await (window as any).electronAPI.openPlatformLogin(sysToken);
     if (r?.status === 'already-open') ElMessage.info('平台登录窗口已打开'); 
   } else {
     ElMessage.warning('当前为浏览器开发模式：请在系统参数配置 meter_platform_token 后手动触发同步（桌面版可自动登录捕获 token）');

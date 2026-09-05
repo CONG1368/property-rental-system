@@ -16,8 +16,10 @@ const router = Router();
 router.post('/sync', auditLog('智能水电表', '同步'), async (req: AuthRequest, res) => {
   try {
     const token = (req.body as any)?.token || '';
+    const cookie = (req.body as any)?.cookie || '';
     if (!token) return res.status(400).json({ code: 400, message: '缺少 token（请先在桌面版登录平台取得会话 token）' });
-    const result = await syncNow(token);
+    if (!cookie) return res.status(400).json({ code: 400, message: '缺少会话 cookie（请先在桌面版登录平台，由桌面捕获 sessionid/csrftoken）' });
+    const result = await syncNow(token, cookie);
     if (result.tokenInvalid) return res.status(401).json({ code: 401, message: result.error || '平台会话已失效，请重新登录' });
     if (!result.ok) return res.status(400).json({ code: 400, message: result.error || '同步失败' });
     res.json({ code: 200, data: result.counts, message: result.message });
