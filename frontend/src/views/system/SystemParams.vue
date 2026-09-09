@@ -4,6 +4,8 @@
       <h2 class="page-title">系统参数中心</h2>
       <el-button type="primary" @click="openCreate">新增配置项</el-button>
       <el-button @click="fetchData" :loading="loading">刷新</el-button>
+      <el-switch v-model="hideTech" active-text="隐藏内置技术键" inactive-text="显示全部" style="margin-left:12px" />
+      <span style="font-size:12px;color:#909399">本页仅面向开发/运维对接；业务配置请到各业务页（读卡器/水电表/打印/系统运维）操作</span>
     </div>
 
     <el-row :gutter="16">
@@ -111,18 +113,34 @@ const editing = ref(false);
 const form = ref<any>({ configKey: '', configValue: '', configGroup: '其他', valueType: 'string', isSensitive: false, description: '', boolValue: true });
 function isTrue(v: any) { const s = String(v ?? '').trim().toLowerCase(); return s === '1' || s === 'true' || s === 'yes' || s === 'on' || s === '是'; }
 
+// 内置/技术键：已迁移到各业务页（读卡器/水电表/打印/系统运维）的配置，普通用户不应在此手改
+const hideTech = ref(true);
+const TECH_KEY_PREFIXES = ['id_card_', 'meter_platform_', 'smtp_', 'sms_', 'wechat_', 'redis_', 'demo_'];
+const TECH_KEYS = ['audit_enabled', 'demo_enabled', 'demo_seeded', 'company_name_for_print'];
+function isTechKey(key: string) {
+  const k = String(key || '');
+  if (TECH_KEYS.includes(k)) return true;
+  return TECH_KEY_PREFIXES.some((p) => k.startsWith(p));
+}
+
+// 先应用 hideTech（隐藏内置技术键），再做分组筛选
+const visibleList = computed(() => {
+  if (!hideTech.value) return list.value;
+  return list.value.filter((i) => !(i.builtIn && isTechKey(i.configKey)));
+});
+
 const filteredList = computed(() => {
-  if (!groupFilter.value) return list.value;
-  return list.value.filter((i) => (i.configGroup || '其他') === groupFilter.value);
+  if (!groupFilter.value) return visibleList.value;
+  return visibleList.value.filter((i) => (i.configGroup || '其他') === groupFilter.value);
 });
 
 const groups = computed(() => {
-  const set = new Set<string>(list.value.map((i) => i.configGroup || '其他'));
+  const set = new Set<string>(visibleList.value.map((i) => i.configGroup || '其他'));
   return Array.from(set);
 });
 
 function groupCount(g: string) {
-  return list.value.filter((i) => (i.configGroup || '其他') === g).length;
+  return visibleList.value.filter((i) => (i.configGroup || '其他') === g).length;
 }
 
 async function fetchData() {
@@ -130,7 +148,7 @@ async function fetchData() {
   try {
     const res = await request.get('/system-configs', { params: { page: page.value, pageSize: pageSize.value } });
     list.value = res.data?.list || [];
-    total.value = list.value.length;
+    total.value = visibleList.value.length;
   } catch { /* silent */ } finally { loading.value = false; }
 }
 

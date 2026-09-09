@@ -10,8 +10,25 @@
           {{ tokenCaptured ? '重新登录并同步' : '登录并同步' }}
         </el-button>
         <el-button v-if="timerActive" @click="stopSync">停止同步</el-button>
+        <el-button @click="openPlatformConfig">平台设置</el-button>
       </div>
     </div>
+
+    <!-- 平台设置 -->
+    <el-dialog title="智能水电表平台设置" v-model="cfgVisible" width="560px">
+      <el-form label-width="120px">
+        <el-form-item label="平台地址" required><el-input v-model="cfgForm.url" placeholder="https://bzp.iyunmu.com/prepaidBack" /></el-form-item>
+        <el-form-item label="登录账号"><el-input v-model="cfgForm.username" placeholder="平台登录账号（token 由桌面版从同机会话获取）" /></el-form-item>
+        <el-form-item label="同步间隔(分)"><el-input-number v-model="cfgForm.intervalMin" :min="1" :max="60" /></el-form-item>
+        <el-divider content-position="left">高级（一般无需修改）</el-divider>
+        <el-form-item label="接口路径(JSON)"><el-input v-model="cfgForm.endpoints" type="textarea" :rows="3" placeholder='{"devices":"/web/device/",...}' /></el-form-item>
+        <el-form-item label="分页参数(JSON)"><el-input v-model="cfgForm.pagination" type="textarea" :rows="2" placeholder='{"pageParam":"page",...}' /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="cfgVisible=false">取消</el-button>
+        <el-button type="primary" :loading="cfgSaving" @click="savePlatformConfig">保存</el-button>
+      </template>
+    </el-dialog>
 
     <el-alert v-if="lastSyncAt" type="info" :closable="false" style="margin-bottom:12px">
       上次同步：{{ lastSyncAt }} ｜ 窗口内每 {{ intervalMin }} 分钟自动补一次 ｜ 会话有效至 {{ tokenExpStr }}
@@ -116,6 +133,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import request from '@/api/request';
 import { ElMessage } from 'element-plus';
+import { confirmWithPassword } from '@/utils/confirm-password';
 
 const tab = ref('devices');
 const syncing = ref(false);
@@ -178,6 +196,41 @@ function onTab() {
   else if (tab.value === 'recharges') loadRecharges();
   else if (tab.value === 'stats') loadStats();
   else if (tab.value === 'pending') loadPending();
+}
+
+// ---- 平台设置（方案2：水电表配置迁移到业务页）----
+const cfgVisible = ref(false);
+const cfgSaving = ref(false);
+const cfgForm = ref<any>({ url: '', username: '', intervalMin: 10, endpoints: '', pagination: '' });
+
+async function openPlatformConfig() {
+  try {
+    const res: any = await request.get('/smart-meter/platform-config');
+    const d = res?.data || {};
+    cfgForm.value = {
+      url: d.url || '',
+      username: d.username || '',
+      intervalMin: d.intervalMin || 10,
+      endpoints: d.endpoints || '',
+      pagination: d.pagination || '',
+    };
+    cfgVisible.value = true;
+  } catch (e: any) { ElMessage.error(e?.response?.data?.message || '读取平台配置失败'); }
+}
+
+async function savePlatformConfig() {
+  if (!cfgForm.value.url) { ElMessage.error('平台地址不能为空'); return; }
+  cfgSaving.value = true;
+  try {
+    const pwd = await confirmWithPassword('保存水电表平台配置需重新输入登录密码确认', '二次确认');
+    if (!pwd) return;
+    await request.put('/smart-meter/platform-config', { ...cfgForm.value, confirmPassword: pwd });
+    ElMessage.success('平台配置已保存');
+    cfgVisible.value = false;
+    refreshStatus();
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '保存失败（仅管理员可操作）');
+  } finally { cfgSaving.value = false; }
 }
 
 async function loginAndSync() {

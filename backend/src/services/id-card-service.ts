@@ -7,10 +7,10 @@ import { createProvider, IdCardData, IdCardProviderMode } from './id-card-provid
 // 确保读卡器配置项存在（内置，供系统参数中心展示/切换）—— 华视 CVR-100U 真实接入所需
 const ID_CARD_CONFIGS: { key: string; value: string; desc: string }[] = [
   { key: 'id_card_provider', value: 'mock', desc: '身份证读卡器 Provider：mock=演示/模拟（返回内置演示数据），real=真实读卡器（华视 CVR-100U，走 32 位桥子进程）' },
-  { key: 'id_card_dll_dir', value: '', desc: '华视 CVR-100U SDK 目录（放置 Termb.dll / sdtapi.dll / WltRS.dll / card_bridge.py）；留空默认 <应用目录>/idcard' },
+  { key: 'id_card_dll_dir', value: '', desc: '华视 CVR-100U SDK 目录（放置 Termb.dll / sdtapi.dll / license.dat / card_bridge.py）；留空默认 <应用目录>/runtime/idcard' },
   { key: 'id_card_port', value: '1001', desc: '读卡器通讯口：1~16=COM串口；1001~1016=USB口。华视 CVR-100U 为 USB，默认 1001' },
   { key: 'id_card_python_x86', value: '', desc: '32 位 Python 解释器路径（读卡桥用；留空默认 <应用目录>/runtime/python-x86/python.exe）' },
-  { key: 'id_card_photo', value: '1', desc: '是否读取身份证相片(zp.bmp)，1=读 0=不读' },
+  { key: 'id_card_photo', value: '1', desc: '是否读取身份证相片，1=读 0=不读' },
 ];
 export async function ensureIdCardConfig(): Promise<void> {
   for (const c of ID_CARD_CONFIGS) {

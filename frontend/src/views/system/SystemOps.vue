@@ -1,6 +1,9 @@
 <template>
   <div class="system-ops">
-    <h2 class="page-title">系统运维</h2>
+    <div class="page-head">
+      <h2 class="page-title">系统运维</h2>
+      <el-button size="small" @click="router.push('/system/params')" style="margin-left:12px">技术配置（系统参数）</el-button>
+    </div>
 
     <el-row :gutter="16">
       <el-col :span="12">
@@ -27,6 +30,13 @@
             <div style="display:flex;align-items:center;gap:12px">
               <el-switch v-model="auditEnabled" active-text="开启" inactive-text="关闭" @change="toggleAudit" />
               <span style="font-size:12px;color:#909399">关闭后系统将不再记录操作审计日志</span>
+            </div>
+          </div>
+          <div style="margin-bottom:16px">
+            <div style="font-weight:600;margin-bottom:8px">演示数据开关</div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <el-switch v-model="demoEnabled" active-text="开启" inactive-text="关闭" @change="toggleDemo" />
+              <span style="font-size:12px;color:#909399">开启=新装/空库时生成演示数据；关闭后不再生成任何演示数据</span>
             </div>
           </div>
           <el-divider />
@@ -90,11 +100,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { confirmWithPassword } from '@/utils/confirm-password';
 import { downloadWithAuth } from '@/utils/download';
 import request from '@/api/request';
 
+const router = useRouter();
 const info = ref<any>(null);
 const loadingInfo = ref(false);
 const cronList = ref<any[]>([]);
@@ -102,6 +114,7 @@ const loadingCron = ref(false);
 const cronStarted = ref(false);
 const runningKey = ref('');
 const auditEnabled = ref(true);
+const demoEnabled = ref(true);
 const loadingToggle = ref(false);
 
 function formatUptime(sec: number) {
@@ -159,6 +172,7 @@ async function toggleCron() {
 
 async function fetchToggle() {
   try { const res = await request.get('/system-ops/audit-toggle'); auditEnabled.value = !!res.data?.enabled; } catch { /* silent */ }
+  try { const res = await request.get('/system-ops/demo-toggle'); demoEnabled.value = !!res.data?.enabled; } catch { /* silent */ }
 }
 
 async function toggleAudit(val: boolean | string | number) {
@@ -170,6 +184,19 @@ async function toggleAudit(val: boolean | string | number) {
     ElMessage.success('审计日志已' + (val ? '开启' : '关闭'));
   } catch (err: any) {
     auditEnabled.value = !val;
+    ElMessage.error(err?.response?.data?.message || '切换失败');
+  } finally { loadingToggle.value = false; }
+}
+
+async function toggleDemo(val: boolean | string | number) {
+  loadingToggle.value = true;
+  try {
+    const pwd = await confirmWithPassword('切换演示数据开关需重新输入登录密码确认', '二次确认');
+    if (pwd === null) { demoEnabled.value = !val; return; }
+    await request.post('/system-ops/demo-toggle', { enabled: Boolean(val), confirmPassword: pwd });
+    ElMessage.success('演示数据已' + (val ? '开启' : '关闭'));
+  } catch (err: any) {
+    demoEnabled.value = !val;
     ElMessage.error(err?.response?.data?.message || '切换失败');
   } finally { loadingToggle.value = false; }
 }
@@ -189,5 +216,6 @@ onMounted(() => { fetchInfo(); fetchCron(); fetchToggle(); });
 
 <style lang="scss" scoped>
 .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.page-title { font-size:18px; font-weight:700; color:#1f2430; margin:0 0 16px; }
+.page-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+.page-title { font-size:18px; font-weight:700; color:#1f2430; margin:0; }
 </style>

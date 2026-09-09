@@ -1,6 +1,24 @@
 <template>
   <div class="id-card-reader-settings">
-    <h2 class="page-title">身份证读卡器管理</h2>
+    <div class="toolbar">
+      <h2 class="page-title">身份证读卡器管理</h2>
+      <el-radio-group v-model="providerMode" size="small" style="margin-left:16px" @change="onProviderModeChange">
+        <el-radio-button label="mock">演示模式</el-radio-button>
+        <el-radio-button label="real">真实读卡器</el-radio-button>
+      </el-radio-group>
+      <el-tag :type="providerMode === 'real' ? 'success' : 'info'" size="small" style="margin-left:8px">
+        {{ providerMode === 'real' ? '已接入真实读卡器（华视 CVR-100U）' : '模拟读卡，返回内置演示数据' }}
+      </el-tag>
+    </div>
+
+    <el-alert
+      v-if="providerMode === 'real'"
+      title="真实模式需：读卡器已连接且驱动已装、SDK 完整（runtime/idcard），读卡时身份证放置在读卡器上。"
+      type="success"
+      show-icon
+      :closable="false"
+      style="margin-bottom:16px"
+    />
 
     <!-- 设备列表 -->
     <el-card header="读卡器设备" style="margin-bottom:16px">
@@ -37,6 +55,18 @@
           <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
         </template>
       </el-table>
+    </el-card>
+
+    <!-- 读卡器高级设置（方案2：技术参数迁移到业务页） -->
+    <el-card header="读卡器高级设置（一般保持默认即可）" style="margin-bottom:16px">
+      <el-form :inline="true" label-width="120px">
+        <el-form-item label="通讯端口"><el-input-number v-model="adConfig.port" :min="1" :max="1016" style="width:120px" /></el-form-item>
+        <el-form-item label="读取相片"><el-switch v-model="adConfig.photo" active-text="是" inactive-text="否" /></el-form-item>
+        <el-form-item label="SDK 目录"><el-input v-model="adConfig.dllDir" placeholder="留空默认 runtime/idcard" style="width:200px" /></el-form-item>
+        <el-form-item label="Python 桥"><el-input v-model="adConfig.pythonX86" placeholder="留空默认 python-x86/python.exe" style="width:220px" /></el-form-item>
+        <el-form-item><el-button type="primary" :loading="adSaving" @click="saveAdvanced">保存</el-button></el-form-item>
+      </el-form>
+      <div class="drv-detail">修改后重新读卡即生效；SDK 目录/桥路径留空使用内置默认（打包自带）。</div>
     </el-card>
 
     <!-- 华视读卡器内核驱动（Win10 x64 通用） -->
@@ -166,6 +196,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
+import { confirmWithPassword } from '@/utils/confirm-password';
 import request from '@/api/request';
 
 const loading = ref(false);
@@ -314,11 +345,74 @@ async function installDriver() {
   finally { drvInstalling.value = false; }
 }
 
-onMounted(() => { fetchDevices(); fetchLogs(); refreshDriverStatus(); });
+// ---- 读卡模式（mock=演示 / real=真实读卡器）----
+const providerMode = ref<'mock' | 'real'>('mock');
+
+async function fetchProviderMode() {
+  try {
+    const res = await request.get('/system-configs/keys', { params: { keys: 'id_card_provider' } });
+    const rows = Array.isArray(res.data) ? res.data : [];
+    const row = rows.find((r: any) => r.configKey === 'id_card_provider');
+    providerMode.value = row?.configValue === 'real' ? 'real' : 'mock';
+  } catch { /* 只读失败则保持默认 mock */ }
+}
+
+// ---- 读卡器高级设置（方案2：技术参数迁移到业务页）----
+const adConfig = ref<any>({ port: 1001, photo: true, dllDir: '', pythonX86: '' });
+const adSaving = ref(false);
+
+async function loadAdvanced() {
+  try {
+    const res = await request.get('/system-configs/keys', { params: { keys: 'id_card_port,id_card_photo,id_card_dll_dir,id_card_python_x86' } });
+    const rows = Array.isArray(res.data) ? res.data : [];
+    const get = (k: string, def: any) => { const r = rows.find((x: any) => x.configKey === k); return r ? r.configValue : def; };
+    adConfig.value.port = Number(get('id_card_port', 1001)) || 1001;
+    adConfig.value.photo = String(get('id_card_photo', '1')) !== '0';
+    adConfig.value.dllDir = get('id_card_dll_dir', '') || '';
+    adConfig.value.pythonX86 = get('id_card_python_x86', '') || '';
+  } catch { /* 只读失败则用默认 */ }
+}
+
+async function saveAdvanced() {
+  adSaving.value = true;
+  try {
+    const pwd = await confirmWithPassword('保存读卡器高级设置需重新输入登录密码确认', '二次确认');
+    if (!pwd) return;
+    const items = [
+      { key: 'id_card_port', value: String(adConfig.value.port), group: '系统' },
+      { key: 'id_card_photo', value: adConfig.value.photo ? '1' : '0', group: '系统' },
+      { key: 'id_card_dll_dir', value: adConfig.value.dllDir, group: '系统' },
+      { key: 'id_card_python_x86', value: adConfig.value.pythonX86, group: '系统' },
+    ];
+    for (const it of items) {
+      await request.put('/system-configs/' + it.key, { configValue: it.value, configGroup: it.group, valueType: 'string', isSensitive: false, confirmPassword: pwd });
+    }
+    ElMessage.success('读卡器高级设置已保存');
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '保存失败（仅管理员可操作）');
+  } finally { adSaving.value = false; }
+}
+
+async function onProviderModeChange(val: any) {
+  const next: 'mock' | 'real' = val === 'real' ? 'real' : 'mock';
+  // 切换真实读卡器属关键配置，需管理员二次确认
+  const ok = await confirmWithPassword('将读卡模式切换为「' + (next === 'real' ? '真实读卡器' : '演示模式') + '」，需重新输入登录密码确认', '切换读卡模式');
+  if (!ok) { providerMode.value = next === 'real' ? 'mock' : 'real'; return; }
+  try {
+    await request.put('/system-configs/id_card_provider', { configValue: next, description: '身份证读卡器 Provider', configGroup: '系统', valueType: 'string', isSensitive: false, confirmPassword: ok });
+    ElMessage.success('读卡模式已切换为「' + (next === 'real' ? '真实读卡器' : '演示模式') + '」');
+  } catch (e: any) {
+    providerMode.value = next === 'real' ? 'mock' : 'real';
+    ElMessage.error(e?.response?.data?.message || e?.message || '切换失败（仅管理员可操作）');
+  }
+}
+
+onMounted(() => { fetchProviderMode(); loadAdvanced(); fetchDevices(); fetchLogs(); refreshDriverStatus(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; }
 .drv-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .drv-label { color: #5b6472; font-size: 13px; }
 .drv-detail { margin-top: 6px; font-size: 12px; color: #5b6472; }

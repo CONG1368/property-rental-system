@@ -1,9 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-// 运行时惰性填充（保留；real 读卡用桥子进程，不再进程内 FFI）
-let iconv: any = null;
-
 export interface IdCardData {
   name: string; gender: string; ethnicity: string; birthDate: string; address: string;
   idNumber: string; issuingAuthority: string; validFrom: string; validTo: string; photoBase64: string;
@@ -13,6 +10,7 @@ export interface DeviceStatus {
   online: boolean; firmwareVersion: string; lastReadAt: string | null;
 }
 
+// 读卡 Provider 模式：mock=演示/模拟；real=真实读卡器（华视 CVR-100U，走 32 位桥子进程）
 export type IdCardProviderMode = 'mock' | 'real';
 
 export interface IdCardReaderProvider {
@@ -45,12 +43,10 @@ class MockIdCardProvider implements IdCardReaderProvider {
   }
 }
 
-// 真实读卡器 Provider —— 华视 CVR-100U（32 位 SDK）。
-// 关键约束：应用是 64 位进程，而华视 Termb.dll 是 32 位，进程内 FFI(koffi) 无法加载（架构不符）。
+// 真实读卡器 Provider —— 华视 CVR-100U（32 位 SDK，新版含 GetPeople* 结构化 API）。
+// 关键约束：应用是 64 位进程，而华视 Termb.dll 是 32 位，进程内 FFI 无法加载（架构不符）。
 // 方案 X：spawn 一个 32 位 Python(card_bridge.py, ctypes) 子进程加载 Termb.dll 读卡，
-//         把结果以 UTF-8 JSON 写 stdout，64 位主进程读取。绕开位宽限制。
-// 实测：Termb.dll 仅导出 CVR_InitComm/Authenticate/Read_Content/CloseComm（无 GetPeople*），
-//        读卡成功后 DLL 在所在目录生成 wz.txt(9 行 GBK 文字) + zp.bmp(相片)，由桥解析。
+//         结果以 UTF-8 JSON 写 stdout，64 位主进程读取。绕开位宽限制。
 class RealIdCardProvider implements IdCardReaderProvider {
   private logPath = 'logs/id-card-provider.jsonl';
 
@@ -73,12 +69,8 @@ class RealIdCardProvider implements IdCardReaderProvider {
     const pythonX86 = ((await this.cfg('id_card_python_x86', '')) || resolvePythonX86());
     const port = Number(await this.cfg('id_card_port', '1001')) || 1001;
     const bridgePath = path.join(dllDir, 'card_bridge.py');
-    const dllPath = path.join(dllDir, 'Termb.dll');
     if (!fs.existsSync(bridgePath)) {
-      throw new Error('未找到读卡桥脚本 card_bridge.py（路径：' + bridgePath + '）。请把华视 CVR-100U 二次开发包复制到 id_card_dll_dir，含 Termb.dll / sdtapi.dll / WltRS.dll / card_bridge.py');
-    }
-    if (!fs.existsSync(dllPath)) {
-      throw new Error('未找到华视读卡器动态库 Termb.dll（路径：' + dllPath + '）。请确认 id_card_dll_dir 配置正确、且已放入 Termb.dll');
+      throw new Error('未找到读卡桥脚本 card_bridge.py（路径：' + bridgePath + '）。请把华视 CVR-100U 二次开发包复制到 id_card_dll_dir，含 Termb.dll / sdtapi.dll / license.dat / card_bridge.py');
     }
 
     const { spawn } = await import('node:child_process');
@@ -112,8 +104,9 @@ class RealIdCardProvider implements IdCardReaderProvider {
       ethnicity: String(wz.nation || '').trim(), birthDate: String(wz.birth || '').trim(),
       address: String(wz.address || wz.newAddress || '').trim(), idNumber,
       issuingAuthority: String(wz.department || '').trim(),
-      validFrom: splitDateRange(wz.dateRange)[0], validTo: splitDateRange(wz.dateRange)[1],
-      photoBase64: readZpBmp(dllDir, (await this.cfg('id_card_photo', '1')) !== '0'),
+      validFrom: String(wz.validFrom || wz.dateRange ? (String(wz.validFrom || wz.dateRange).split('-')[0] || '') : '').trim(),
+      validTo: String(wz.validTo || wz.dateRange ? (String(wz.validTo || wz.dateRange).split('-')[1] || '') : '').trim(),
+      photoBase64: String(wz.photoBase64 || '').trim(),
     };
     this.log({ action: 'readCard', deviceId, result: 'success', mock: false, idNumber });
     return data;
@@ -125,32 +118,13 @@ class RealIdCardProvider implements IdCardReaderProvider {
   }
 }
 
-// 华视 wz.txt 有效期段形如 "2011.03.30-2021.03.30"（长期卡为"长期"）
-function splitDateRange(r: string): [string, string] {
-  const s = String(r || '').trim();
-  if (/长期/.test(s)) return ['', '长期'];
-  const m = s.split('-');
-  if (m.length >= 2) return [m[0].replace(/\./g, '-'), m[1].replace(/\./g, '-')];
-  return ['', ''];
-}
-
-// 读卡成功后 DLL 生成 zp.bmp；转 base64 供前端展示；无相片则空
-function readZpBmp(dllDir: string, enabled: boolean): string {
-  if (!enabled) return '';
-  try {
-    const p = [path.join(dllDir, 'zp.bmp'), path.join(process.cwd(), 'zp.bmp')].find(x => fs.existsSync(x));
-    if (!p) return '';
-    return 'data:image/bmp;base64,' + fs.readFileSync(p).toString('base64');
-  } catch { return ''; }
-}
-
-// 解析华视 SDK 目录：优先应用旁 runtime/idcard（生产由此分发），否则仓库 runtime/idcard / 后端 idcard
+// 解析华视 SDK 目录：优先应用旁 runtime/idcard（生产由此分发），否则仓库 runtime/idcard
 function resolveDllDir(): string {
   const execDir = path.dirname(process.execPath);
   const cands = [
+    path.join(execDir, 'resources', 'runtime', 'idcard'),
     path.join(execDir, 'runtime', 'idcard'),
     path.join(process.cwd(), 'runtime', 'idcard'),
-    path.join(process.cwd(), 'idcard'),
     path.join(process.cwd(), '..', 'runtime', 'idcard'),
   ];
   for (const c of cands) { if (fs.existsSync(c)) return c; }
@@ -159,6 +133,7 @@ function resolveDllDir(): string {
 function resolvePythonX86(): string {
   const execDir = path.dirname(process.execPath);
   const cands = [
+    path.join(execDir, 'resources', 'runtime', 'python-x86', 'python.exe'),
     path.join(execDir, 'runtime', 'python-x86', 'python.exe'),
     path.join(process.cwd(), 'runtime', 'python-x86', 'python.exe'),
     path.join(process.cwd(), '..', 'runtime', 'python-x86', 'python.exe'),
@@ -167,7 +142,7 @@ function resolvePythonX86(): string {
   return path.join(execDir, 'runtime', 'python-x86', 'python.exe');
 }
 
-const providerCache: Record<IdCardProviderMode, IdCardReaderProvider | null> = { mock: null, real: null };
+const providerCache: Partial<Record<IdCardProviderMode, IdCardReaderProvider | null>> = { mock: null, real: null };
 
 export function createProvider(mode: IdCardProviderMode): IdCardReaderProvider {
   if (!providerCache[mode]) {

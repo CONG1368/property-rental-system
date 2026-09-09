@@ -122,7 +122,7 @@
       <el-menu-item index="/system/id-card-readers">身份证读卡器</el-menu-item>
       <el-menu-item index="/system/approval-flows">审批流程</el-menu-item>
       <el-menu-item index="/system/permissions">权限矩阵</el-menu-item>
-      <el-menu-item index="/system/params">系统参数</el-menu-item>
+      <!-- 系统参数已并入系统运维页（方案2：避免普通用户接触技术配置键） -->
       <el-menu-item index="/system/ops">系统运维</el-menu-item>
     </el-sub-menu>
 

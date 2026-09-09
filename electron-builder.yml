@@ -18,7 +18,7 @@ extraResources:
     to: runtime/node/
     filter:
       - "**/*"
-  # 读卡器：32 位 Python(桥运行时) + 华视 CVR-100U SDK(bridge.py + Termb/sdtapi/WltRS)
+  # 读卡器：32 位 Python(桥运行时) + 华视 CVR-100U SDK(Termb.dll/sdtapi.dll/license.dat/card_bridge.py)
   - from: runtime/python-x86/
     to: runtime/python-x86/
     filter:

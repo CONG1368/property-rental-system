@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { AuthRequest } from '../middleware/auth.js';
 import { auditLog } from '../middleware/audit-log.js';
+import { requireAdmin } from '../middleware/requireRole.js';
+import { requireConfirmPassword } from '../middleware/confirm-password.js';
+import SystemConfig from '../models/SystemConfig.js';
 import { syncNow, getOverview, getPlatformConfig } from '../services/meter-platform.js';
 import SmartMeterDevice from '../models/SmartMeterDevice.js';
 import SmartMeterTenant from '../models/SmartMeterTenant.js';
@@ -113,6 +116,42 @@ router.get('/status', async (_req: AuthRequest, res) => {
     const last = await MeterPlatformLink.findOne({ order: [['syncedAt', 'DESC']] });
     const cfg = await getPlatformConfig();
     res.json({ code: 200, data: { lastSyncAt: (last as any)?.syncedAt || null, intervalMin: cfg.interval, endpointsConfigured: !!cfg.endpoints } });
+  } catch (e: any) { res.status(500).json({ code: 500, message: e.message }); }
+});
+
+// 读取智能水电表平台配置（URL/账号/同步间隔/接口路径/分页）—— 供业务页设置使用（只读）
+router.get('/platform-config', async (_req: AuthRequest, res) => {
+  try {
+    const keys = ['meter_platform_url', 'meter_platform_username', 'meter_platform_interval_min', 'meter_platform_endpoints', 'meter_platform_pagination'];
+    const rows = await SystemConfig.findAll({ where: { configKey: keys }, raw: true });
+    const map: Record<string, string> = {};
+    for (const r of rows) map[r.configKey] = r.configValue;
+    res.json({ code: 200, data: {
+      url: map['meter_platform_url'] || '',
+      username: map['meter_platform_username'] || '',
+      intervalMin: Number(map['meter_platform_interval_min']) || 10,
+      endpoints: map['meter_platform_endpoints'] || '',
+      pagination: map['meter_platform_pagination'] || '',
+    } });
+  } catch (e: any) { res.status(500).json({ code: 500, message: e.message }); }
+});
+
+// 保存智能水电表平台配置（管理员；二次确认）
+router.put('/platform-config', auditLog('智能水电表', '保存平台配置'), requireAdmin, requireConfirmPassword('保存水电表平台配置'), async (req: AuthRequest, res) => {
+  try {
+    const { url, username, intervalMin, endpoints, pagination, confirmPassword } = req.body || {};
+    if (!url) return res.status(400).json({ code: 400, message: '平台地址不能为空' });
+    const items = [
+      { key: 'meter_platform_url', value: String(url || ''), group: '外部系统', type: 'string' },
+      { key: 'meter_platform_username', value: String(username || ''), group: '外部系统', type: 'string' },
+      { key: 'meter_platform_interval_min', value: String(Number(intervalMin) || 10), group: '外部系统', type: 'number' },
+      { key: 'meter_platform_endpoints', value: String(endpoints || ''), group: '外部系统', type: 'json' },
+      { key: 'meter_platform_pagination', value: String(pagination || ''), group: '外部系统', type: 'json' },
+    ];
+    for (const it of items) {
+      await SystemConfig.upsert({ configKey: it.key, configValue: it.value, description: '', configGroup: it.group, valueType: it.type, isSensitive: false } as any);
+    }
+    res.json({ code: 200, message: '平台配置已保存' });
   } catch (e: any) { res.status(500).json({ code: 500, message: e.message }); }
 });
 

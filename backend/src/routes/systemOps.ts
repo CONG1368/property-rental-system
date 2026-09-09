@@ -112,6 +112,24 @@ router.post('/audit-toggle', auditLog('系统运维', '切换审计开关'), req
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
+// GET /system-ops/demo-toggle — 演示数据开关
+router.get('/demo-toggle', requireAdmin, async (_req: AuthRequest, res) => {
+  try {
+    const row = await SystemConfig.findOne({ where: { configKey: 'demo_enabled' } });
+    res.json({ code: 200, data: { enabled: row ? row.configValue !== 'false' && row.configValue !== '0' : true } });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
+// POST /system-ops/demo-toggle — 切换演示数据开关（二次确认）
+router.post('/demo-toggle', auditLog('系统运维', '切换演示数据开关'), requireAdmin, requireConfirmPassword('切换演示数据开关'), async (req: AuthRequest, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') return res.status(400).json({ code: 400, message: 'enabled 必须为布尔值' });
+    await SystemConfig.upsert({ configKey: 'demo_enabled', configValue: String(enabled ? '1' : '0'), description: '是否生成演示数据（新装/空库时）；关=0 后不再生成任何演示数据' } as any);
+    res.json({ code: 200, data: { enabled }, message: enabled ? '演示数据已开启' : '演示数据已关闭' });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
 // GET /system-ops/backup — 数据库备份下载（仅 SQLite；需二次确认）
 router.get('/backup', requireAdmin, requireConfirmPassword('下载数据库备份'), async (_req: AuthRequest, res) => {
   try {
