@@ -38,6 +38,8 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: 物业租赁综合管理系统
+  # NSIS 安装包使用 electron-builder 默认的 setup 命名（${name}-setup-${version}.exe）以与 latest.yml 的 url 一致
+  artifactName: '${name}-setup-${version}.${ext}'
   # 安装/卸载时写入注册表，新版本自动读取旧安装路径实现覆盖升级
   installerHeaderIcon: build/icon.ico
   # 卸载时先关闭应用

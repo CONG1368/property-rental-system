@@ -100,6 +100,8 @@
         <el-form-item label="面积(㎡)" prop="area"><el-input-number v-model="form.area" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="地址" prop="address"><el-input v-model="form.address" /></el-form-item>
         <el-form-item label="楼层" prop="floor"><el-input v-model="form.floor" /></el-form-item>
+        <el-form-item label="楼栋" prop="buildingName"><el-input v-model="form.buildingName" placeholder="如：产业园B栋" /></el-form-item>
+        <el-form-item label="房号" prop="roomNumber"><el-input v-model="form.roomNumber" placeholder="如：01" /></el-form-item>
         <el-form-item label="单元" prop="unit"><el-input v-model="form.unit" /></el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" style="width:100%">
@@ -150,6 +152,7 @@ const submitting = ref(false);
 const form = reactive({
   name: '', type: '公寓', subType: '', area: 0,
   address: '', floor: '', unit: '', status: '空置', owner: '', notes: '',
+  buildingName: '', roomNumber: '',
 });
 
 const rules: FormRules = {
@@ -198,6 +201,7 @@ function resetForm() {
   form.name = ''; form.type = '公寓'; form.subType = ''; form.area = 0;
   form.address = ''; form.floor = ''; form.unit = ''; form.status = '空置';
   form.owner = ''; form.notes = '';
+  form.buildingName = ''; form.roomNumber = '';
 }
 
 async function handleSubmit() {

@@ -15,6 +15,20 @@ import { transitionRoomStatus, getValidTransitions, ROOM_STATUSES } from '../ser
 import { broadcast } from '../websocket/index.js';
 
 const router = Router();
+
+// 从房源 name 兜底解析楼栋/房号（与 migration.backfillPropertyRoomInfo 同规则）。
+// 规则：以数字结尾（X号楼 XX 室 / X栋 YY 号）→ 解析出 buildingName + roomNumber；
+//       不以数字结尾（如 "产业园-钢结构"）→ 返回空，交由表单手动填写。
+function parseRoomNumberFromName(name: string): { buildingName: string; roomNumber: string } {
+  const n = String(name || '').trim();
+  if (!n) return { buildingName: '', roomNumber: '' };
+  const floorBased = n.match(/^(.*?)(d+F-d+)$/);
+  if (floorBased) return { buildingName: floorBased[1], roomNumber: floorBased[2] };
+  const sequential = n.match(/^(.*?)(d+)$/);
+  if (sequential) return { buildingName: sequential[1], roomNumber: sequential[2] };
+  return { buildingName: '', roomNumber: '' };
+}
+
 const upload = multer({
   dest: 'uploads/',
   // 10MB 上限（正常房源导入表远小于此），防超大文件拖垮解析
@@ -579,7 +593,14 @@ router.get('/', async (req: AuthRequest, res) => {
 // POST /api/properties — 创建房源
 router.post('/', async (req: AuthRequest, res) => {
   try {
-    const property = await Property.create(req.body);
+    const body = { ...req.body };
+    // 楼栋/房号若未手动填写，从 name 兜底解析（使用户填了典型命名也能自动带出）
+    if (!String(body.buildingName || '').trim()) {
+      const parsed = parseRoomNumberFromName(body.name);
+      if (parsed.buildingName) body.buildingName = parsed.buildingName;
+      if (parsed.roomNumber) body.roomNumber = parsed.roomNumber;
+    }
+    const property = await Property.create(body);
     res.json({ code: 200, data: property, message: '房源创建成功' });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });
@@ -654,6 +675,13 @@ router.put('/:id', async (req: AuthRequest, res) => {
   try {
     const property = await Property.findByPk(req.params.id);
     if (!property) return res.status(404).json({ code: 404, message: '房源不存在' });
+
+    // 楼栋/房号若未手动填写，从 name 兜底解析（兼容改名后自动带出）
+    if (req.body && typeof req.body === 'object' && !String(req.body.buildingName || '').trim()) {
+      const parsed = parseRoomNumberFromName(req.body.name);
+      if (parsed.buildingName) req.body.buildingName = parsed.buildingName;
+      if (parsed.roomNumber) req.body.roomNumber = parsed.roomNumber;
+    }
 
     // 如果请求中包含 status 变更，走状态机验证
     if (req.body.status && req.body.status !== property.status) {
