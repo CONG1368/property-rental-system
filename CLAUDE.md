@@ -30,7 +30,7 @@ npm run build
 bash test-api.sh
 & 'C:\Program Files\Git\bin\bash.exe' ./test-api.sh
 
-# 全链路回归（23 项串联，需先启动 dev）
+# 全链路回归（25 项串联，需先启动 dev）
 npm run test:regression
 
 # 只跑单元测试（vitest：backend/tests + frontend/tests，纯函数，不需服务）
@@ -39,7 +39,7 @@ npm run test:unit
 # 仅无服务依赖的门禁（静态铁律 + 对比度 + 双端类型检查 + ESM 产物校验，CI 可直接跑）
 npm run test:static
 
-# 单跑静态铁律门禁（emoji/主题色/版本号/生产URL/multer/财务中间件）
+# 单跑静态铁律门禁（emoji/颜色字面量/版本号/生产URL/multer/财务中间件）
 npm run check:rules
 
 # 后端 TypeScript 类型检查（不生成输出）
@@ -100,7 +100,7 @@ node scripts/generate-manual-pdf.js
 │       ├── router/            # 路由定义（hash 模式，token 导航守卫）
 │       ├── composables/       # Vue3 组合式函数（useWebSocket / useIdCardReader）
 │       ├── utils/             # 工具模块（打印服务/头像/凭证存储）
-│       ├── views/             # 页面组件（86 个）：dashboard / rent / property / finance / contract / fire / system
+│       ├── views/             # 页面组件（87 个）：dashboard / rent / property / finance / contract / fire / system
 │       └── api/request.ts     # Axios 实例（baseURL=/api，拦截器处理 token/401）
 ├── backend/                   # Express 后端（ESM 模块）
 │   └── src/
@@ -404,7 +404,7 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 |------|------|
 | 后端路由模块 | 全部实现（66 个路由模块） |
 | 后端服务 | 全部完整（38 个业务服务） |
-| 前端页面 | 全部功能完整（86 个页面） |
+| 前端页面 | 全部功能完整（87 个页面） |
 | 前端 TypeScript | 0 错误 |
 | 后端 TypeScript | 0 错误 |
 
@@ -774,6 +774,7 @@ off('room:status-changed', callback);
 
 **6. 组件中间层（新增页面的默认动作 = 组装组件）**：
 - `components/base/`（无业务词汇）：`DataTable`（**内置 money/status/date/mono 列类型** + 批量 + 骨架 + 空态 + 分页 + 三档密度，`prop` 支持嵌套路径）、`FilterBar`、`StatusTag`、`MoneyText`、`DateText`、`FormDialog`、`PageHeader`、`types.ts`。
+- **页面级工具栏 = `FilterBar` / `PageHeader`，禁止再自写 `.toolbar` / `.search-group` 样式**：筛选控件放 `FilterBar` 默认插槽、批量/导出等操作放 `#actions`；只有标题/面包屑 + 操作的页头用 `PageHeader`。`FilterBar` 内置的「查询/重置」只在传了 `keyword` 或 `fields` 时才渲染，纯自定义布局只给默认插槽即可（不会多出空按钮）。门禁 **P4** 基线 = 0，扫描 `frontend/src` 全量。
 - `components/surfaces/`（只切密度）：`ListShell`/`DashboardShell`/`FormShell`/`DocumentShell`/`PortalShell`，差异来自 `data-surface` 密度变量。
 - `components/modules/`（允许业务语义）：`rent/TenantFormDialog`、`rent/BillLifecycle`、`finance/VoucherAutoGenerate`、`finance/VoucherEntryRows`、`contract/ClausePreview`。
 - `components/common/`：`EmptyState` / `TableSkeleton`（全局自动注册，**不要重写**）。
@@ -797,7 +798,7 @@ off('room:status-changed', callback);
 
 ### 全链路回归（发版前必跑）
 
-**一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **23 项**、分三段执行，全通过退出码 0：
+**一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **25 项**、分三段执行，全通过退出码 0：
 
 - **A 段 静态门禁**（无需服务）：`check-static-rules` → `check-contrast` → `check-deps-audit`（生产依赖漏洞，需 registry，离线自动跳过；上游无补丁项走 ALLOWLIST 豁免且有复审期限）
 - **B 段 类型/单测/构建门禁**（无需服务）：`vue-tsc` → `tsc` → **backend vitest（12 用例）** → **frontend vitest（11 用例）** → `verify-esm-build`（仅当 `backend/dist` 存在，否则显式跳过、不计失败）
@@ -849,7 +850,7 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-system-settings.js` | 系统设置运行时回归（登录/配置只读/二次确认/非管理员/审计/字典/运维，9 用例）；需 dev |
 | `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
 | `e2e-new-modules.js` | 新增模块 E2E |
-| `run-all-regression.js` | **全链路回归入口**：串联 23 项，分 A 静态 / B 类型+单测+构建 / C 运行时 三段；`--static` 只跑 A+B |
+| `run-all-regression.js` | **全链路回归入口**：串联 25 项，分 A 静态 / B 类型+单测+构建 / C 运行时 三段；`--static` 只跑 A+B |
 | `verify-uncovered-api.js` | 零覆盖模块 API 回归（door-locks + 读卡器/通知/审批/简报/导出/租户登录/OCR/智能问数/物业自动化，50 用例）；对种子门锁净零操作 |
 | `e2e-uncovered-pages.js` | 零覆盖页面渲染回归（消防 5 + 房态看板 3 + 门锁/起草/条款导入/打印设置/读卡器/参数/运维/门户，18 页 80 用例） |
 | `verify-excel-import.js` | Excel 链路回归（房源/条款导入解析、.xls 拒绝、服务端多表导出，12 用例）；迁 exceljs 后的守护 |
@@ -860,7 +861,8 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `theme-migrate-v2.cjs` | 令牌 v2 存量色值迁移（`--dry` 预演；按上下文产出 $令牌 / var() / tokens.x） |
 | `apply-loading-states.cjs` | 批量为列表页注入骨架屏 + 统一空态（`--dry` 预演） |
 | `verify-table-density.cjs` | 第 5 周门槛：三档密度布局验收（14 用例） |
-| `verify-page-conventions.cjs` | 页面约定门禁（组件采用率 + 禁止复制玻璃/工具栏样式）；棘轮统计 **`frontend/src` 全量**（不只 views/，防止挪进 components/ 重生），基线 toolbarViews=40、**inlineTableView=0**；豁免仅 `base/DataTable.vue`（封装层自身）与 `modules/finance/VoucherEntryRows.vue`（可编辑录入网格） |
+| `verify-page-conventions.cjs` | 页面约定门禁（组件采用率 + 禁止复制玻璃/工具栏样式）；棘轮统计 **`frontend/src` 全量**（不只 views/，防止挪进 components/ 重生），基线 toolbarViews=0、**inlineTableView=0**；豁免仅 `base/DataTable.vue`（封装层自身）与 `modules/finance/VoucherEntryRows.vue`（可编辑录入网格） |
+| `migrate-toolbar-to-filterbar.cjs` | 页面级工具栏 → `FilterBar`（筛选+操作）或 `PageHeader` 批量迁移（`--dry` 预演 / `--only=X` 单页；按行缩进匹配标签，避开 CRLF 模板嵌套陷阱） |
 | `migrate-tables-to-datatable.cjs` | 内联 `<el-table>` → `DataTable` 批量迁移（`--dry` 预演 / `--only=X` 单页；一页多表多轮处理；动态列 `v-for`/`:label`/`:prop` 自动跳过需手工迁移） |
 | `gen-tokens-ts.cjs` | 从 variables.scss 生成 JS 令牌镜像（oklch→sRGB） |
 | `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（62 条清单 + 3 装饰性豁免，可作 CI 门禁）；`--md` 重新生成 `docs/对比度检查报告.md`（自动生成，勿手改） |

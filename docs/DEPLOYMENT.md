@@ -14,7 +14,7 @@
 | 运行模式 | Electron 桌面应用（内置本地 Web 服务） |
 | 用户数量 | 单机部署，支持多人角色协作 |
 | 技术栈 | Electron + Vue3 + Element Plus / Node.js + Express + Sequelize / **SQLite（默认）**，可选 MySQL |
-| 当前版本 | v1.0.4 |
+| 当前版本 | v1.0.5 |
 
 ---
 
@@ -51,7 +51,7 @@
 
 ## 三、快速安装（终端用户）
 
-安装包为 NSIS 安装程序（`release/property-rental-system-setup-1.0.4.exe`）：
+安装包为 NSIS 安装程序（`release/property-rental-system-setup-1.0.5.exe`）：
 
 1. 双击安装包，按向导选择安装目录（默认 `%LOCALAPPDATA%\Programs\物业租赁综合管理系统`）。
 2. 安装完成后桌面/开始菜单出现「物业租赁综合管理系统」快捷方式。
@@ -164,8 +164,8 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 
 | 文件 | 说明 |
 |------|------|
-| `property-rental-system-setup-1.0.4.exe` | NSIS 安装包（自动更新用） |
-| `物业租赁综合管理系统-1.0.4-x64.zip` | zip 分发包 |
+| `property-rental-system-setup-1.0.5.exe` | NSIS 安装包（自动更新用） |
+| `物业租赁综合管理系统-1.0.5-x64.zip` | zip 分发包 |
 | `latest.yml` | electron-updater 更新清单（url 指向 setup 名） |
 | `win-unpacked/` | 解包目录（调试用） |
 
@@ -196,7 +196,7 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 │       ├── router/             # hash 路由 + 角色守卫
 │       ├── stores/             # Pinia
 │       ├── components/         # 通用组件 + layout + print 模板
-│       └── styles/             # 设计令牌（湛蓝玻璃拟物）
+│       └── styles/             # 设计令牌（冷调中性 v2）
 ├── backend/                    # Express 后端（ESM）
 │   └── src/
 │       ├── models/             # 69 个 Sequelize 模型
@@ -256,4 +256,4 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 
 ---
 
-*文档版本：v1.0.4（2026-09-11 修订）| 更新日期：2026-09-11*
+*文档版本：v1.0.5 | 更新日期：2026-09-11*
