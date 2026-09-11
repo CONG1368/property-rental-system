@@ -104,7 +104,7 @@ const KIND_LABEL = { normal: '正文', large: '大字', ui: 'UI件' };
 
 const PAGE = need('n-50');   // 页面底
 const CARD = need('n-0');    // 卡片 / 弹层 / 输入（净表面）
-const SHELL = need('n-900'); // 顶栏（深色外壳）
+// 顶栏与侧栏同材质：玻璃合成到页面底（浅色外壳）
 const GLASS = RAW['glass'];  // 侧栏/弹层玻璃面
 
 const SURFACES = {
@@ -113,7 +113,7 @@ const SURFACES = {
   dialog: { name: '弹层 ' + CARD, layers: [CARD] },
   input: { name: '输入框 ' + CARD, layers: [CARD] },
   tableHead: { name: '表头 ' + PAGE, layers: [PAGE] },
-  shell: { name: '深色顶栏 ' + SHELL, layers: [SHELL] },
+  shell: { name: '顶栏玻璃@页面底', layers: [PAGE, GLASS] },
   sidebar: { name: '侧栏玻璃@页面底', layers: [PAGE, GLASS] },
   brandFill: { name: '主按钮底 ' + T['brand-600'], layers: [T['brand-600']] },
   brandFillHover: { name: '主按钮 hover ' + T['brand-700'], layers: [T['brand-700']] },
@@ -173,10 +173,10 @@ const CHECKLIST = [
   // 中性 + 斜纹 chip：文字会同时压在底色与斜纹上，两处都要过
   { scene: 'n-900 on n-100（斜纹底）', fg: need('n-900'), surface: 'nFill100', kind: 'normal' },
   { scene: 'n-900 on n-300（斜纹纹）', fg: need('n-900'), surface: 'nFill300', kind: 'normal' },
-  // 深色顶栏
-  { scene: '顶栏白字', fg: WHITE, surface: 'shell', kind: 'normal' },
-  { scene: '顶栏弱化白字(.72)', fg: 'rgba(255,255,255,.72)', surface: 'shell', kind: 'normal' },
-  { scene: '顶栏主色徽标', fg: need('brand-300'), surface: 'shell', kind: 'normal' },
+  // 顶栏（浅色玻璃外壳，与侧栏一致）
+  { scene: '顶栏正文', fg: need('n-900'), surface: 'shell', kind: 'normal' },
+  { scene: '顶栏次要图标/文字', fg: need('n-700'), surface: 'shell', kind: 'normal' },
+  { scene: '顶栏主色徽标', fg: need('brand-600'), surface: 'shell', kind: 'normal' },
   // 侧栏（玻璃合成后）
   { scene: '侧栏文字', fg: need('n-700'), surface: 'sidebar', kind: 'normal' },
   { scene: '侧栏主色文字', fg: need('brand-600'), surface: 'sidebar', kind: 'normal' },

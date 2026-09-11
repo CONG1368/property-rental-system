@@ -146,8 +146,10 @@ a:hover { color: $brand-700; }
   box-shadow: inset 0 0 0 1px $n-400 !important;
 }
 
-// 深色外壳（顶栏 / 侧栏）上的元素：用中性阶提亮
+// 外壳（顶栏 / 侧栏）为浅色玻璃面：文字与图标走中性阶深色
 .top-nav {
   .el-badge__content { background-color: $bad-600 !important; color: $n-0 !important; border-color: transparent !important; }
-  .el-icon { color: $n-0; }
+  .el-icon { color: $n-700; }
+  // 头像圆片自带彩色底，字形仍用白
+  .avatar-icon .el-icon { color: $n-0; }
 }

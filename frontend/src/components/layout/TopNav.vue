@@ -335,7 +335,7 @@ onUnmounted(() => {
 .nav-left { width: 200px; flex-shrink: 0; }
 .nav-center { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; }
 .nav-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
-.logo-text { color: $n-0; font-size: 17px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+.logo-text { color: $n-900; font-size: 17px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
 .sys-logo { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
 .sys-logo-emoji { font-size: 22px; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; user-select: none; }
 .sys-logo-emoji:hover { transform: scale(1.2); }
@@ -372,9 +372,10 @@ onUnmounted(() => {
 .notify-item-content { font-size: 12px; color: $n-600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .notify-item-time { font-size: 11px; color: $n-300; margin-top: 4px; }
 .notify-empty { text-align: center; color: $n-300; font-size: 13px; padding: 24px 0; }
-.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; color: $n-0; }
+.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; color: $n-900; }
 .username { font-size: 13px; }
 .avatar-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; color: $n-0; flex-shrink: 0; }
+.avatar-icon :deep(.el-icon) { color: $n-0; }
 .avatar-picker { display: flex; flex-wrap: wrap; gap: 6px; }
 .avatar-option { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border: 2px solid transparent; background: $n-50; transition: all 0.2s; }
 .avatar-option:hover { background: $brand-100; border-color: $brand-600; }

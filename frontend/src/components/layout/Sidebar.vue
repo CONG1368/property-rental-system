@@ -198,6 +198,11 @@ const canAccessSystem = computed(() => role.value === '管理员');
   border-right: none;
   height: 100%;
 
+  // EP 的 useMenuColor 用 TinyColor 对 background-color 做 shade(20) 推导 hover 底色，
+  // 而这里传入的是 CSS 变量 var(--n-0)，TinyColor 解析失败 -> 推导成纯黑。
+  // 故用令牌直接指定 hover 底色；!important 用于压过 EP 写在元素上的内联变量。
+  --el-menu-hover-bg-color: #{$n-100} !important;
+
   :deep(.el-sub-menu__title) {
     font-size: 14px;
   }

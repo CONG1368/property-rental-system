@@ -31,7 +31,8 @@ import Breadcrumb from './Breadcrumb.vue';
   flex-direction: column;
 }
 .top-nav {
-  background: $n-900;
+  background: $glass;
+  border-bottom: 1px solid $n-200;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   padding: 0 20px;
