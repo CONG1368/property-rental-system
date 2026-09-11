@@ -198,11 +198,6 @@ const canAccessSystem = computed(() => role.value === '管理员');
   border-right: none;
   height: 100%;
 
-  // EP 的 useMenuColor 用 TinyColor 对 background-color 做 shade(20) 推导 hover 底色，
-  // 而这里传入的是 CSS 变量 var(--n-0)，TinyColor 解析失败 -> 推导成纯黑。
-  // 故用令牌直接指定 hover 底色；!important 用于压过 EP 写在元素上的内联变量。
-  --el-menu-hover-bg-color: #{$n-100} !important;
-
   :deep(.el-sub-menu__title) {
     font-size: 14px;
   }
@@ -210,5 +205,14 @@ const canAccessSystem = computed(() => role.value === '管理员');
   :deep(.el-menu-item) {
     font-size: 13px;
   }
+}
+
+// EP 的 useMenuColor 用 TinyColor(background-color).shade(20) 在 JS 里推导悬停底色；
+// 传进去的是 CSS 变量 var(--n-0)，TinyColor 解析失败 → 推导出纯黑（悬停整行变黑）。
+// 根 ul 与「展开后的子 ul（.el-menu--inline）」各自写了内联变量，因此两处都要覆盖，
+// 否则子项仍会黑；!important 用于压过 EP 的内联值。
+.sidebar-menu,
+.sidebar-menu :deep(.el-menu) {
+  --el-menu-hover-bg-color: #{$n-100} !important;
 }
 </style>
