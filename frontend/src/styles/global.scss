@@ -11,13 +11,16 @@ html:root {
   --n-600: #{$n-600}; --n-700: #{$n-700}; --n-900: #{$n-900};
   --brand-100: #{$brand-100}; --brand-300: #{$brand-300};
   --brand-600: #{$brand-600}; --brand-700: #{$brand-700};
-  --ok-100: #{$ok-100};   --ok-600: #{$ok-600};
-  --warn-100: #{$warn-100}; --warn-600: #{$warn-600};
-  --bad-100: #{$bad-100}; --bad-600: #{$bad-600};
-  --info-100: #{$info-100}; --info-600: #{$info-600};
+  --ok-100: #{$ok-100};   --ok-300: #{$ok-300};   --ok-600: #{$ok-600};
+  --warn-100: #{$warn-100}; --warn-300: #{$warn-300}; --warn-600: #{$warn-600};
+  --bad-100: #{$bad-100}; --bad-300: #{$bad-300}; --bad-600: #{$bad-600};
+  --info-100: #{$info-100}; --info-300: #{$info-300}; --info-600: #{$info-600};
   --st-vacant: #{$st-vacant}; --st-locked: #{$st-locked};
   --st-booked: #{$st-booked}; --st-rented: #{$st-rented};
   --glass: #{$glass}; --scrim: #{$scrim};
+  // 暗色面阶（唯一使用方：房态大屏）
+  --d-bg: #{$d-bg}; --d-surface: #{$d-surface}; --d-raised: #{$d-raised}; --d-line: #{$d-line};
+  --d-text: #{$d-text}; --d-text-2: #{$d-text-2}; --d-text-3: #{$d-text-3};
   --sh-1: #{$sh-1}; --sh-2: #{$sh-2}; --sh-inset: #{$sh-inset};
 
   // ── Element Plus 变量覆盖（见 docs/UI设计准则.md 令牌 v2）──

@@ -655,7 +655,7 @@ off('room:status-changed', callback);
 | 页面 | 路由 | 说明 |
 |------|------|------|
 | `RoomStatusKanban.vue` | `/rent/room-kanban` | 房态看板主页面：楼栋/楼层筛选 + 卡片/表格视图切换（同一份数据）+ 快捷操作抽屉 + 批量状态对话框 |
-| `RoomDashboard.vue` | `/rent/room-kanban/dashboard` | 数据大屏：暗色主题，KPI 卡片 + ECharts 可视化（玫瑰饼图/柱图/仪表盘/热力图/趋势线/桑基图 + 告警跑马灯） |
+| `RoomDashboard.vue` | `/rent/room-kanban/dashboard` | 数据大屏：**唯一使用 `$d-*` 暗色面阶的页面**（见 UI 主题体系 1.5），KPI 卡片 + ECharts（玫瑰饼图/柱图/仪表盘/热力图/趋势线/桑基图 + 告警跑马灯），空数据出占位 |
 | `RoomBatchGenerate.vue` | `/rent/room-kanban/batch-gen` | 批量生成房间表单：配置楼栋名称、起止楼层、每层房间数、命名规则、默认面积 |
 
 **7 个组件**（`frontend/src/components/`）：`RoomCard`（净表面 + 房态阶 chip + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，`DataTable` 实现，**已接入看板的卡片/表格切换**，内置批量条「批量改状态」）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
@@ -760,6 +760,8 @@ off('room:status-changed', callback);
 **1.3 `<style>` 块必须写 `lang="scss"`（踩过的坑）**：令牌靠 vite 的 scss `additionalData` 注入，只有声明 `lang="scss"` 的块才走 SCSS。漏写时块按**纯 CSS** 编译——`$令牌` 原样进产物、被浏览器静默丢弃（**曾致 16 个文件 95 处声明失效**，`DataTable` / `PageHeader` / `MoneyText` / `RoomCard` 等都在内），且块内 `//` 注释会直接构建失败。**新增组件务必带上**，由门禁 **P6** 强制（0 违规）。
 **1.4 房态阶的落地**：`.room-chip--*`（`global.scss`）是唯一业务流程色阶的实现；9 种房态 → 色调的映射唯一来源是 `components/modules/room/room-status.ts`（`ROOM_STATUS_MAP` / `roomStatusClass()`），**房态词汇只允许出现在这里**。`StatusTag` 收到 `className` 时渲染 `<span>` 做令牌着色，否则仍走 EP 标签。
 
+**1.5 暗色面阶（唯一例外：房态大屏）**：`$d-bg/$d-surface/$d-raised/$d-line/$d-text/$d-text-2/$d-text-3`，以及语义「暗底专用档」`$ok/warn/bad/info-300`。为什么单列：亮色阶 `$n-*` 是单向的（`$n-0` 最亮=面 → `$n-900` 最深=字），倒过来当暗色用只剩 2–3:1（大屏此前数字发灰的根因）；暗底前景用 300 档、亮底前景用 600 档。**仅 `RoomDashboard.vue` 可用**，其它页面不得使用——是单一页面例外，不是第二主题。
+
 **2. Element Plus 覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary: $brand-600`、`--el-fill-color-blank: $n-0`（取消半透明填充）、`--el-border-color: $n-400`（控件边界 ≥3:1）、`--el-border-radius-base: $r-box`；同时输出 `--n-*`/`--brand-*`/`--glass`/`--sh-*` 的 CSS 变量镜像，供内联样式与 JS 使用。
 
 **3. 材质：玻璃只留给侧栏 / 抽屉 / 弹层；顶栏为品牌实色**（`$brand-600` + 白字，实测 7.22:1；这是**唯一允许大面积使用品牌色的位置**），内容卡片一律**净表面**（`$n-0` + 1px `$n-200` + 无模糊无阴影），统一由 `global.scss` 的 `.surface` 定义，**禁止逐页复制**。门禁要求全站 `backdrop-filter` 模糊区 ≤4（当前 2 处：侧栏 + 浮层）。**浮层玻璃必须半透明底与 blur 成对**：`.el-dialog` / `.el-drawer` / `.el-popper` / `.el-message-box` 的底色改为 `$glass`（分别走 `--el-dialog-bg-color` / `--el-drawer-bg-color` / `--el-bg-color-overlay` / 直接 background），否则不透明面板上的 `blur(14px)` 是空转（曾如此存在过）。
@@ -779,7 +781,7 @@ off('room:status-changed', callback);
 
 **7. 无障碍（WCAG 2.1 AA）**：v2 的 **600 档即文字安全档**（`$brand-600` 白字 7.22:1、`$n-600` 次要文字 5.23:1、语义 600 档 5.94–7.37:1），v1 的独立 `-text` 变体体系已被吸收，不再单列。控件边界用 `$n-400`（3.21:1，满足 SC 1.4.11）；`$n-200` 仅作分割线（装饰性豁免）。
 
-自检门禁：`node scripts/check-contrast.cjs`（48 条清单，48/48 + 2 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步；含 `$st-*` 房态四档、5 条 chip 例外配对，以及玻璃浮层「页面底→遮罩→玻璃」三层合成）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0 且统计 `frontend/src` 全量，新增页面/组件不得再写 `<el-table>`，豁免仅 `base/DataTable.vue` 与 `modules/finance/VoucherEntryRows.vue`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演，扫描范围仅 `views/`）。
+自检门禁：`node scripts/check-contrast.cjs`（62 条清单，62/62 + 3 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步；含 `$st-*` 房态四档、5 条 chip 例外配对，以及玻璃浮层「页面底→遮罩→玻璃」三层合成）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0 且统计 `frontend/src` 全量，新增页面/组件不得再写 `<el-table>`，豁免仅 `base/DataTable.vue` 与 `modules/finance/VoucherEntryRows.vue`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演，扫描范围仅 `views/`）。
 
 ### 依赖漏洞治理（当前状态与决策）
 

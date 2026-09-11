@@ -186,6 +186,24 @@ const CHECKLIST = [
   // 玻璃浮层（页面底 → 遮罩 → 玻璃 三层合成；最暗的现实底就是模态遮罩）
   { scene: '玻璃浮层正文', fg: need('n-900'), surface: 'dialogGlass', kind: 'normal' },
   { scene: '玻璃浮层次要文字', fg: need('n-700'), surface: 'dialogGlass', kind: 'normal' },
+  // 暗色面阶（唯一使用方：房态大屏）—— 亮色阶倒过来用只剩 2–3:1，故单列一套
+  { scene: 'd-text on 暗色面板', fg: need('d-text'), surface: 'dSurface', kind: 'normal' },
+  { scene: 'd-text on 暗色浮起面', fg: need('d-text'), surface: 'dRaised', kind: 'normal' },
+  { scene: 'd-text-2 on 暗色面板', fg: need('d-text-2'), surface: 'dSurface', kind: 'normal' },
+  { scene: 'd-text-2 on 暗色浮起面', fg: need('d-text-2'), surface: 'dRaised', kind: 'normal' },
+  { scene: 'd-text-3 on 暗色面板', fg: need('d-text-3'), surface: 'dSurface', kind: 'normal' },
+  { scene: 'ok-300 on 暗色面板', fg: need('ok-300'), surface: 'dSurface', kind: 'normal' },
+  { scene: 'warn-300 on 暗色面板', fg: need('warn-300'), surface: 'dSurface', kind: 'normal' },
+  { scene: 'bad-300 on 暗色面板', fg: need('bad-300'), surface: 'dSurface', kind: 'normal' },
+  { scene: 'info-300 on 暗色面板', fg: need('info-300'), surface: 'dSurface', kind: 'normal' },
+  // 暗色图表系列（作为 UI 填充件，门槛 3:1）
+  { scene: 'brand-300 vs 暗色面板', fg: need('brand-300'), surface: 'dSurface', kind: 'ui' },
+  { scene: '房态-空置 vs 暗色面板', fg: need('st-vacant'), surface: 'dSurface', kind: 'ui' },
+  { scene: '房态-已锁定 vs 暗色面板', fg: need('st-locked'), surface: 'dSurface', kind: 'ui' },
+  { scene: '房态-已预订 vs 暗色面板', fg: need('st-booked'), surface: 'dSurface', kind: 'ui' },
+  { scene: '房态-已出租 vs 暗色面板', fg: need('st-rented'), surface: 'dSurface', kind: 'ui' },
+  { scene: '暗色分割线 vs 暗色面板（装饰）', fg: need('d-line'), surface: 'dSurface', kind: 'ui',
+    exempt: true, exemptReason: '暗色下的分割线为装饰性分隔（与亮色 $n-200 同性质），不承载信息' },
   // UI 件 / 边界（>=3:1）
   { scene: '控件边界 vs 页面底', fg: need('n-400'), surface: 'page', kind: 'ui' },
   { scene: '控件边界 vs 卡片', fg: need('n-400'), surface: 'card', kind: 'ui' },
@@ -206,6 +224,11 @@ for (const [tok, key] of Object.entries(STATUS_FILLS)) {
 const NEUTRAL_FILLS = { 'n-100': 'nFill100', 'n-300': 'nFill300' };
 for (const [tok, key] of Object.entries(NEUTRAL_FILLS)) {
   SURFACES[key] = { name: '中性 ' + T[tok], layers: [T[tok]] };
+}
+// 暗色面阶（唯一使用方：房态大屏 RoomDashboard）
+const DARK_FILLS = { 'd-bg': 'dBg', 'd-surface': 'dSurface', 'd-raised': 'dRaised' };
+for (const [tok, key] of Object.entries(DARK_FILLS)) {
+  SURFACES[key] = { name: '暗色 ' + T[tok], layers: [T[tok]] };
 }
 
 // ============================================================

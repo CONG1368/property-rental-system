@@ -69,6 +69,16 @@
 - 字体：`$font-display` / `$font-body` / `$font-mono`
 - 圆角：`$r-ctl 6`（控件）/ `$r-box 10`（卡片）/ `$r-panel 14`（面板）——**控件圆角恒小于容器**
 
+### 3.7 暗色面阶（唯一例外：房态大屏）
+
+`$d-bg`（画布）/ `$d-surface`（面板）/ `$d-raised`（面板内浮起）/ `$d-line`（分割线与描边）/ `$d-text` / `$d-text-2` / `$d-text-3`。
+
+**为什么单列一套**：亮色阶 `$n-*` 是**单向**的（`$n-0` 最亮＝面 → `$n-900` 最深＝字）。把它倒过来当暗色用必然失衡——字压面只剩 2–3:1，这正是大屏此前「数字发灰、面板糊成一坨」的根因。暗色需要「相邻档只差 5–7%」的独立曲线，故单列；色相仍锁 250，与全站同一冷调。
+
+**语义在暗底上的档位**：亮底前景用 600 档，暗底前景用 **300 档**（`$ok/warn/bad/info-300`）。600 档是为浅底设计的深色（白底 5.94–7.37:1），压到暗色面上会掉到 3:1 以下；100 档是「背景浅档」（彩度极低），当暗底前景会偏灰白、失去语义辨识度。
+
+**唯一使用方**：`views/rent/RoomDashboard.vue`（房态大屏）。**其它页面一律不得使用 `$d-*`**——这是单一页面的例外，不是第二主题。
+
 ### 3.6 Element Plus 覆盖（`global.scss` 的 `html:root`）
 
 `--el-color-primary: $brand-600`；`--el-color-primary-light-3/5/7/9: $brand-300 → $brand-100`；`--el-color-success/warning/danger: 600 档`；`--el-text-color-*: $n-900/700/600`；`--el-border-color: $n-400`；`--el-fill-color-blank: $n-0`（**取消半透明填充**）；`--el-border-radius-base: $r-box`；`--el-box-shadow-light: $sh-1`。
@@ -132,6 +142,7 @@ components/
 6. 列表页重复声明 `.toolbar` / `.search-group` 样式与内联 `<el-table>`（**已全部清零**：87 个视图 / 95 张表统一走 `DataTable`；门禁 P5 基线 = 0 且扫描范围是 **`frontend/src` 全量**（不只 `views/`），写回内联表即失败。唯二豁免：`base/DataTable.vue`（封装层自身）、`modules/finance/VoucherEntryRows.vue`（可编辑录入网格，`DataTable` 是只读展示件））
 7. `<style>` 里用 `$令牌` 却不写 `lang="scss"`——块会按**纯 CSS** 编译：变量原样进产物、被浏览器静默丢弃（**曾致 16 个文件 95 处声明失效**，`DataTable`/`PageHeader`/`MoneyText`/`RoomCard` 等都在内），且块内 `//` 注释会直接构建失败；由门禁 **P6** 强制
 8. 只写 `backdrop-filter` 而不给半透明底（或反之）——两者必须成对，否则要么完全无效、要么糊成一片
+9. 在房态大屏之外使用 `$d-*` 暗色面阶（它是单一页面的例外，不是第二主题）
 
 **必须**：
 1. **不新增颜色的默认答案是不加**；需要新颜色先证明不能由现有令牌派生
@@ -146,7 +157,7 @@ components/
 
 | 不做 | 原因 |
 |---|---|
-| **深色模式** | 维护成本翻倍（打印 / 导出须另做亮色）；物业前台白天在强光下工作，暗色更差。待令牌落地满月、新增颜色趋近 0 再谈 |
+| **全局深色模式** | 维护成本翻倍（打印 / 导出须另做亮色）；物业前台白天在强光下工作，暗色更差。**唯一例外：房态大屏**（`$d-*` 暗色面阶，见 §3.7），其余页面一律亮色 |
 | 按模块分主题 / 模块识别色 | 半年内会长成六套配色。模块识别改用文字标签 + 面包屑 |
 | 模块专属图表主题 | 只允许自定义系列色**顺序**，取值仍限于全局阶 |
 | 动效体系 | 当前阶段收益最低 |
@@ -156,7 +167,7 @@ components/
 | 门禁 | 命令 | 阈值 |
 |---|---|---|
 | 静态铁律（含 R2 颜色字面量）| `node scripts/check-static-rules.cjs` | 6/6 |
-| 对比度 | `node scripts/check-contrast.cjs` | 48/48（+2 装饰性豁免）|
+| 对比度 | `node scripts/check-contrast.cjs` | 62/62（+3 装饰性豁免）|
 | 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 6/6（扫描 `frontend/src` 全量；内联 `<el-table>` = 0、自写工具栏样式 ≤ 40、`$令牌` 必须 `lang="scss"`）|
 | 三档密度无破损 | `node scripts/verify-table-density.cjs` | 14/14 |
 | 全链路 | `npm run test:regression` | 全绿 |
