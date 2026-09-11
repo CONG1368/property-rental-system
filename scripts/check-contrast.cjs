@@ -106,6 +106,7 @@ const PAGE = need('n-50');   // 页面底
 const CARD = need('n-0');    // 卡片 / 弹层 / 输入（净表面）
 // 顶栏为品牌实色；侧栏仍为玻璃合成到页面底
 const GLASS = RAW['glass'];  // 侧栏/弹层玻璃面
+const SCRIM = RAW['scrim'];  // 模态遮罩（玻璃浮层叠在它之上）
 
 const SURFACES = {
   page: { name: '页面底 ' + PAGE, layers: [PAGE] },
@@ -116,6 +117,7 @@ const SURFACES = {
   shell: { name: '顶栏品牌底', layers: [need('brand-600')] },
   shellHover: { name: '顶栏品牌底 hover', layers: [need('brand-700')] },
   sidebar: { name: '侧栏玻璃@页面底', layers: [PAGE, GLASS] },
+  dialogGlass: { name: '玻璃浮层@遮罩', layers: [PAGE, SCRIM, GLASS] },
   brandFill: { name: '主按钮底 ' + T['brand-600'], layers: [T['brand-600']] },
   brandFillHover: { name: '主按钮 hover ' + T['brand-700'], layers: [T['brand-700']] },
   okFill: { name: '成功实心 ' + T['ok-600'], layers: [T['ok-600']] },
@@ -181,6 +183,9 @@ const CHECKLIST = [
   // 侧栏（玻璃合成后）
   { scene: '侧栏文字', fg: need('n-700'), surface: 'sidebar', kind: 'normal' },
   { scene: '侧栏主色文字', fg: need('brand-600'), surface: 'sidebar', kind: 'normal' },
+  // 玻璃浮层（页面底 → 遮罩 → 玻璃 三层合成；最暗的现实底就是模态遮罩）
+  { scene: '玻璃浮层正文', fg: need('n-900'), surface: 'dialogGlass', kind: 'normal' },
+  { scene: '玻璃浮层次要文字', fg: need('n-700'), surface: 'dialogGlass', kind: 'normal' },
   // UI 件 / 边界（>=3:1）
   { scene: '控件边界 vs 页面底', fg: need('n-400'), surface: 'page', kind: 'ui' },
   { scene: '控件边界 vs 卡片', fg: need('n-400'), surface: 'card', kind: 'ui' },

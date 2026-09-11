@@ -762,7 +762,7 @@ off('room:status-changed', callback);
 
 **2. Element Plus 覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary: $brand-600`、`--el-fill-color-blank: $n-0`（取消半透明填充）、`--el-border-color: $n-400`（控件边界 ≥3:1）、`--el-border-radius-base: $r-box`；同时输出 `--n-*`/`--brand-*`/`--glass`/`--sh-*` 的 CSS 变量镜像，供内联样式与 JS 使用。
 
-**3. 材质：玻璃只留给侧栏 / 抽屉 / 弹层；顶栏为品牌实色**（`$brand-600` + 白字，实测 7.22:1；这是**唯一允许大面积使用品牌色的位置**），内容卡片一律**净表面**（`$n-0` + 1px `$n-200` + 无模糊无阴影），统一由 `global.scss` 的 `.surface` 定义，**禁止逐页复制**。门禁要求全站 `backdrop-filter` 模糊区 ≤4（当前 2 处：侧栏 + 弹层）。
+**3. 材质：玻璃只留给侧栏 / 抽屉 / 弹层；顶栏为品牌实色**（`$brand-600` + 白字，实测 7.22:1；这是**唯一允许大面积使用品牌色的位置**），内容卡片一律**净表面**（`$n-0` + 1px `$n-200` + 无模糊无阴影），统一由 `global.scss` 的 `.surface` 定义，**禁止逐页复制**。门禁要求全站 `backdrop-filter` 模糊区 ≤4（当前 2 处：侧栏 + 浮层）。**浮层玻璃必须半透明底与 blur 成对**：`.el-dialog` / `.el-drawer` / `.el-popper` / `.el-message-box` 的底色改为 `$glass`（分别走 `--el-dialog-bg-color` / `--el-drawer-bg-color` / `--el-bg-color-overlay` / 直接 background），否则不透明面板上的 `blur(14px)` 是空转（曾如此存在过）。
 
 **4. ANTI-EMOJI（铁律）**：UI 与代码中禁用 emoji，一律用 `@element-plus/icons-vue` 线性图标。
 - `utils/avatars.ts` 为图标方案：`avatarIcons` + `roleAvatars` + `presetAvatars` + **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容库里已存的 emoji 头像）。
@@ -779,7 +779,7 @@ off('room:status-changed', callback);
 
 **7. 无障碍（WCAG 2.1 AA）**：v2 的 **600 档即文字安全档**（`$brand-600` 白字 7.22:1、`$n-600` 次要文字 5.23:1、语义 600 档 5.94–7.37:1），v1 的独立 `-text` 变体体系已被吸收，不再单列。控件边界用 `$n-400`（3.21:1，满足 SC 1.4.11）；`$n-200` 仅作分割线（装饰性豁免）。
 
-自检门禁：`node scripts/check-contrast.cjs`（46 条清单，46/46 + 2 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步；含 `$st-*` 房态四档与 5 条 chip 例外配对）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0 且统计 `frontend/src` 全量，新增页面/组件不得再写 `<el-table>`，豁免仅 `base/DataTable.vue` 与 `modules/finance/VoucherEntryRows.vue`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演，扫描范围仅 `views/`）。
+自检门禁：`node scripts/check-contrast.cjs`（48 条清单，48/48 + 2 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步；含 `$st-*` 房态四档、5 条 chip 例外配对，以及玻璃浮层「页面底→遮罩→玻璃」三层合成）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0 且统计 `frontend/src` 全量，新增页面/组件不得再写 `<el-table>`，豁免仅 `base/DataTable.vue` 与 `modules/finance/VoucherEntryRows.vue`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演，扫描范围仅 `views/`）。
 
 ### 依赖漏洞治理（当前状态与决策）
 

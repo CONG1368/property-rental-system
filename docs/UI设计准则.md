@@ -64,7 +64,7 @@
 ### 3.5 非颜色令牌
 
 - 阴影三档：`$sh-0`（无）/ `$sh-1`（浮起，必须对应真实可点击）/ `$sh-2`（覆盖：弹层 / 抽屉）
-- 玻璃：`$glass`（**仅侧栏 / 抽屉 / 弹层可用**）；**顶栏为品牌实色 `$brand-600`**——这是唯一允许大面积使用品牌色的位置；遮罩 `$scrim`
+- 玻璃：`$glass`（**仅侧栏 / 抽屉 / 弹层可用**，且**半透明底与 `backdrop-filter` 必须成对出现**——不透明面板上的模糊无效，只半透明不模糊则会糊）；**顶栏为品牌实色 `$brand-600`**——这是唯一允许大面积使用品牌色的位置；遮罩 `$scrim`（已接到 `--el-overlay-color-lighter`，是玻璃浮层三层合成的基准）
 - 字号三级：`$fs-page 22` / `$fs-section 15` / `$fs-body 13.5`（中文下限）/ `$fs-meta 12`；行高 `$lh-body 1.7`
 - 字体：`$font-display` / `$font-body` / `$font-mono`
 - 圆角：`$r-ctl 6`（控件）/ `$r-box 10`（卡片）/ `$r-panel 14`（面板）——**控件圆角恒小于容器**
@@ -131,6 +131,7 @@ components/
 5. 重写 `EmptyState` / `TableSkeleton` / `components/print/`
 6. 列表页重复声明 `.toolbar` / `.search-group` 样式与内联 `<el-table>`（**已全部清零**：87 个视图 / 95 张表统一走 `DataTable`；门禁 P5 基线 = 0 且扫描范围是 **`frontend/src` 全量**（不只 `views/`），写回内联表即失败。唯二豁免：`base/DataTable.vue`（封装层自身）、`modules/finance/VoucherEntryRows.vue`（可编辑录入网格，`DataTable` 是只读展示件））
 7. `<style>` 里用 `$令牌` 却不写 `lang="scss"`——块会按**纯 CSS** 编译：变量原样进产物、被浏览器静默丢弃（**曾致 16 个文件 95 处声明失效**，`DataTable`/`PageHeader`/`MoneyText`/`RoomCard` 等都在内），且块内 `//` 注释会直接构建失败；由门禁 **P6** 强制
+8. 只写 `backdrop-filter` 而不给半透明底（或反之）——两者必须成对，否则要么完全无效、要么糊成一片
 
 **必须**：
 1. **不新增颜色的默认答案是不加**；需要新颜色先证明不能由现有令牌派生
@@ -155,7 +156,7 @@ components/
 | 门禁 | 命令 | 阈值 |
 |---|---|---|
 | 静态铁律（含 R2 颜色字面量）| `node scripts/check-static-rules.cjs` | 6/6 |
-| 对比度 | `node scripts/check-contrast.cjs` | 46/46（+2 装饰性豁免）|
+| 对比度 | `node scripts/check-contrast.cjs` | 48/48（+2 装饰性豁免）|
 | 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 6/6（扫描 `frontend/src` 全量；内联 `<el-table>` = 0、自写工具栏样式 ≤ 40、`$令牌` 必须 `lang="scss"`）|
 | 三档密度无破损 | `node scripts/verify-table-density.cjs` | 14/14 |
 | 全链路 | `npm run test:regression` | 全绿 |

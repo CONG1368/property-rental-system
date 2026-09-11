@@ -52,6 +52,7 @@ html:root {
   --el-fill-color-lighter: #{$n-100};
   --el-bg-color: #{$n-0};
   --el-bg-color-page: #{$n-50};
+  --el-overlay-color-lighter: #{$scrim}; // 模态遮罩（玻璃浮层的合成基准）
   --el-border-radius-base: #{$r-box} !important;
   --el-border-radius-small: #{$r-ctl};
   --el-border-radius-round: #{$r-panel};
@@ -127,11 +128,18 @@ a:hover { color: $brand-700; }
   background-image: repeating-linear-gradient(45deg, transparent 0 4px, $n-300 4px 8px);
 }
 
-// ── 弹层：允许毛玻璃（顶栏 / 侧栏 / 抽屉 / 弹层为玻璃唯一保留区）──
-.el-dialog, .el-drawer, .el-popper, .el-dropdown-menu {
+// ── 浮层玻璃：半透明底 + 模糊必须成对出现 ──────────────────────
+// 不透明面板上加 blur 是无效的（模糊后的背景透不出来）；只半透明不 blur 则会糊。
+.el-dialog, .el-drawer, .el-popper, .el-dropdown-menu, .el-message-box {
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
+// 注意：EP 的组件样式在组件加载时注入，位置在本文件之后，同优先级的覆盖会输给 EP，
+// 故 dialog / drawer / message-box 这三处必须 !important（popper 的默认值在 :root，普通覆盖即可）。
+.el-dialog { --el-dialog-bg-color: #{$glass} !important; }
+.el-drawer { --el-drawer-bg-color: #{$glass} !important; }
+.el-message-box { background-color: #{$glass} !important; }  // EP 此处直接取 --el-bg-color
+.el-popper { --el-bg-color-overlay: #{$glass}; }             // 下拉 / 选择 / 日期 / 气泡统一取这个变量
 
 .el-button { transition: all .15s; }
 .el-button:active { transform: translateY(-1px) scale(.98); }
