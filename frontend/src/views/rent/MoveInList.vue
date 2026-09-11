@@ -1,18 +1,16 @@
 <template>
   <div class="movein-page">
-    <div class="toolbar">
-      <div class="search-group">
-        <el-select v-model="filterStatus" placeholder="交接状态" clearable style="width:140px" @change="fetchData">
-          <el-option label="待交接" value="待交接" />
-          <el-option label="已完成" value="已完成" />
-        </el-select>
-        <el-input v-model="keyword" placeholder="合同号/租客/房源" clearable style="width:200px" @keyup.enter="fetchData" @clear="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-select v-model="filterStatus" placeholder="交接状态" clearable style="width:140px" @change="fetchData">
+      <el-option label="待交接" value="待交接" />
+      <el-option label="已完成" value="已完成" />
+      </el-select>
+      <el-input v-model="keyword" placeholder="合同号/租客/房源" clearable style="width:200px" @keyup.enter="fetchData" @clear="fetchData" />
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showDialog(null)">新增交接</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
       <template #c1="{ row }">{{ row.contract?.contractNo }}</template>
@@ -57,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -194,9 +193,6 @@ onMounted(() => { fetchData(); loadContracts(); });
 
 <style lang="scss" scoped>
 .movein-page { padding: 0; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; width: 100%; }
 .check-row { display: flex; align-items: center; gap: 8px; }
 </style>

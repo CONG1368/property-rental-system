@@ -7,19 +7,17 @@
       <el-col :span="6"><div class="stat-card"><div class="stat-num done">{{ stats.todayAbnormal }}</div><div class="stat-label">今日异常</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width:260px" @change="onFilterChange" />
-        <el-select v-model="filterStatus" placeholder="状态筛选" clearable style="width:140px" @change="onFilterChange">
-          <el-option label="正常" value="正常" />
-          <el-option label="异常" value="异常" />
-        </el-select>
-        <el-button type="primary" @click="onFilterChange">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width:260px" @change="onFilterChange" />
+      <el-select v-model="filterStatus" placeholder="状态筛选" clearable style="width:140px" @change="onFilterChange">
+      <el-option label="正常" value="正常" />
+      <el-option label="异常" value="异常" />
+      </el-select>
+      <el-button type="primary" @click="onFilterChange">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showDialog()">新增巡更</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
       <template #c5="{ row }"><el-tag :type="row.status === '异常' ? 'danger' : 'success'" size="small">{{ row.status }}</el-tag></template>
@@ -49,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -159,7 +158,4 @@ onMounted(() => {
 .stat-num.warn { color: $warn-600; }
 .stat-num.done { color: $ok-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 </style>

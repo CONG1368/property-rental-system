@@ -7,14 +7,14 @@
       <el-col :span="6"><div class="stat-card"><div class="stat-num live">{{ avgRate }}%</div><div class="stat-label">平均入住率</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索项目名称/编码" clearable style="width:200px" @keyup.enter="fetchData" />
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData"><el-option label="运营中" value="运营中" /><el-option label="筹备中" value="筹备中" /><el-option label="已停用" value="已停用" /></el-select>
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group"><el-button type="primary" @click="showCreate">新增项目</el-button></div>
-    </div>
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索项目名称/编码" clearable style="width:200px" @keyup.enter="fetchData" />
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData"><el-option label="运营中" value="运营中" /><el-option label="筹备中" value="筹备中" /><el-option label="已停用" value="已停用" /></el-select>
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
+        <div class="action-group"><el-button type="primary" @click="showCreate">新增项目</el-button></div>
+      </template>
+    </FilterBar>
 
     <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
       <template #c3="{ row }"><el-tag size="small">{{ row.type }}</el-tag></template>
@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -108,7 +109,4 @@ onMounted(() => { fetchData(); });
 .stat-num.running { color: $ok-600; }
 .stat-num.live { color: $brand-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 </style>

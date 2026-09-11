@@ -7,19 +7,17 @@
       <el-col :span="6"><div class="stat-card"><div class="stat-num deduct">{{ fmt(stats.deducted) }}</div><div class="stat-label">已扣除金额</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索租客/合同号" clearable style="width:220px" @keyup.enter="fetchData" />
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
-          <el-option label="在管" value="在管" /><el-option label="部分退还" value="部分退还" />
-          <el-option label="已退还" value="已退还" /><el-option label="已抵扣" value="已抵扣" />
-        </el-select>
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索租客/合同号" clearable style="width:220px" @keyup.enter="fetchData" />
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
+      <el-option label="在管" value="在管" /><el-option label="部分退还" value="部分退还" />
+      <el-option label="已退还" value="已退还" /><el-option label="已抵扣" value="已抵扣" />
+      </el-select>
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showCreate">登记押金</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无押金记录" empty-description="合同签订并收取押金后，台账会在此显示">
       <template #c1="{ row }">{{ row.contract?.contractNo }}</template>
@@ -78,6 +76,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -182,8 +181,5 @@ onMounted(() => { fetchData(); loadContracts(); });
 .stat-num.refund { color: $brand-600; }
 .stat-num.deduct { color: $warn-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 .balance { color: $warn-600; }
 </style>

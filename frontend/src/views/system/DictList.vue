@@ -1,9 +1,10 @@
 <template>
   <div class="dict-list">
-    <div class="toolbar">
-      <h2 class="page-title">数据字典</h2>
-      <el-button type="primary" @click="showTypeDialog()">新增字典类型</el-button>
-    </div>
+    <PageHeader title="数据字典">
+      <template #actions>
+        <el-button type="primary" @click="showTypeDialog()">新增字典类型</el-button>
+      </template>
+    </PageHeader>
     <DataTable :data="dictTypes" :loading="loading" :columns="COLUMNS" row-key="id" @row-click="(row: any) => { selectedType = row.code; fetchItems(); }" empty-title="暂无字典项" empty-description="新增字典类型与条目，统一维护下拉选项">
       <template #c3="{ row }"><el-button size="small" @click.stop="showTypeDialog(row)">编辑</el-button>
               <el-popconfirm title="确定删除？同时会删除所有字典项" @confirm="handleDeleteType(row.code)"><template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template></el-popconfirm></template>
@@ -44,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/base/PageHeader.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -153,6 +155,5 @@ onMounted(() => fetchTypes());
 
 <style lang="scss" scoped>
 .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 h3 { margin: 0; font-size: 15px; color: $n-900; }
 </style>

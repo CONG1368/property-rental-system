@@ -1,14 +1,12 @@
 <template>
   <div class="budget-list">
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchYear" placeholder="预算年度" clearable style="width:140px" @keyup.enter="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-input v-model="searchYear" placeholder="预算年度" clearable style="width:140px" @keyup.enter="fetchData" />
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="$router.push('/finance/budgets/edit')">新增预算</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <!-- 批量操作栏 -->
     <div class="batch-bar" v-if="selectedIds.length > 0">
@@ -31,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -92,9 +91,6 @@ onMounted(() => { fetchData(); });
 
 <style lang="scss" scoped>
 .budget-list { padding: 0; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; }
-.action-group { display: flex; gap: 8px; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border-radius: 6px; border: 1px solid $brand-100; }
 .batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

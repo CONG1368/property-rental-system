@@ -12,21 +12,19 @@
     </div>
 
     <!-- 工具栏 -->
-    <div class="toolbar">
-      <div class="search-group">
-        <el-select v-model="filters.category" placeholder="类别" clearable style="width:140px" @change="fetchData">
-          <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-        </el-select>
-        <el-select v-model="filters.status" placeholder="状态" clearable style="width:130px" @change="fetchData">
-          <el-option v-for="s in statuses" :key="s" :label="s" :value="s" />
-        </el-select>
-        <el-input v-model="filters.keyword" placeholder="搜索设备名称/证书号/检验机构" clearable style="width:240px" @keyup.enter="fetchData" @clear="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-select v-model="filters.category" placeholder="类别" clearable style="width:140px" @change="fetchData">
+      <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+      </el-select>
+      <el-select v-model="filters.status" placeholder="状态" clearable style="width:130px" @change="fetchData">
+      <el-option v-for="s in statuses" :key="s" :label="s" :value="s" />
+      </el-select>
+      <el-input v-model="filters.keyword" placeholder="搜索设备名称/证书号/检验机构" clearable style="width:240px" @keyup.enter="fetchData" @clear="fetchData" />
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showDialog(null)">新增设备</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <!-- 表格 -->
     <DataTable :data="list" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里" style="margin-top:12px">
@@ -60,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -174,10 +173,6 @@ onMounted(() => { fetchStats(); fetchData() })
     &.expired { border-left: 4px solid $bad-600; }
     &.expiring { border-left: 4px solid $brand-600; }
   }
-}
-.toolbar {
-  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
-  .search-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 }
 :deep(.row-expired) { background: $bad-100 !important; }
 :deep(.row-expiring) { background: $warn-100 !important; }

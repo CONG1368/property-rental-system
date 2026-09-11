@@ -59,8 +59,13 @@
           @keyup.enter="emit('search')"
         />
       </template>
-      <el-button type="primary" @click="emit('search')">查询</el-button>
-      <el-button v-if="showReset" @click="onReset">重置</el-button>
+      <!-- 逃生舱：fields 表达不了的控件（带 v-if 的动态选项、级联、树选择、视图切换等）放默认插槽。
+           插槽模式不会渲染下面的内置按钮，页面自带「查询/重置」即可。 -->
+      <slot />
+      <template v-if="declarative">
+        <el-button type="primary" @click="emit('search')">查询</el-button>
+        <el-button v-if="showReset" @click="onReset">重置</el-button>
+      </template>
     </div>
     <div class="filter-actions"><slot name="actions" /></div>
   </div>
@@ -68,6 +73,7 @@
 
 <script setup lang="ts">
 // 列表页筛选区统一实现：关键字 / 下拉 / 月份 / 日期范围 + 查询 + 重置。
+import { computed } from 'vue';
 import type { FilterField } from './types';
 
 const props = withDefaults(defineProps<{
@@ -85,6 +91,9 @@ const emit = defineEmits<{
   (e: 'search'): void;
   (e: 'reset'): void;
 }>();
+
+// 声明式模式（传了 keyword 或 fields）才渲染内置的查询/重置按钮；纯插槽模式交给页面。
+const declarative = computed(() => props.keyword !== undefined || (props.fields || []).length > 0);
 
 function setField(key: string, v: any) {
   emit('update:values', { ...props.values, [key]: v });

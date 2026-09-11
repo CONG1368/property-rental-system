@@ -30,7 +30,7 @@ const RATCHET_EXEMPT_TABLE = [
 ];
 
 // —— 棘轮基线（迁移推进后请调低；数字只许降不许升）——
-const BASELINE = { toolbarViews: 40, inlineTableView: 0 };
+const BASELINE = { toolbarViews: 0, inlineTableView: 0 };
 
 let pass = 0; const failures = [];
 function ok(name, violations, scanned) {

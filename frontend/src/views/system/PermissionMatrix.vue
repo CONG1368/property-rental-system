@@ -1,16 +1,16 @@
 <template>
   <div class="perm-page">
     <!-- 顶部工具栏：角色（可搜索）+ 模块搜索 + 保存/全部回退 -->
-    <div class="toolbar">
+    <FilterBar>
       <el-select v-model="role" placeholder="选择角色" style="width:200px" filterable clearable @change="onRoleChange">
-        <el-option v-for="r in roles" :key="r" :label="r" :value="r" />
+      <el-option v-for="r in roles" :key="r" :label="r" :value="r" />
       </el-select>
       <el-input v-model="search" placeholder="搜索模块（名称/编码）" clearable style="width:220px" :prefix-icon="Search" />
       <span class="hint">勾选操作权限，保存后即时生效；「回退默认」清除某模块的定制。</span>
       <div style="flex:1" />
       <el-button type="warning" :disabled="!role" @click="confirmResetAll">全部回退默认</el-button>
       <el-button type="primary" :loading="saving" :disabled="!role" @click="doSave">保存当前角色权限</el-button>
-    </div>
+    </FilterBar>
 
     <!-- 批量操作条：多选模块后批量设置/清空/回退 -->
     <div v-if="role" class="batch-bar">
@@ -85,6 +85,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -287,7 +288,6 @@ onMounted(() => load());
 
 <style lang="scss" scoped>
 .perm-page { padding: 0; }
-.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
 .batch-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; padding: 8px 12px; background: $n-50; border: 1px solid $n-200; border-radius: 6px; flex-wrap: wrap; }
 .hint { color: $n-600; font-size: 12px; }
 .mod-cell { display: flex; flex-direction: column; line-height: 1.2; }

@@ -7,19 +7,17 @@
       <el-col :span="6"><div class="stat-card"><div class="stat-num">{{ fmt(stats.totalValue) }}</div><div class="stat-label">原值合计</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索名称/类别" clearable style="width:200px" @keyup.enter="fetchData" />
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
-          <el-option label="使用中" value="使用中" /><el-option label="已折旧完毕" value="已折旧完毕" />
-        </el-select>
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索名称/类别" clearable style="width:200px" @keyup.enter="fetchData" />
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
+      <el-option label="使用中" value="使用中" /><el-option label="已折旧完毕" value="已折旧完毕" />
+      </el-select>
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="warning" :loading="running" @click="runDepreciation">计提本月折旧</el-button>
         <el-button type="primary" @click="showDialog()">新增资产</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无固定资产" empty-description="登记资产后系统按月自动计提折旧">
       <template #c3="{ row }">{{ fmt(row.originalValue) }}</template>
@@ -47,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -154,7 +153,4 @@ onMounted(() => { fetchData(); loadBooks(); });
 .stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
 .stat-num.done { color: $ok-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 </style>

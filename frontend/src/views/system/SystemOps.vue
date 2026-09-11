@@ -212,7 +212,6 @@ onMounted(() => { fetchInfo(); fetchCron(); fetchToggle(); });
 </script>
 
 <style lang="scss" scoped>
-.toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
 .page-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
 .page-title { font-size:18px; font-weight:700; color:$n-900; margin:0; }
 </style>

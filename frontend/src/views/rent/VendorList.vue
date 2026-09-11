@@ -6,19 +6,19 @@
       <el-col :span="8"><div class="stat-card"><div class="stat-num warn">{{ stats.paused }}</div><div class="stat-label">已暂停</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索名称/联系人/电话/合同号" clearable style="width:220px" @keyup.enter="fetchData" />
-        <el-select v-model="filterCategory" placeholder="类别" clearable style="width:120px" @change="fetchData">
-          <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-        </el-select>
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchData">
-          <el-option v-for="s in statuses" :key="s" :label="s" :value="s" />
-        </el-select>
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group"><el-button type="primary" @click="showDialog(null)">新增供应商</el-button></div>
-    </div>
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索名称/联系人/电话/合同号" clearable style="width:220px" @keyup.enter="fetchData" />
+      <el-select v-model="filterCategory" placeholder="类别" clearable style="width:120px" @change="fetchData">
+      <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchData">
+      <el-option v-for="s in statuses" :key="s" :label="s" :value="s" />
+      </el-select>
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
+        <div class="action-group"><el-button type="primary" @click="showDialog(null)">新增供应商</el-button></div>
+      </template>
+    </FilterBar>
 
     <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无供应商" empty-description="登记外包供应商后可关联工单与结算">
       <template #c2="{ row }"><el-tag :type="categoryTag(row.category)" size="small">{{ row.category }}</el-tag></template>
@@ -58,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -130,7 +131,4 @@ onMounted(() => { fetchData() })
 .stat-num.good { color: $ok-600; }
 .stat-num.warn { color: $warn-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 </style>

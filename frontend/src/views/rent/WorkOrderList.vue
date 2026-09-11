@@ -23,24 +23,22 @@
     </div>
 
     <!-- 工具栏 -->
-    <div class="toolbar">
-      <div class="search-group">
-        <el-select v-model="filters.status" placeholder="状态筛选" clearable style="width:130px" @change="fetchData">
-          <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
-        </el-select>
-        <el-select v-model="filters.type" placeholder="类型" clearable style="width:120px" @change="fetchData">
-          <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
-        </el-select>
-        <el-select v-model="filters.priority" placeholder="优先级" clearable style="width:110px" @change="fetchData">
-          <el-option v-for="p in priorityOptions" :key="p" :label="p" :value="p" />
-        </el-select>
-        <el-input v-model="filters.keyword" placeholder="标题/报修人/电话" clearable style="width:210px" @keyup.enter="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-select v-model="filters.status" placeholder="状态筛选" clearable style="width:130px" @change="fetchData">
+      <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
+      </el-select>
+      <el-select v-model="filters.type" placeholder="类型" clearable style="width:120px" @change="fetchData">
+      <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
+      </el-select>
+      <el-select v-model="filters.priority" placeholder="优先级" clearable style="width:110px" @change="fetchData">
+      <el-option v-for="p in priorityOptions" :key="p" :label="p" :value="p" />
+      </el-select>
+      <el-input v-model="filters.keyword" placeholder="标题/报修人/电话" clearable style="width:210px" @keyup.enter="fetchData" />
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showCreateDialog">新增工单</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <!-- 表格 -->
     <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无工单" empty-description="住户报修或巡检发现问题后，工单会显示在这里" style="margin-top:12px">
@@ -165,6 +163,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -345,10 +344,6 @@ onMounted(() => {
       &.primary { border-left: 4px solid $brand-600; .stat-value { color: $brand-600; } }
       &.success { border-left: 4px solid $ok-600; .stat-value { color: $ok-600; } }
     }
-  }
-  .toolbar {
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
-    .search-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   }
   .pre-wrap { white-space: pre-wrap; }
 }

@@ -1,15 +1,16 @@
 <template>
   <div class="id-card-reader-settings">
-    <div class="toolbar">
-      <h2 class="page-title">身份证读卡器管理</h2>
-      <el-radio-group v-model="providerMode" size="small" style="margin-left:16px" @change="onProviderModeChange">
+    <PageHeader title="身份证读卡器管理">
+      <template #actions>
+        <el-radio-group v-model="providerMode" size="small" style="margin-left:16px" @change="onProviderModeChange">
         <el-radio-button label="mock">演示模式</el-radio-button>
         <el-radio-button label="real">真实读卡器</el-radio-button>
-      </el-radio-group>
-      <el-tag :type="providerMode === 'real' ? 'success' : 'info'" size="small" style="margin-left:8px">
+        </el-radio-group>
+        <el-tag :type="providerMode === 'real' ? 'success' : 'info'" size="small" style="margin-left:8px">
         {{ providerMode === 'real' ? '已接入真实读卡器（华视 CVR-100U）' : '模拟读卡，返回内置演示数据' }}
-      </el-tag>
-    </div>
+        </el-tag>
+      </template>
+    </PageHeader>
 
     <el-alert
       v-if="providerMode === 'real'"
@@ -155,6 +156,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/base/PageHeader.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -396,7 +398,6 @@ onMounted(() => { fetchProviderMode(); loadAdvanced(); fetchDevices(); fetchLogs
 </script>
 
 <style lang="scss" scoped>
-.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; }
 .drv-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .drv-label { color: $n-600; font-size: 13px; }

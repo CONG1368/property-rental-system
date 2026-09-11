@@ -1,34 +1,32 @@
 <template>
   <div class="property-list">
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索房源名称/地址" clearable style="width:220px" @keyup.enter="fetchData" />
-        <el-select v-model="filterType" placeholder="业态类型" clearable style="width:130px" @change="fetchData">
-          <el-option label="公寓" value="公寓" />
-          <el-option label="厂房" value="厂房" />
-          <el-option label="商铺" value="商铺" />
-        </el-select>
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
-          <el-option label="空置" value="空置" />
-          <el-option label="已锁定" value="已锁定" />
-          <el-option label="已预订" value="已预订" />
-          <el-option label="已出租" value="已出租" />
-          <el-option label="退租中" value="退租中" />
-          <el-option label="待保洁" value="待保洁" />
-          <el-option label="待验收" value="待验收" />
-          <el-option label="维修中" value="维修中" />
-          <el-option label="已冻结" value="已冻结" />
-        </el-select>
-        <el-input v-model="filterBuilding" placeholder="楼栋" clearable style="width:110px" @keyup.enter="fetchData" />
-        <el-input v-model="filterRoom" placeholder="房号" clearable style="width:110px" @keyup.enter="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索房源名称/地址" clearable style="width:220px" @keyup.enter="fetchData" />
+      <el-select v-model="filterType" placeholder="业态类型" clearable style="width:130px" @change="fetchData">
+      <el-option label="公寓" value="公寓" />
+      <el-option label="厂房" value="厂房" />
+      <el-option label="商铺" value="商铺" />
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
+      <el-option label="空置" value="空置" />
+      <el-option label="已锁定" value="已锁定" />
+      <el-option label="已预订" value="已预订" />
+      <el-option label="已出租" value="已出租" />
+      <el-option label="退租中" value="退租中" />
+      <el-option label="待保洁" value="待保洁" />
+      <el-option label="待验收" value="待验收" />
+      <el-option label="维修中" value="维修中" />
+      <el-option label="已冻结" value="已冻结" />
+      </el-select>
+      <el-input v-model="filterBuilding" placeholder="楼栋" clearable style="width:110px" @keyup.enter="fetchData" />
+      <el-input v-model="filterRoom" placeholder="房号" clearable style="width:110px" @keyup.enter="fetchData" />
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showDialog()">新增房源</el-button>
         <el-button @click="$router.push('/rent/properties/import')">批量导入</el-button>
         <el-button type="success" @click="$router.push('/rent/room-kanban')">房态看板</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <!-- 批量操作栏 -->
     <div class="batch-bar" v-if="selectedIds.length > 0">
@@ -86,6 +84,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -240,11 +239,6 @@ onMounted(() => fetchData());
 
 <style lang="scss" scoped>
 .property-list { padding: 0; }
-.toolbar {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
-}
-.search-group { display: flex; gap: 10px; align-items: center; }
-.action-group { display: flex; gap: 10px; }
 .batch-bar {
   display: flex; gap: 10px; align-items: center;
   padding: 8px 16px; margin-bottom: 12px;

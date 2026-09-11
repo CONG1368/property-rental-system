@@ -8,20 +8,20 @@
       <el-col :span="4"><div class="stat-card"><div class="stat-num closed">{{ stats.closed }}</div><div class="stat-label">已关闭</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索标题/反馈人" clearable style="width:200px" @keyup.enter="fetchData" />
-        <el-select v-model="filterType" placeholder="类型" clearable style="width:120px" @change="fetchData">
-          <el-option label="投诉" value="投诉" /><el-option label="建议" value="建议" /><el-option label="咨询" value="咨询" /><el-option label="表扬" value="表扬" />
-        </el-select>
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchData">
-          <el-option label="待受理" value="待受理" /><el-option label="处理中" value="处理中" />
-          <el-option label="已回复" value="已回复" /><el-option label="已解决" value="已解决" /><el-option label="已关闭" value="已关闭" />
-        </el-select>
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group"><el-button type="primary" @click="showCreate">受理新单</el-button></div>
-    </div>
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索标题/反馈人" clearable style="width:200px" @keyup.enter="fetchData" />
+      <el-select v-model="filterType" placeholder="类型" clearable style="width:120px" @change="fetchData">
+      <el-option label="投诉" value="投诉" /><el-option label="建议" value="建议" /><el-option label="咨询" value="咨询" /><el-option label="表扬" value="表扬" />
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchData">
+      <el-option label="待受理" value="待受理" /><el-option label="处理中" value="处理中" />
+      <el-option label="已回复" value="已回复" /><el-option label="已解决" value="已解决" /><el-option label="已关闭" value="已关闭" />
+      </el-select>
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
+        <div class="action-group"><el-button type="primary" @click="showCreate">受理新单</el-button></div>
+      </template>
+    </FilterBar>
 
     <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无投诉建议" empty-description="住户提交的投诉与建议会汇总到这里">
       <template #c2="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template>
@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -146,7 +147,4 @@ onMounted(() => { fetchData(); });
 .stat-num.resolved { color: $ok-600; }
 .stat-num.closed { color: $n-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 </style>

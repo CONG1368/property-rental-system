@@ -1,13 +1,13 @@
 <template>
   <div class="expense-list">
     <h2 class="page-title">费用核算</h2>
-    <div class="toolbar">
+    <FilterBar>
       <el-select v-model="filterCategory" placeholder="费用类别" clearable style="width:130px" @change="fetchData">
-        <el-option label="维修" value="维修" /><el-option label="保洁" value="保洁" /><el-option label="安保" value="安保" /><el-option label="绿化" value="绿化" /><el-option label="办公" value="办公" /><el-option label="折旧" value="折旧" /><el-option label="其他" value="其他" />
+      <el-option label="维修" value="维修" /><el-option label="保洁" value="保洁" /><el-option label="安保" value="安保" /><el-option label="绿化" value="绿化" /><el-option label="办公" value="办公" /><el-option label="折旧" value="折旧" /><el-option label="其他" value="其他" />
       </el-select>
       <el-button type="primary" @click="fetchData">查询</el-button>
-      <el-button type="primary" style="margin-left:auto" @click="showDialog()">新增费用</el-button>
-    </div>
+      <el-button type="primary" @click="showDialog()">新增费用</el-button>
+    </FilterBar>
     <!-- 批量操作栏 -->
     <div class="batch-bar" v-if="selectedIds.length > 0">
       <span class="batch-info">已选 {{ selectedIds.length }} 项</span>
@@ -38,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -128,7 +129,6 @@ onMounted(() => { loadBookOptions(); fetchData(); });
 
 <style lang="scss" scoped>
 .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
-.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border-radius: 6px; border: 1px solid $brand-100; }
 .batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

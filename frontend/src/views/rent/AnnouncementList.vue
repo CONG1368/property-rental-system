@@ -19,23 +19,21 @@
     </div>
 
     <!-- 工具栏 -->
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="filters.keyword" placeholder="搜索标题/内容" clearable style="width:220px" @keyup.enter="fetchData" />
-        <el-select v-model="filters.status" placeholder="状态" clearable style="width:130px" @change="fetchData">
-          <el-option label="草稿" value="草稿" />
-          <el-option label="已发布" value="已发布" />
-          <el-option label="已撤回" value="已撤回" />
-        </el-select>
-        <el-select v-model="filters.category" placeholder="类别" clearable style="width:130px" @change="fetchData">
-          <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-        </el-select>
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-input v-model="filters.keyword" placeholder="搜索标题/内容" clearable style="width:220px" @keyup.enter="fetchData" />
+      <el-select v-model="filters.status" placeholder="状态" clearable style="width:130px" @change="fetchData">
+      <el-option label="草稿" value="草稿" />
+      <el-option label="已发布" value="已发布" />
+      <el-option label="已撤回" value="已撤回" />
+      </el-select>
+      <el-select v-model="filters.category" placeholder="类别" clearable style="width:130px" @change="fetchData">
+      <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
+      </el-select>
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showDialog(null)">新建公告</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <!-- 表格 -->
     <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无公告" empty-description="发布公告后可推送给指定楼栋或全部住户" style="margin-top:12px">
@@ -80,6 +78,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -191,10 +190,6 @@ onMounted(() => { fetchStats(); fetchProperties(); fetchData(); });
       &.published { border-left: 4px solid $ok-600; }
       &.draft { border-left: 4px solid $warn-600; }
     }
-  }
-  .toolbar {
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:10px;
-    .search-group { display: flex; gap:10px; align-items: center; flex-wrap: wrap; }
   }
 }
 </style>

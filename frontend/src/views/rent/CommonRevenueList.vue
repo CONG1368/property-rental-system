@@ -26,23 +26,21 @@
 
     <el-card>
       <!-- 工具栏 -->
-      <div class="toolbar">
-        <div class="search-group">
-          <el-input v-model="keyword" placeholder="搜索项目/收款方" clearable style="width:200px" @keyup.enter="fetchData" @clear="fetchData" />
-          <el-select v-model="filterType" placeholder="收益类型" clearable style="width:150px" @change="fetchData">
-            <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
-          </el-select>
-          <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
-            <el-option label="应收" value="应收" />
-            <el-option label="已入账" value="已入账" />
-            <el-option label="已核销" value="已核销" />
-          </el-select>
-          <el-button type="primary" @click="fetchData">查询</el-button>
-        </div>
-        <div class="action-group">
+      <FilterBar>
+        <el-input v-model="keyword" placeholder="搜索项目/收款方" clearable style="width:200px" @keyup.enter="fetchData" @clear="fetchData" />
+        <el-select v-model="filterType" placeholder="收益类型" clearable style="width:150px" @change="fetchData">
+        <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
+        </el-select>
+        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
+        <el-option label="应收" value="应收" />
+        <el-option label="已入账" value="已入账" />
+        <el-option label="已核销" value="已核销" />
+        </el-select>
+        <el-button type="primary" @click="fetchData">查询</el-button>
+        <template #actions>
           <el-button type="primary" @click="showDialog(null)">新增收益</el-button>
-        </div>
-      </div>
+        </template>
+      </FilterBar>
 
       <!-- 表格 -->
       <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无公共收益" empty-description="录入广告位、场地租赁等公共收益记录" style="margin-top:12px">
@@ -109,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -260,6 +259,4 @@ onMounted(() => {
   &.receivable { border-left-color: $warn-600; .stat-value { color: $warn-600; } }
   &.received { border-left-color: $ok-600; .stat-value { color: $ok-600; } }
 }
-.toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-.search-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 </style>

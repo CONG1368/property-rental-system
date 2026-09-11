@@ -10,17 +10,17 @@
 
     <el-tabs v-model="activeTab">
       <el-tab-pane label="车位管理" name="spaces">
-        <div class="toolbar">
-          <div class="search-group">
-            <el-input v-model="searchKeyword" placeholder="搜索车位号/车牌" clearable style="width:200px" @keyup.enter="fetchSpaces" />
-            <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchSpaces">
-              <el-option label="空闲" value="空闲" /><el-option label="占用" value="占用" />
-              <el-option label="月租" value="月租" /><el-option label="维修" value="维修" /><el-option label="停用" value="停用" />
-            </el-select>
-            <el-button type="primary" @click="fetchSpaces">查询</el-button>
-          </div>
-          <div class="action-group"><el-button type="primary" @click="showCreate">新增车位</el-button></div>
-        </div>
+        <FilterBar>
+          <el-input v-model="searchKeyword" placeholder="搜索车位号/车牌" clearable style="width:200px" @keyup.enter="fetchSpaces" />
+          <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchSpaces">
+          <el-option label="空闲" value="空闲" /><el-option label="占用" value="占用" />
+          <el-option label="月租" value="月租" /><el-option label="维修" value="维修" /><el-option label="停用" value="停用" />
+          </el-select>
+          <el-button type="primary" @click="fetchSpaces">查询</el-button>
+          <template #actions>
+            <div class="action-group"><el-button type="primary" @click="showCreate">新增车位</el-button></div>
+          </template>
+        </FilterBar>
         <DataTable :data="spaces" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="spacePage" :total="spaceTotal" :page-size="pageSize" @page-change="fetchSpaces" empty-title="暂无车位" empty-description="登记车位后可管理租售与进出记录">
           <template #c4="{ row }">{{ row.property?.name }}</template>
           <template #c5="{ row }">{{ fmt(row.pricePerMonth) }}</template>
@@ -76,6 +76,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -188,7 +189,4 @@ onMounted(() => { fetchSpaces(); fetchRecords(); });
 .stat-num.mon { color: $brand-600; }
 .stat-num.mending { color: $warn-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 </style>

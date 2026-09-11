@@ -1,12 +1,10 @@
 <template>
   <div class="renewal-list">
-    <div class="toolbar">
       <h2 class="page-title">续约管理</h2>
-      <div class="search-group">
-        <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" style="width:260px" @change="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-    </div>
+    <FilterBar>
+      <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" style="width:260px" @change="fetchData" />
+      <el-button type="primary" @click="fetchData">查询</el-button>
+    </FilterBar>
 
     <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
       <template #c2="{ row }">{{ row.property?.name || '-' }}</template>
@@ -34,6 +32,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -105,6 +104,4 @@ onMounted(() => { fetchData(); });
 
 <style lang="scss" scoped>
 .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; flex: 1; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; }
 </style>

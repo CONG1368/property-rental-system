@@ -1,16 +1,16 @@
 <template>
   <div class="contract-list">
     <h2 class="page-title">合同管理</h2>
-    <div class="toolbar">
+    <FilterBar>
       <el-select v-model="filterStatus" placeholder="状态筛选" clearable style="width:130px" @change="fetchData">
-        <el-option label="起草中" value="起草中" /><el-option label="审批中" value="审批中" />
-        <el-option label="已签订" value="已签订" /><el-option label="执行中" value="执行中" />
-        <el-option label="已到期" value="已到期" /><el-option label="已驳回" value="已驳回" />
-        <el-option label="已终止" value="已终止" />
+      <el-option label="起草中" value="起草中" /><el-option label="审批中" value="审批中" />
+      <el-option label="已签订" value="已签订" /><el-option label="执行中" value="执行中" />
+      <el-option label="已到期" value="已到期" /><el-option label="已驳回" value="已驳回" />
+      <el-option label="已终止" value="已终止" />
       </el-select>
       <el-button type="primary" @click="fetchData">查询</el-button>
-      <el-button type="primary" style="margin-left:auto" @click="$router.push('/contract/draft')">起草合同</el-button>
-    </div>
+      <el-button type="primary" @click="$router.push('/contract/draft')">起草合同</el-button>
+    </FilterBar>
 
     <!-- 批量操作栏 -->
     <div class="batch-bar" v-if="selectedIds.length > 0">
@@ -92,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -277,7 +278,6 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
-.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border-radius: 6px; border: 1px solid $brand-100; }
 .batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

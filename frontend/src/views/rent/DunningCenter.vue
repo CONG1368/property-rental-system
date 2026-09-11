@@ -1,12 +1,13 @@
 <template>
   <div class="dunning-center">
-    <div class="toolbar">
-      <h2 class="page-title">智能催缴中心</h2>
-      <div class="actions">
+    <PageHeader title="智能催缴中心">
+      <template #actions>
+        <div class="actions">
         <el-button type="primary" @click="showStrategyDialog">催缴策略配置</el-button>
         <el-button type="success" @click="batchDispatch" :disabled="selectedIds.length === 0">批量发送 ({{ selectedIds.length }})</el-button>
-      </div>
-    </div>
+        </div>
+      </template>
+    </PageHeader>
 
     <el-row :gutter="16">
       <el-col :span="16">
@@ -88,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/base/PageHeader.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -204,7 +206,6 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .actions { display: flex; gap: 8px; }
 .text-muted { color: $n-600; font-size: 10px; }
 .aging-item { margin-bottom: 16px; }

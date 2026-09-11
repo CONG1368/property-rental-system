@@ -21,31 +21,29 @@
     </div>
 
     <!-- 工具栏 -->
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索门锁名称/序列号" clearable style="width:220px" @keyup.enter="fetchData" />
-        <el-select v-model="filterCategory" placeholder="门锁品类" clearable style="width:140px" @change="fetchData">
-          <el-option label="智能门锁" value="智能门锁" />
-          <el-option label="传统门锁" value="传统门锁" />
-        </el-select>
-        <el-select v-model="filterPropertyId" placeholder="所属房源" clearable filterable style="width:180px" @change="fetchData">
-          <el-option v-for="p in propertyList" :key="p.id" :label="p.name" :value="p.id" />
-        </el-select>
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
-          <el-option v-if="filterCategory !== '传统门锁'" label="在线" value="在线" />
-          <el-option v-if="filterCategory !== '传统门锁'" label="离线" value="离线" />
-          <el-option v-if="filterCategory !== '传统门锁'" label="故障" value="故障" />
-          <el-option v-if="filterCategory !== '传统门锁'" label="未激活" value="未激活" />
-          <el-option v-if="filterCategory !== '智能门锁'" label="正常" value="正常" />
-          <el-option v-if="filterCategory !== '智能门锁'" label="需维修" value="需维修" />
-          <el-option v-if="filterCategory !== '智能门锁'" label="已报废" value="已报废" />
-        </el-select>
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索门锁名称/序列号" clearable style="width:220px" @keyup.enter="fetchData" />
+      <el-select v-model="filterCategory" placeholder="门锁品类" clearable style="width:140px" @change="fetchData">
+      <el-option label="智能门锁" value="智能门锁" />
+      <el-option label="传统门锁" value="传统门锁" />
+      </el-select>
+      <el-select v-model="filterPropertyId" placeholder="所属房源" clearable filterable style="width:180px" @change="fetchData">
+      <el-option v-for="p in propertyList" :key="p.id" :label="p.name" :value="p.id" />
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
+      <el-option v-if="filterCategory !== '传统门锁'" label="在线" value="在线" />
+      <el-option v-if="filterCategory !== '传统门锁'" label="离线" value="离线" />
+      <el-option v-if="filterCategory !== '传统门锁'" label="故障" value="故障" />
+      <el-option v-if="filterCategory !== '传统门锁'" label="未激活" value="未激活" />
+      <el-option v-if="filterCategory !== '智能门锁'" label="正常" value="正常" />
+      <el-option v-if="filterCategory !== '智能门锁'" label="需维修" value="需维修" />
+      <el-option v-if="filterCategory !== '智能门锁'" label="已报废" value="已报废" />
+      </el-select>
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showCreateDialog()">注册门锁</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <!-- 表格 -->
     <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无门锁设备" empty-description="登记智能门锁或传统门锁后，可在此统一管理密码与钥匙" style="margin-top:12px">
@@ -261,6 +259,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -547,10 +546,6 @@ function goDetail(id: number) {
       &.traditional { border-left: 4px solid $n-600; }
       &.warning { border-left: 4px solid $warn-600; .stat-value { color: $warn-600; } }
     }
-  }
-  .toolbar {
-    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap:10px;
-    .search-group { display: flex; gap:10px; align-items: center; flex-wrap: wrap; }
   }
 }
 </style>

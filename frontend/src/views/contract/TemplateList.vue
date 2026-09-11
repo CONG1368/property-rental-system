@@ -1,9 +1,10 @@
 <template>
   <div class="template-list">
-    <div class="toolbar">
-      <h2 class="page-title">合同模板管理</h2>
-      <el-button type="primary" @click="showDialog()">新增模板</el-button>
-    </div>
+    <PageHeader title="合同模板管理">
+      <template #actions>
+        <el-button type="primary" @click="showDialog()">新增模板</el-button>
+      </template>
+    </PageHeader>
 
     <!-- 批量操作栏 -->
     <div class="batch-bar" v-if="selectedIds.length > 0">
@@ -50,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/base/PageHeader.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -150,7 +152,6 @@ onMounted(() => { fetchData(); });
 
 <style lang="scss" scoped>
 .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; flex: 1; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border-radius: 6px; border: 1px solid $brand-100; }
 .batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

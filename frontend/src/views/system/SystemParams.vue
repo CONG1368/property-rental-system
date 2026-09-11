@@ -1,12 +1,13 @@
 <template>
   <div class="system-params">
-    <div class="toolbar">
-      <h2 class="page-title">系统参数中心</h2>
-      <el-button type="primary" @click="openCreate">新增配置项</el-button>
-      <el-button @click="fetchData" :loading="loading">刷新</el-button>
-      <el-switch v-model="hideTech" active-text="隐藏内置技术键" inactive-text="显示全部" style="margin-left:12px" />
-      <span style="font-size:12px;color:var(--n-600)">本页仅面向开发/运维对接；业务配置请到各业务页（读卡器/水电表/打印/系统运维）操作</span>
-    </div>
+    <PageHeader title="系统参数中心">
+      <template #actions>
+        <el-button type="primary" @click="openCreate">新增配置项</el-button>
+        <el-button @click="fetchData" :loading="loading">刷新</el-button>
+        <el-switch v-model="hideTech" active-text="隐藏内置技术键" inactive-text="显示全部" style="margin-left:12px" />
+        <span style="font-size:12px;color:var(--n-600)">本页仅面向开发/运维对接；业务配置请到各业务页（读卡器/水电表/打印/系统运维）操作</span>
+      </template>
+    </PageHeader>
 
     <el-row :gutter="16">
       <el-col :span="6">
@@ -69,6 +70,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/base/PageHeader.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -188,7 +190,6 @@ onMounted(fetchData);
 </script>
 
 <style lang="scss" scoped>
-.toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
 .page-title { font-size:18px; font-weight:700; color:$n-900; margin:0; }
 .group-item {
   padding:10px 12px; border-radius:6px; cursor:pointer; margin-bottom:6px;

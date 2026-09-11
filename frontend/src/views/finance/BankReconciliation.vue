@@ -7,18 +7,18 @@
       <el-col :span="6"><div class="stat-card"><div class="stat-num warn">{{ fmt(result.difference) }}</div><div class="stat-label">差异金额</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
+    <FilterBar>
       <el-select v-model="bankFormat" placeholder="银行格式" style="width:150px">
-        <el-option label="通用" value="generic" /><el-option label="工商银行" value="icbc" />
-        <el-option label="建设银行" value="ccb" /><el-option label="中国银行" value="boc" /><el-option label="招商银行" value="cmb" />
+      <el-option label="通用" value="generic" /><el-option label="工商银行" value="icbc" />
+      <el-option label="建设银行" value="ccb" /><el-option label="中国银行" value="boc" /><el-option label="招商银行" value="cmb" />
       </el-select>
       <el-date-picker v-model="dateRange" type="daterange" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width:260px" />
       <el-upload :show-file-list="false" :auto-upload="false" :on-change="onFileChange" accept=".xlsx,.xls,.csv">
-        <el-button type="primary">选择对账单文件</el-button>
+      <el-button type="primary">选择对账单文件</el-button>
       </el-upload>
       <span v-if="fileName" class="file-name">{{ fileName }}</span>
       <el-button type="success" :loading="loading" :disabled="!file" @click="runReconcile">执行对账</el-button>
-    </div>
+    </FilterBar>
 
     <div v-if="result.unmatched?.length" class="unmatched-box">
       <h4>未匹配明细（{{ result.unmatched.length }} 条）</h4>
@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -82,7 +83,6 @@ async function runReconcile() {
 .stat-num.unmatched { color: $bad-600; }
 .stat-num.warn { color: $warn-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .file-name { color: $brand-600; font-size: 13px; }
 .unmatched-box { margin-top: 12px; }
 .unmatched-box h4 { margin: 0 0 8px; color: $bad-600; }

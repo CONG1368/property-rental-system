@@ -7,21 +7,19 @@
       <el-col :span="6"><div class="stat-card"><div class="stat-num">{{ fmt(stats.issuedAmount) }}</div><div class="stat-label">开票金额</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-select v-model="filterType" placeholder="类型" clearable style="width:150px" @change="fetchData">
-          <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
-        </el-select>
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
-          <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
-        </el-select>
-        <el-input v-model="searchKeyword" placeholder="搜索发票号/标题/购方/税号/开票公司" clearable style="width:260px" @keyup.enter="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-select v-model="filterType" placeholder="类型" clearable style="width:150px" @change="fetchData">
+      <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
+      <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
+      </el-select>
+      <el-input v-model="searchKeyword" placeholder="搜索发票号/标题/购方/税号/开票公司" clearable style="width:260px" @keyup.enter="fetchData" />
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showDialog()">新增开票</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无发票" empty-description="开票申请通过后发票会显示在这里">
       <template #c3="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template>
@@ -54,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -182,7 +181,4 @@ onMounted(() => { fetchData(); });
 .stat-num.warn { color: $warn-600; }
 .stat-num.done { color: $ok-600; }
 .stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
 </style>
