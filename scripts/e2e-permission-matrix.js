@@ -27,7 +27,8 @@ async function run() {
   await page.waitForTimeout(1000);
 
   // 1. role select + alert
-  await page.click('.toolbar .el-select');
+  // 工具栏已迁到 FilterBar，选择器兼容两种形态（.filter-bar 为新形态）
+  await page.click('.filter-bar .el-select, .toolbar .el-select');
   await page.waitForTimeout(400);
   await page.locator('.el-select-dropdown__item', { hasText: '管理员' }).first().click();
   await page.waitForTimeout(600);
