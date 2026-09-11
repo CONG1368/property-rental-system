@@ -656,7 +656,7 @@ off('room:status-changed', callback);
 | `RoomDashboard.vue` | `/rent/room-kanban/dashboard` | 数据大屏：暗色主题，KPI 卡片 + ECharts 可视化（玫瑰饼图/柱图/仪表盘/热力图/趋势线/桑基图 + 告警跑马灯） |
 | `RoomBatchGenerate.vue` | `/rent/room-kanban/batch-gen` | 批量生成房间表单：配置楼栋名称、起止楼层、每层房间数、命名规则、默认面积 |
 
-**7 个组件**（`frontend/src/components/`）：`RoomCard`（9 状态色 + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，未挂载使用）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
+**7 个组件**（`frontend/src/components/`）：`RoomCard`（9 状态色 + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，已改为 `DataTable` 实现；**当前仍未挂载**，若启用需接 `rooms`/`loading` 并监听 `room-click`/`status-edit`/`selection-change`）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
 
 **数据流**：
 1. `RoomStatusKanban` 调用 `GET /properties/rooms/kanban` 获取完整数据（含楼栋分组、楼层分组、门锁、租客关联）
@@ -775,7 +775,7 @@ off('room:status-changed', callback);
 
 **7. 无障碍（WCAG 2.1 AA）**：v2 的 **600 档即文字安全档**（`$brand-600` 白字 7.22:1、`$n-600` 次要文字 5.23:1、语义 600 档 5.94–7.37:1），v1 的独立 `-text` 变体体系已被吸收，不再单列。控件边界用 `$n-400`（3.21:1，满足 SC 1.4.11）；`$n-200` 仅作分割线（装饰性豁免）。
 
-自检门禁：`node scripts/check-contrast.cjs`（41 条清单，41/41 + 2 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0，新增页面不得再写 `<el-table>`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演）。
+自检门禁：`node scripts/check-contrast.cjs`（41 条清单，41/41 + 2 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0 且统计 `frontend/src` 全量，新增页面/组件不得再写 `<el-table>`，豁免仅 `base/DataTable.vue` 与 `modules/finance/VoucherEntryRows.vue`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演，扫描范围仅 `views/`）。
 
 ### 依赖漏洞治理（当前状态与决策）
 
@@ -854,7 +854,7 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `theme-migrate-v2.cjs` | 令牌 v2 存量色值迁移（`--dry` 预演；按上下文产出 $令牌 / var() / tokens.x） |
 | `apply-loading-states.cjs` | 批量为列表页注入骨架屏 + 统一空态（`--dry` 预演） |
 | `verify-table-density.cjs` | 第 5 周门槛：三档密度布局验收（14 用例） |
-| `verify-page-conventions.cjs` | 页面约定门禁（组件采用率 + 禁止复制玻璃/工具栏样式；棘轮基线 toolbarViews=40、**inlineTableView=0**） |
+| `verify-page-conventions.cjs` | 页面约定门禁（组件采用率 + 禁止复制玻璃/工具栏样式）；棘轮统计 **`frontend/src` 全量**（不只 views/，防止挪进 components/ 重生），基线 toolbarViews=40、**inlineTableView=0**；豁免仅 `base/DataTable.vue`（封装层自身）与 `modules/finance/VoucherEntryRows.vue`（可编辑录入网格） |
 | `migrate-tables-to-datatable.cjs` | 内联 `<el-table>` → `DataTable` 批量迁移（`--dry` 预演 / `--only=X` 单页；一页多表多轮处理；动态列 `v-for`/`:label`/`:prop` 自动跳过需手工迁移） |
 | `gen-tokens-ts.cjs` | 从 variables.scss 生成 JS 令牌镜像（oklch→sRGB） |
 | `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（46 条清单，可作 CI 门禁） |

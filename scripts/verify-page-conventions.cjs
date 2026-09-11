@@ -6,8 +6,10 @@
 //   P2 视图不得使用 backdrop-filter（玻璃只允许在 global.scss 与外壳组件里）
 //   P3 base/ 组件不得 import modules/
 // 棘轮规则（不得比基线更差；迁移有进展时把基线调低）：
-//   P4 自行声明 .toolbar / .search-group 样式的视图数 <= BASELINE
-//   P5 使用内联 <el-table> 的视图数 <= BASELINE
+//   P4 自行声明 .toolbar / .search-group 样式的文件数 <= BASELINE
+//   P5 使用内联 <el-table> 的文件数 <= BASELINE
+// 棘轮统计范围 = frontend/src 全量（不只 views/），防止把内联表或工具栏样式挪进 components/ 重生；
+// 豁免清单见 RATCHET_EXEMPT_*，每条都必须写明理由。
 // 参考指标（只打印，不判定）：DataTable / FilterBar 采用率。
 const fs = require('fs');
 const path = require('path');
@@ -15,6 +17,16 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const VIEWS = path.join(root, 'frontend/src/views');
 const BASE = path.join(root, 'frontend/src/components/base');
+const SRC = path.join(root, 'frontend/src');
+
+// —— 棘轮豁免清单（每条都必须有理由，禁止随手加）——
+// P4：应用外壳本身就是工具栏，天然拥有 .toolbar 样式
+const RATCHET_EXEMPT_TOOLBAR = ['frontend/src/components/layout/', 'frontend/src/components/surfaces/'];
+// P5：① DataTable 自身就是 el-table 的封装层；② 可编辑录入网格（行内是 input/select/number）不适合 DataTable（只读展示件）
+const RATCHET_EXEMPT_TABLE = [
+  'frontend/src/components/base/DataTable.vue',
+  'frontend/src/components/modules/finance/VoucherEntryRows.vue',
+];
 
 // —— 棘轮基线（迁移推进后请调低；数字只许降不许升）——
 const BASELINE = { toolbarViews: 40, inlineTableView: 0 };
@@ -80,18 +92,20 @@ function checkBaseDependencyDirection() {
 
 // —— P4/P5 棘轮 ——
 function checkRatchet() {
-  const files = walk(VIEWS, ['.vue']);
+  const files = walk(SRC, ['.vue']);
   let toolbar = 0; let inlineTable = 0; let dataTable = 0; let filterBar = 0;
+  const hitToolbar = []; const hitTable = [];
   for (const f of files) {
+    const r = rel(f);
     const t = fs.readFileSync(f, 'utf-8');
-    if (/\.toolbar\s*\{|\.search-group\s*\{/.test(t)) toolbar++;
-    if (/<el-table[ >]/.test(t)) inlineTable++;
+    if (!RATCHET_EXEMPT_TOOLBAR.some((p) => r.startsWith(p)) && /\.toolbar\s*\{|\.search-group\s*\{/.test(t)) { toolbar++; hitToolbar.push(r); }
+    if (!RATCHET_EXEMPT_TABLE.includes(r) && /<el-table[\s>]/.test(t)) { inlineTable++; hitTable.push(r); }
     if (/<DataTable/.test(t)) dataTable++;
     if (/<FilterBar/.test(t)) filterBar++;
   }
-  ok('P4 自写 .toolbar/.search-group 样式的视图数 <= ' + BASELINE.toolbarViews, toolbar > BASELINE.toolbarViews ? ['当前 ' + toolbar + ' > 基线 ' + BASELINE.toolbarViews] : [], '当前 ' + toolbar);
-  ok('P5 内联 <el-table> 的视图数 <= ' + BASELINE.inlineTableView, inlineTable > BASELINE.inlineTableView ? ['当前 ' + inlineTable + ' > 基线 ' + BASELINE.inlineTableView] : [], '当前 ' + inlineTable);
-  console.log('参考: 视图总数 ' + files.length + ' ｜ DataTable 采用 ' + dataTable + ' ｜ FilterBar 采用 ' + filterBar);
+  ok('P4 自写 .toolbar/.search-group 样式的文件数 <= ' + BASELINE.toolbarViews, toolbar > BASELINE.toolbarViews ? hitToolbar : [], '当前 ' + toolbar);
+  ok('P5 内联 <el-table> 的文件数 <= ' + BASELINE.inlineTableView, inlineTable > BASELINE.inlineTableView ? hitTable : [], '当前 ' + inlineTable);
+  console.log('参考: 扫描文件 ' + files.length + ' ｜ DataTable 采用 ' + dataTable + ' ｜ FilterBar 采用 ' + filterBar);
 }
 
 console.log('=== 页面约定门禁 ===');
