@@ -66,6 +66,8 @@ node scripts/generate-manual-pdf.js
 
 **版本号**：仅根目录 `package.json` 中的 `version` 字段决定打包版本号。发版前先修改此字段，然后执行 `npm run build` 全量构建。构建产物输出到 `release/` 目录（NSIS exe + zip + blockmap）。
 
+**前端 dev 与 build 不要并行（踩过的坑）**：dev server 运行中若在同目录跑 `npm run build:frontend`，Dart Sass 会在源文件旁写 `.xxx.scss.<pid>.<uuid>.tmpdir/` 临时目录，而 Vite 的 FSWatcher 又去 watch 它 → `EBUSY: resource busy or locked` → watcher 抛错未捕获，**dev 进程直接退出（exit 1）**。改动 `variables.scss` 时最容易触发。要构建就先停 dev。
+
 ## 技术栈
 
 | 层 | 技术 | 关键版本 |
@@ -760,7 +762,7 @@ off('room:status-changed', callback);
 
 **2. Element Plus 覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary: $brand-600`、`--el-fill-color-blank: $n-0`（取消半透明填充）、`--el-border-color: $n-400`（控件边界 ≥3:1）、`--el-border-radius-base: $r-box`；同时输出 `--n-*`/`--brand-*`/`--glass`/`--sh-*` 的 CSS 变量镜像，供内联样式与 JS 使用。
 
-**3. 材质：玻璃只留给应用外壳**（顶栏 / 侧栏 / 抽屉 / 弹层），内容卡片一律**净表面**（`$n-0` + 1px `$n-200` + 无模糊无阴影），统一由 `global.scss` 的 `.surface` 定义，**禁止逐页复制**。门禁要求全站 `backdrop-filter` 模糊区 ≤4。
+**3. 材质：玻璃只留给侧栏 / 抽屉 / 弹层；顶栏为品牌实色**（`$brand-600` + 白字，实测 7.22:1；这是**唯一允许大面积使用品牌色的位置**），内容卡片一律**净表面**（`$n-0` + 1px `$n-200` + 无模糊无阴影），统一由 `global.scss` 的 `.surface` 定义，**禁止逐页复制**。门禁要求全站 `backdrop-filter` 模糊区 ≤4（当前 2 处：侧栏 + 弹层）。
 
 **4. ANTI-EMOJI（铁律）**：UI 与代码中禁用 emoji，一律用 `@element-plus/icons-vue` 线性图标。
 - `utils/avatars.ts` 为图标方案：`avatarIcons` + `roleAvatars` + `presetAvatars` + **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容库里已存的 emoji 头像）。

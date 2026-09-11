@@ -4,7 +4,7 @@
  * ============================================================
  * 令牌来源：frontend/src/styles/variables.scss（脚本解析 oklch 并转 sRGB，与令牌保持同步）。
  * 背景模型：v2 已取消「玻璃卡片」，页面底为 $n-50、卡片/弹层/输入为 $n-0；
- *           仅顶栏/侧栏/抽屉/弹层允许玻璃（$glass 合成到页面底）。
+ *           仅侧栏/抽屉/弹层允许玻璃；顶栏为品牌实色（$brand-600）。
  *
  * 算法：sRGB 线性化 → 相对亮度 L = .2126R+.7152G+.0722B → 对比度 (L1+.05)/(L2+.05)
  * 阈值：正文 >=4.5:1 ｜ 大字 >=3.0:1 ｜ UI 件 >=3.0:1（WCAG 2.1 AA / SC 1.4.11）
@@ -104,7 +104,7 @@ const KIND_LABEL = { normal: '正文', large: '大字', ui: 'UI件' };
 
 const PAGE = need('n-50');   // 页面底
 const CARD = need('n-0');    // 卡片 / 弹层 / 输入（净表面）
-// 顶栏与侧栏同材质：玻璃合成到页面底（浅色外壳）
+// 顶栏为品牌实色；侧栏仍为玻璃合成到页面底
 const GLASS = RAW['glass'];  // 侧栏/弹层玻璃面
 
 const SURFACES = {
@@ -113,7 +113,8 @@ const SURFACES = {
   dialog: { name: '弹层 ' + CARD, layers: [CARD] },
   input: { name: '输入框 ' + CARD, layers: [CARD] },
   tableHead: { name: '表头 ' + PAGE, layers: [PAGE] },
-  shell: { name: '顶栏玻璃@页面底', layers: [PAGE, GLASS] },
+  shell: { name: '顶栏品牌底', layers: [need('brand-600')] },
+  shellHover: { name: '顶栏品牌底 hover', layers: [need('brand-700')] },
   sidebar: { name: '侧栏玻璃@页面底', layers: [PAGE, GLASS] },
   brandFill: { name: '主按钮底 ' + T['brand-600'], layers: [T['brand-600']] },
   brandFillHover: { name: '主按钮 hover ' + T['brand-700'], layers: [T['brand-700']] },
@@ -173,10 +174,10 @@ const CHECKLIST = [
   // 中性 + 斜纹 chip：文字会同时压在底色与斜纹上，两处都要过
   { scene: 'n-900 on n-100（斜纹底）', fg: need('n-900'), surface: 'nFill100', kind: 'normal' },
   { scene: 'n-900 on n-300（斜纹纹）', fg: need('n-900'), surface: 'nFill300', kind: 'normal' },
-  // 顶栏（浅色玻璃外壳，与侧栏一致）
-  { scene: '顶栏正文', fg: need('n-900'), surface: 'shell', kind: 'normal' },
-  { scene: '顶栏次要图标/文字', fg: need('n-700'), surface: 'shell', kind: 'normal' },
-  { scene: '顶栏主色徽标', fg: need('brand-600'), surface: 'shell', kind: 'normal' },
+  // 顶栏（品牌实色面）
+  { scene: '顶栏白字', fg: WHITE, surface: 'shell', kind: 'normal' },
+  { scene: '顶栏弱化白字(.72)', fg: 'rgba(255,255,255,.72)', surface: 'shell', kind: 'normal' },
+  { scene: '顶栏白字 vs hover 底', fg: WHITE, surface: 'shellHover', kind: 'normal' },
   // 侧栏（玻璃合成后）
   { scene: '侧栏文字', fg: need('n-700'), surface: 'sidebar', kind: 'normal' },
   { scene: '侧栏主色文字', fg: need('brand-600'), surface: 'sidebar', kind: 'normal' },

@@ -64,7 +64,7 @@
 ### 3.5 非颜色令牌
 
 - 阴影三档：`$sh-0`（无）/ `$sh-1`（浮起，必须对应真实可点击）/ `$sh-2`（覆盖：弹层 / 抽屉）
-- 玻璃：`$glass`（**仅顶栏 / 侧栏 / 抽屉 / 弹层可用**）；遮罩 `$scrim`
+- 玻璃：`$glass`（**仅侧栏 / 抽屉 / 弹层可用**）；**顶栏为品牌实色 `$brand-600`**——这是唯一允许大面积使用品牌色的位置；遮罩 `$scrim`
 - 字号三级：`$fs-page 22` / `$fs-section 15` / `$fs-body 13.5`（中文下限）/ `$fs-meta 12`；行高 `$lh-body 1.7`
 - 字体：`$font-display` / `$font-body` / `$font-mono`
 - 圆角：`$r-ctl 6`（控件）/ `$r-box 10`（卡片）/ `$r-panel 14`（面板）——**控件圆角恒小于容器**
@@ -127,7 +127,7 @@ components/
 1. 在令牌文件之外出现 `#hex` / `oklch()` / `rgb(a)`（R2 门禁）
 2. 令牌名里出现模块名（`--fire-*`、`--rent-*`）
 3. 浅档（100–300）上放白字，或深档（600–700）上放墨字
-4. 玻璃 / `backdrop-filter` 用在内容区卡片上（**仅顶栏、侧栏、抽屉、弹层**；全站模糊区 ≤4）
+4. 玻璃 / `backdrop-filter` 用在内容区卡片上（**仅侧栏、抽屉、弹层**；顶栏为 `$brand-600` 实色；全站模糊区 ≤4，当前 2 处）
 5. 重写 `EmptyState` / `TableSkeleton` / `components/print/`
 6. 列表页重复声明 `.toolbar` / `.search-group` 样式与内联 `<el-table>`（**已全部清零**：87 个视图 / 95 张表统一走 `DataTable`；门禁 P5 基线 = 0 且扫描范围是 **`frontend/src` 全量**（不只 `views/`），写回内联表即失败。唯二豁免：`base/DataTable.vue`（封装层自身）、`modules/finance/VoucherEntryRows.vue`（可编辑录入网格，`DataTable` 是只读展示件））
 7. `<style>` 里用 `$令牌` 却不写 `lang="scss"`——块会按**纯 CSS** 编译：变量原样进产物、被浏览器静默丢弃（**曾致 16 个文件 95 处声明失效**，`DataTable`/`PageHeader`/`MoneyText`/`RoomCard` 等都在内），且块内 `//` 注释会直接构建失败；由门禁 **P6** 强制
