@@ -26,7 +26,7 @@
     <el-table-column label="门锁" width="100">
       <template #default="{ row }">
         <span v-if="row.doorLocks?.length">
-          <el-icon :size="16" :color="row.doorLocks[0].status === '在线' ? '#67C23A' : '#909399'">
+          <el-icon :size="16" :color="row.doorLocks[0].status === '在线' ? 'var(--ok-600)' : 'var(--n-600)'">
             <Lock v-if="row.doorLocks[0].status !== '在线'" />
             <Unlock v-else />
           </el-icon>
@@ -62,5 +62,5 @@ function statusTagType(status: string): string {
 </script>
 
 <style scoped>
-.text-muted { color: #c0c4cc; }
+.text-muted { color: $n-300; }
 </style>

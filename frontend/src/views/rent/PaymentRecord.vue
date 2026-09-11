@@ -19,28 +19,11 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column label="账单编号" width="150">
-        <template #default="{ row }">
-          <span v-if="row.bill">{{ row.bill.billNo }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="amount" label="收款金额" width="130">
-        <template #default="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
-      </el-table-column>
-      <el-table-column prop="channel" label="收款渠道" width="110" />
-      <el-table-column prop="transactionNo" label="交易号" width="180" show-overflow-tooltip />
-      <el-table-column prop="paidAt" label="收款时间" width="170">
-        <template #default="{ row }">{{ row.paidAt?.slice(0, 16)?.replace('T', ' ') }}</template>
-      </el-table-column>
-      <el-table-column prop="notes" label="备注" min-width="150" show-overflow-tooltip />
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c1="{ row }"><span v-if="row.bill">{{ row.bill.billNo }}</span></template>
+      <template #c2="{ row }">¥{{ Number(row.amount).toFixed(2) }}</template>
+      <template #c5="{ row }">{{ row.paidAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+    </DataTable>
 
     <el-dialog title="记录收款" v-model="payDialogVisible" width="500px">
       <el-form :model="payForm" ref="payFormRef" :rules="payRules" label-width="100px">
@@ -78,6 +61,18 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { label: '账单编号', width: 150, slot: 'c1' },
+  { prop: 'amount', label: '收款金额', width: 130, slot: 'c2' },
+  { prop: 'channel', label: '收款渠道', width: 110 },
+  { prop: 'transactionNo', label: '交易号', width: 180, tooltip: true },
+  { prop: 'paidAt', label: '收款时间', width: 170, slot: 'c5' },
+  { prop: 'notes', label: '备注', minWidth: 150, tooltip: true },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';

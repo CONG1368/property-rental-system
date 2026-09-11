@@ -17,39 +17,34 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
-      <el-table-column type="selection" width="45" />
-      <el-table-column label="账套" width="150">
-        <template #default="{ row }">{{ row.book?.name || row.bookId }}</template>
-      </el-table-column>
-      <el-table-column label="会计科目" width="180">
-        <template #default="{ row }">{{ row.account?.code }} {{ row.account?.name }}</template>
-      </el-table-column>
-      <el-table-column prop="year" label="年度" width="90" />
-      <el-table-column label="预算金额" width="150"><template #default="{ row }">¥{{ Number(row.budgetAmount || 0).toFixed(2) }}</template></el-table-column>
-      <el-table-column label="已用金额" width="150"><template #default="{ row }">¥{{ Number(row.actualAmount || 0).toFixed(2) }}</template></el-table-column>
-      <el-table-column label="执行率" width="100"><template #default="{ row }">
-        <el-progress :percentage="row.budgetAmount > 0 ? Math.min(100, Number((row.actualAmount / row.budgetAmount) * 100)) : 0" :status="row.actualAmount > row.budgetAmount ? 'exception' : undefined" />
-      </template></el-table-column>
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }"><el-tag :type="row.status === '已批准' ? 'success' : row.status === '待审核' ? 'warning' : 'info'" size="small">{{ row.status || '编制中' }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="$router.push(`/finance/budgets/edit/${row.id}`)">编辑</el-button>
-          <el-popconfirm title="确定删除?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无预算" description="编制预算并提交审批后可跟踪执行进度" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" selectable @selection-change="(rows: any[]) => selectedRows = rows" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无预算" empty-description="编制预算并提交审批后可跟踪执行进度">
+      <template #c1="{ row }">{{ row.book?.name || row.bookId }}</template>
+      <template #c2="{ row }">{{ row.account?.code }} {{ row.account?.name }}</template>
+      <template #c4="{ row }">¥{{ Number(row.budgetAmount || 0).toFixed(2) }}</template>
+      <template #c5="{ row }">¥{{ Number(row.actualAmount || 0).toFixed(2) }}</template>
+      <template #c6="{ row }"><el-progress :percentage="row.budgetAmount > 0 ? Math.min(100, Number((row.actualAmount / row.budgetAmount) * 100)) : 0" :status="row.actualAmount > row.budgetAmount ? 'exception' : undefined" /></template>
+      <template #c7="{ row }"><el-tag :type="row.status === '已批准' ? 'success' : row.status === '待审核' ? 'warning' : 'info'" size="small">{{ row.status || '编制中' }}</el-tag></template>
+      <template #c8="{ row }"><el-button size="small" @click="$router.push(`/finance/budgets/edit/${row.id}`)">编辑</el-button>
+              <el-popconfirm title="确定删除?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { label: '账套', width: 150, slot: 'c1' },
+  { label: '会计科目', width: 180, slot: 'c2' },
+  { prop: 'year', label: '年度', width: 90 },
+  { label: '预算金额', width: 150, slot: 'c4' },
+  { label: '已用金额', width: 150, slot: 'c5' },
+  { label: '执行率', width: 100, slot: 'c6' },
+  { label: '状态', width: 100, slot: 'c7' },
+  { label: '操作', width: 200, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';
@@ -100,6 +95,6 @@ onMounted(() => { fetchData(); });
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; }
 .action-group { display: flex; gap: 8px; }
-.batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff; }
-.batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }
+.batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border-radius: 6px; border: 1px solid $brand-100; }
+.batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

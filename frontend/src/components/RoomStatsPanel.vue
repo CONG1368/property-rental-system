@@ -33,14 +33,14 @@ defineProps<{ stats: Record<string, number> }>();
 .room-stats-panel { margin-bottom: 16px; }
 .kpi-cards { display: flex; gap: 16px; flex-wrap: wrap; }
 .kpi-card {
-  background: #fff; border-radius: 8px; padding: 14px 24px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06); min-width: 110px; text-align: center;
-  border-top: 3px solid #409EFF;
+  background: $n-0; border-radius: 8px; padding: 14px 24px;
+  box-shadow: 0 2px 8px $n-100; min-width: 110px; text-align: center;
+  border-top: 3px solid $brand-600;
 }
-.kpi-occupied { border-top-color: #67C23A; }
-.kpi-vacant { border-top-color: #909399; }
-.kpi-rate { border-top-color: #E6A23C; }
-.kpi-maintenance { border-top-color: #F56C6C; }
-.kpi-value { font-size: 24px; font-weight: 700; color: #303133; }
-.kpi-label { font-size: 12px; color: #909399; margin-top: 4px; }
+.kpi-occupied { border-top-color: $ok-600; }
+.kpi-vacant { border-top-color: $n-600; }
+.kpi-rate { border-top-color: $warn-600; }
+.kpi-maintenance { border-top-color: $bad-600; }
+.kpi-value { font-size: 24px; font-weight: 700; color: $n-900; }
+.kpi-label { font-size: 12px; color: $n-600; margin-top: 4px; }
 </style>

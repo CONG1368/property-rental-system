@@ -15,34 +15,36 @@
 
     <el-card>
       <template #header><span>到期日历</span><el-select v-model="viewMonth" style="width:160px; margin-left:12px" @change="fetchMonthlyData"><el-option v-for="m in months" :key="m" :label="m" :value="m" /></el-select></template>
-      <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-      <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-        <el-table-column prop="contractNo" label="合同编号" width="150" />
-        <el-table-column label="房源" width="140"><template #default="{ row }">{{ row.property?.name || '-' }}</template></el-table-column>
-        <el-table-column label="租客" width="100"><template #default="{ row }">{{ row.tenant?.name || '-' }}</template></el-table-column>
-        <el-table-column prop="endDate" label="到期日" width="110" />
-        <el-table-column label="剩余天数" width="120"><template #default="{ row }">
-          <el-tag :type="tagByRemaining(row.endDate)" size="small">
-            {{ getRemaining(row.endDate) < 0 ? '已逾期' + Math.abs(getRemaining(row.endDate)) + '天' : getRemaining(row.endDate) + '天' }}
-          </el-tag>
-        </template></el-table-column>
-        <el-table-column prop="rentAmount" label="月租金" width="120"><template #default="{ row }">¥{{ Number(row.rentAmount || 0).toFixed(2) }}</template></el-table-column>
-        <el-table-column prop="status" label="状态" width="100"><template #default="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template></el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" @click="$router.push(`/contract/detail/${row.id}`)">详情</el-button>
-            <el-button size="small" type="primary" @click="$router.push(`/contract/renewals`)">续约</el-button>
-          </template>
-        </el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c2="{ row }">{{ row.property?.name || '-' }}</template>
+        <template #c3="{ row }">{{ row.tenant?.name || '-' }}</template>
+        <template #c5="{ row }"><el-tag :type="tagByRemaining(row.endDate)" size="small">
+                  {{ getRemaining(row.endDate) < 0 ? '已逾期' + Math.abs(getRemaining(row.endDate)) + '天' : getRemaining(row.endDate) + '天' }}
+                </el-tag></template>
+        <template #c6="{ row }">¥{{ Number(row.rentAmount || 0).toFixed(2) }}</template>
+        <template #c7="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template>
+        <template #c8="{ row }"><el-button size="small" @click="$router.push(`/contract/detail/${row.id}`)">详情</el-button>
+                  <el-button size="small" type="primary" @click="$router.push(`/contract/renewals`)">续约</el-button></template>
+      </DataTable>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'contractNo', label: '合同编号', width: 150 },
+  { label: '房源', width: 140, slot: 'c2' },
+  { label: '租客', width: 100, slot: 'c3' },
+  { prop: 'endDate', label: '到期日', width: 110 },
+  { label: '剩余天数', width: 120, slot: 'c5' },
+  { prop: 'rentAmount', label: '月租金', width: 120, slot: 'c6' },
+  { prop: 'status', label: '状态', width: 100, slot: 'c7' },
+  { label: '操作', width: 160, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import request from '@/api/request';
 import { useWebSocket } from '@/composables/useWebSocket';
@@ -132,5 +134,5 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 </style>

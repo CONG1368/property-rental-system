@@ -96,16 +96,25 @@ class RealIdCardProvider implements IdCardReaderProvider {
       throw new Error(result?.error || '读卡失败');
     }
     const wz = result.data || {};
-    const idNumber = String(wz.idNumber || '').trim();
+    // 华视 SDK GetPeopleIDCode 缓冲区结尾常带 NUL(\0)，必须剔除——否则内联进 SQL 会截断语句
+    const idNumber = String(wz.idNumber || '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
     if (!idNumber) { this.log({ action: 'readCard', deviceId, result: 'fail', mock: false, error: '为空身份证号' }); throw new Error('未读取到身份证信息'); }
 
+    // 8 位日期（如 20000204）规范化为 YYYY-MM-DD，兼容 SDK GetStartDate/GetEndDate 返回格式
+    const normDate = (s: string): string => {
+      const v = String(s || '').trim();
+      return /^\d{8}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}` : v;
+    };
+    const range = String(wz.dateRange || '').trim();
+    const rp = range.split('-');
     const data: IdCardData = {
       name: String(wz.name || '').trim(), gender: String(wz.gender || '').trim(),
-      ethnicity: String(wz.nation || '').trim(), birthDate: String(wz.birth || '').trim(),
+      ethnicity: String(wz.nation || '').trim(), birthDate: normDate(wz.birth),
       address: String(wz.address || wz.newAddress || '').trim(), idNumber,
       issuingAuthority: String(wz.department || '').trim(),
-      validFrom: String(wz.validFrom || wz.dateRange ? (String(wz.validFrom || wz.dateRange).split('-')[0] || '') : '').trim(),
-      validTo: String(wz.validTo || wz.dateRange ? (String(wz.validTo || wz.dateRange).split('-')[1] || '') : '').trim(),
+      // validFrom/validTo 优先取 GetStartDate/GetEndDate，缺省时回退 dateRange 拆分
+      validFrom: normDate(wz.validFrom) || normDate(rp[0]),
+      validTo: normDate(wz.validTo) || normDate(rp[1]),
       photoBase64: String(wz.photoBase64 || '').trim(),
     };
     this.log({ action: 'readCard', deviceId, result: 'success', mock: false, idNumber });

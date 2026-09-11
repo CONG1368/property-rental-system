@@ -3,7 +3,7 @@ import Tenant from '../models/Tenant.js';
 import Contract from '../models/Contract.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { Op } from 'sequelize';
-import { checkDuplicateIdNumber, mapCardDataToTenantForm } from '../services/id-card-service.js';
+import { checkDuplicateIdNumber, sanitizeIdNumber, mapCardDataToTenantForm } from '../services/id-card-service.js';
 import { calculateCreditScore } from '../services/credit-scorer.js';
 import { getScopedTenantIds, recordInScope } from '../services/data-scope.js';
 import { requirePermission } from '../middleware/rbac.js';
@@ -40,7 +40,8 @@ router.get('/', async (req: AuthRequest, res) => {
 // POST /api/tenants — 创建租客
 router.post('/', requirePermission('rent', 'create'), async (req: AuthRequest, res) => {
   try {
-    // 检查身份证号是否重复
+    // 检查身份证号是否重复（先清理 NUL 等控制字符，避免内联 SQL 被截断）
+    if (req.body.idNumber) req.body.idNumber = sanitizeIdNumber(req.body.idNumber);
     if (req.body.idNumber) {
       const dupCheck = await checkDuplicateIdNumber(req.body.idNumber);
       if (dupCheck.duplicate) {

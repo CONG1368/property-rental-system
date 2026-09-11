@@ -13,16 +13,16 @@
 
     <!-- KPI -->
     <el-row :gutter="16" class="kpi-row">
-      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:#409EFF">{{ kpi.workTotal }}</div><div class="kpi-label">工单总数</div><div class="kpi-sub">待派单 {{ kpi.workPending }} · 已完工 {{ kpi.workDone }}</div></div></el-col>
-      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:#67C23A">{{ kpi.facTotal }}</div><div class="kpi-label">设备总数</div><div class="kpi-sub">故障 {{ kpi.facFault }} · 即将到期 {{ kpi.facDue }}</div></div></el-col>
-      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:#E6A23C">{{ kpi.complaintPending }}</div><div class="kpi-label">待处理投诉</div><div class="kpi-sub">总投诉 {{ kpi.complaintTotal }}</div></div></el-col>
-      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:#F56C6C">{{ parkRate }}%</div><div class="kpi-label">车位空闲率</div><div class="kpi-sub">空闲 {{ kpi.parkIdle }} / {{ kpi.parkTotal }}</div></div></el-col>
+      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:var(--brand-600)">{{ kpi.workTotal }}</div><div class="kpi-label">工单总数</div><div class="kpi-sub">待派单 {{ kpi.workPending }} · 已完工 {{ kpi.workDone }}</div></div></el-col>
+      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:var(--ok-600)">{{ kpi.facTotal }}</div><div class="kpi-label">设备总数</div><div class="kpi-sub">故障 {{ kpi.facFault }} · 即将到期 {{ kpi.facDue }}</div></div></el-col>
+      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:var(--warn-600)">{{ kpi.complaintPending }}</div><div class="kpi-label">待处理投诉</div><div class="kpi-sub">总投诉 {{ kpi.complaintTotal }}</div></div></el-col>
+      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:var(--bad-600)">{{ parkRate }}%</div><div class="kpi-label">车位空闲率</div><div class="kpi-sub">空闲 {{ kpi.parkIdle }} / {{ kpi.parkTotal }}</div></div></el-col>
     </el-row>
     <el-row :gutter="16" class="kpi-row">
-      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:#409EFF">{{ kpi.residentLive }}</div><div class="kpi-label">在住住户</div><div class="kpi-sub">业主 {{ kpi.residentOwner }} 人</div></div></el-col>
-      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:#E6A23C">{{ kpi.inventoryLow }}</div><div class="kpi-label">低库存物料</div><div class="kpi-sub">物料 {{ kpi.inventoryTotal }} 项</div></div></el-col>
-      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:#67C23A">{{ kpi.revenueAmount }}</div><div class="kpi-label">公共收益(元)</div><div class="kpi-sub">已入账 {{ kpi.revenueConfirmed }}</div></div></el-col>
-      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:#409EFF">{{ pred.curCollectionRate }}%</div><div class="kpi-label">本月收缴率</div><div class="kpi-sub">下月工单预计 {{ pred.forecastNextWork }}</div></div></el-col>
+      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:var(--brand-600)">{{ kpi.residentLive }}</div><div class="kpi-label">在住住户</div><div class="kpi-sub">业主 {{ kpi.residentOwner }} 人</div></div></el-col>
+      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:var(--warn-600)">{{ kpi.inventoryLow }}</div><div class="kpi-label">低库存物料</div><div class="kpi-sub">物料 {{ kpi.inventoryTotal }} 项</div></div></el-col>
+      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:var(--ok-600)">{{ kpi.revenueAmount }}</div><div class="kpi-label">公共收益(元)</div><div class="kpi-sub">已入账 {{ kpi.revenueConfirmed }}</div></div></el-col>
+      <el-col :span="6"><div class="kpi"><div class="kpi-num" style="color:var(--brand-600)">{{ pred.curCollectionRate }}%</div><div class="kpi-label">本月收缴率</div><div class="kpi-sub">下月工单预计 {{ pred.forecastNextWork }}</div></div></el-col>
     </el-row>
 
     <!-- 图表 -->
@@ -47,7 +47,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts">import { tokens } from '@/styles/tokens';
+
 import { ref, computed, onMounted } from 'vue';
 import request from '@/api/request';
 import { ElMessage } from 'element-plus';
@@ -73,8 +74,8 @@ const trendOption = computed(() => ({
   xAxis: { type: 'category', data: trends.value.workOrderTrend.map((t: any) => t.month) },
   yAxis: { type: 'value' },
   series: [
-    { name: '工单', type: 'line', smooth: true, data: trends.value.workOrderTrend.map((t: any) => t.count), areaStyle: { opacity: .15 }, itemStyle: { color: '#409EFF' } },
-    { name: '投诉', type: 'line', smooth: true, data: trends.value.complaintTrend.map((t: any) => t.count), itemStyle: { color: '#E6A23C' } },
+    { name: '工单', type: 'line', smooth: true, data: trends.value.workOrderTrend.map((t: any) => t.count), areaStyle: { opacity: .15 }, itemStyle: { color: tokens.brand600 } },
+    { name: '投诉', type: 'line', smooth: true, data: trends.value.complaintTrend.map((t: any) => t.count), itemStyle: { color: tokens.warn600 } },
   ],
 }));
 const collectOption = computed(() => ({
@@ -85,7 +86,7 @@ const collectOption = computed(() => ({
   series: [
     { name: '应收', type: 'bar', data: trends.value.collectedTrend.map((t: any) => t.total) },
     { name: '实收', type: 'bar', data: trends.value.collectedTrend.map((t: any) => t.paid) },
-    { name: '收缴率', type: 'line', yAxisIndex: 1, smooth: true, data: trends.value.collectedTrend.map((t: any) => t.rate), itemStyle: { color: '#67C23A' } },
+    { name: '收缴率', type: 'line', yAxisIndex: 1, smooth: true, data: trends.value.collectedTrend.map((t: any) => t.rate), itemStyle: { color: tokens.ok600 } },
   ],
 }));
 function pieOption(data: any[], money = false) {
@@ -133,13 +134,13 @@ onMounted(() => loadAll());
 <style lang="scss" scoped>
 .ops-page { padding: 0; }
 .head-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 700; color: #1f2430; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; color: $n-900; margin: 0; }
 .briefing { margin-bottom: 16px; }
 .kpi-row { margin-bottom: 16px; }
-.kpi { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; }
-.kpi-num { font-size: 28px; font-weight: 700; color: #1f2430; }
-.kpi-num.warn { color: #E6A23C; } .kpi-num.green { color: #67C23A; }
-.kpi-label { margin-top: 6px; font-size: 14px; color: #303133; font-weight: 600; }
-.kpi-sub { margin-top: 4px; font-size: 12px; color: #909399; }
+.kpi { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; }
+.kpi-num { font-size: 28px; font-weight: 700; color: $n-900; }
+.kpi-num.warn { color: $warn-600; } .kpi-num.green { color: $ok-600; }
+.kpi-label { margin-top: 6px; font-size: 14px; color: $n-900; font-weight: 600; }
+.kpi-sub { margin-top: 4px; font-size: 12px; color: $n-600; }
 .panel { margin-bottom: 16px; }
 </style>

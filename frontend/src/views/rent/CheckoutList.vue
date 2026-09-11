@@ -12,28 +12,17 @@
       <div class="action-group"><el-button type="primary" @click="showCreate">提交退租申请</el-button></div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column label="合同号" width="130" show-overflow-tooltip><template #default="{ row }">{{ row.contract?.contractNo }}</template></el-table-column>
-      <el-table-column label="租客" width="110"><template #default="{ row }">{{ row.tenant?.name }}</template></el-table-column>
-      <el-table-column label="房源" width="150" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
-      <el-table-column prop="applyDate" label="申请日期" width="110" />
-      <el-table-column prop="reason" label="退租原因" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" link v-if="row.status === '待处理'" @click="advance(row, '已受理')">受理</el-button>
-          <el-button size="small" link v-if="row.status === '已受理'" @click="advance(row, '交接中')">开始交接</el-button>
-          <el-button size="small" link type="success" v-if="row.status === '交接中'" @click="onDetail(row)">完成</el-button>
-          <el-button size="small" link type="danger" v-if="row.status === '待处理'" @click="advance(row, '已取消')">取消</el-button>
-          <el-button size="small" link @click="onDetail(row)">详情</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无退租单" description="发起退租流程后可在此跟踪交接与押金结算" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无退租单" empty-description="发起退租流程后可在此跟踪交接与押金结算">
+      <template #c1="{ row }">{{ row.contract?.contractNo }}</template>
+      <template #c2="{ row }">{{ row.tenant?.name }}</template>
+      <template #c3="{ row }">{{ row.property?.name }}</template>
+      <template #c6="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }"><el-button size="small" link v-if="row.status === '待处理'" @click="advance(row, '已受理')">受理</el-button>
+              <el-button size="small" link v-if="row.status === '已受理'" @click="advance(row, '交接中')">开始交接</el-button>
+              <el-button size="small" link type="success" v-if="row.status === '交接中'" @click="onDetail(row)">完成</el-button>
+              <el-button size="small" link type="danger" v-if="row.status === '待处理'" @click="advance(row, '已取消')">取消</el-button>
+              <el-button size="small" link @click="onDetail(row)">详情</el-button></template>
+    </DataTable>
 
     <!-- 申请退租 -->
     <el-dialog title="提交退租申请" v-model="createVisible" width="520px" @closed="resetCreate">
@@ -72,11 +61,9 @@
         </div>
 
         <el-divider content-position="left">费用清算</el-divider>
-        <el-table :data="detailCosts" size="small" border>
-          <el-table-column prop="name" label="项目" />
-          <el-table-column prop="type" label="类型" width="90" />
-          <el-table-column prop="amount" label="金额" width="110" align="right"><template #default="{ row }">{{ fmt(row.amount) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="detailCosts" :columns="COLUMNS_2" row-key="id">
+          <template #c3="{ row }">{{ fmt(row.amount) }}</template>
+        </DataTable>
         <div class="check-add" v-if="current.status !== '已完成'">
           <el-input v-model="newCost.name" placeholder="项目" size="small" style="width:120px" />
           <el-select v-model="newCost.type" size="small" style="width:110px"><el-option label="扣除" value="扣除" /><el-option label="退还" value="退还" /></el-select>
@@ -98,6 +85,25 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'name', label: '项目' },
+  { prop: 'type', label: '类型', width: 90 },
+  { prop: 'amount', label: '金额', width: 110, align: 'right', slot: 'c3' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { label: '合同号', width: 130, tooltip: true, slot: 'c1' },
+  { label: '租客', width: 110, slot: 'c2' },
+  { label: '房源', width: 150, tooltip: true, slot: 'c3' },
+  { prop: 'applyDate', label: '申请日期', width: 110 },
+  { prop: 'reason', label: '退租原因', minWidth: 140, tooltip: true },
+  { prop: 'status', label: '状态', width: 90, slot: 'c6' },
+  { label: '操作', width: 220, fixed: 'right', slot: 'c7' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';

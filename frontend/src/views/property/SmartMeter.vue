@@ -47,54 +47,29 @@
         <el-tooltip content="仅桌面版可登录平台同步；浏览器开发模式请手动取 token 后到系统参数配置" placement="top">
           <el-button size="small" @click="loadDevices" style="margin-bottom:8px">刷新</el-button>
         </el-tooltip>
-        <el-table :data="devices" size="small" stripe>
-          <el-table-column prop="meterNo" label="表号" min-width="110" />
-          <el-table-column prop="name" label="名称" min-width="130" />
-          <el-table-column prop="area" label="区域" min-width="110" />
-          <el-table-column prop="meterType" label="类型" width="70"><template #default="{row}"><el-tag size="small">{{ row.meterType }}</el-tag></template></el-table-column>
-          <el-table-column prop="currentReading" label="当前读数" width="100" />
-          <el-table-column prop="totalUsage" label="累计用量" width="100" />
-          <el-table-column prop="status" label="状态" width="90" />
-          <el-table-column label="关联" width="110">
-            <template #default="{row}">
-              <el-tag v-if="row.linkStatus === 'linked'" size="small" type="success">已关联</el-tag>
-              <el-button v-else size="small" text type="primary" @click="openLink(row)">关联</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-pagination v-if="deviceTotal>20" layout="prev, pager, next" :total="deviceTotal" :page-size="20" v-model:current-page="devicePage" @current-change="loadDevices" style="margin-top:8px;justify-content:center" />
+        <DataTable :data="devices" :columns="COLUMNS" row-key="id" v-model:page="devicePage" :total="deviceTotal" :page-size="20" @page-change="loadDevices">
+          <template #c4="{ row }"><el-tag size="small">{{ row.meterType }}</el-tag></template>
+          <template #c8="{ row }"><el-tag v-if="row.linkStatus === 'linked'" size="small" type="success">已关联</el-tag>
+                      <el-button v-else size="small" text type="primary" @click="openLink(row)">关联</el-button></template>
+        </DataTable>
       </el-tab-pane>
 
       <el-tab-pane label="租币/租户余额" name="tenants">
-        <el-table :data="tenants" size="small" stripe>
-          <el-table-column prop="name" label="姓名" min-width="120" />
-          <el-table-column prop="phone" label="电话" min-width="120" />
-          <el-table-column prop="balance" label="余额" width="120" />
-          <el-table-column prop="deviceCount" label="绑定设备数" width="100" />
-          <el-table-column prop="status" label="状态" width="100" />
-        </el-table>
+        <DataTable :data="tenants" :columns="COLUMNS_2" row-key="id">
+        </DataTable>
       </el-tab-pane>
 
       <el-tab-pane label="充值记录" name="recharges">
-        <el-table :data="recharges" size="small" stripe>
-          <el-table-column prop="orderNo" label="单号" min-width="140" />
-          <el-table-column prop="tenantName" label="租户" min-width="110" />
-          <el-table-column prop="tenantPhone" label="电话" min-width="120" />
-          <el-table-column prop="amount" label="金额" width="100" />
-          <el-table-column prop="channel" label="方式" width="90" />
-          <el-table-column prop="rechargeTime" label="时间" min-width="150" />
-          <el-table-column prop="status" label="状态" width="90" />
-        </el-table>
+        <DataTable :data="recharges" :columns="COLUMNS_3" row-key="id">
+        </DataTable>
       </el-tab-pane>
 
       <el-tab-pane label="统计分析" name="stats">
         <el-row :gutter="12">
           <el-col :span="12">
             <h4>近 30 天充值趋势</h4>
-            <el-table :data="stat.rechargeTrend || []" size="small" max-height="360">
-              <el-table-column prop="date" label="日期" width="120" />
-              <el-table-column prop="amount" label="金额(¥)" />
-            </el-table>
+            <DataTable :data="stat.rechargeTrend || []" :columns="COLUMNS_4" row-key="id">
+            </DataTable>
           </el-col>
           <el-col :span="6">
             <h4>设备类型分布</h4>
@@ -102,16 +77,14 @@
             <h4 style="margin-top:12px">余额 Top10</h4>
             <div v-for="t in (stat.topBalance||[])" :key="t.name" style="font-size:12px;margin:2px 0">{{t.name}}：¥{{t.balance}}</div>
           </el-col>
-          <el-col :span="6"><h4>今日充值</h4><div style="font-size:26px;color:#4f7cf7">¥{{ stat.todayRecharge }}</div></el-col>
+          <el-col :span="6"><h4>今日充值</h4><div style="font-size:26px;color:var(--brand-600)">¥{{ stat.todayRecharge }}</div></el-col>
         </el-row>
       </el-tab-pane>
 
       <el-tab-pane label="待关联" name="pending">
-        <el-table :data="pending" size="small" stripe>
-          <el-table-column prop="meterNo" label="平台表号" min-width="140" />
-          <el-table-column prop="platformDeviceId" label="平台设备ID" min-width="140" />
-          <el-table-column label="操作" width="120"><template #default="{row}"><el-button size="small" text type="primary" @click="openLink(row)">关联到仪表</el-button></template></el-table-column>
-        </el-table>
+        <DataTable :data="pending" :columns="COLUMNS_5" row-key="id">
+          <template #c3="{ row }"><el-button size="small" text type="primary" @click="openLink(row)">关联到仪表</el-button></template>
+        </DataTable>
       </el-tab-pane>
     </el-tabs>
 
@@ -130,6 +103,49 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_5: TableColumn[] = [
+  { prop: 'meterNo', label: '平台表号', minWidth: 140 },
+  { prop: 'platformDeviceId', label: '平台设备ID', minWidth: 140 },
+  { label: '操作', width: 120, slot: 'c3' },
+];
+
+const COLUMNS_4: TableColumn[] = [
+  { prop: 'date', label: '日期', width: 120 },
+  { prop: 'amount', label: '金额(¥)' },
+];
+
+const COLUMNS_3: TableColumn[] = [
+  { prop: 'orderNo', label: '单号', minWidth: 140 },
+  { prop: 'tenantName', label: '租户', minWidth: 110 },
+  { prop: 'tenantPhone', label: '电话', minWidth: 120 },
+  { prop: 'amount', label: '金额', width: 100 },
+  { prop: 'channel', label: '方式', width: 90 },
+  { prop: 'rechargeTime', label: '时间', minWidth: 150 },
+  { prop: 'status', label: '状态', width: 90 },
+];
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'name', label: '姓名', minWidth: 120 },
+  { prop: 'phone', label: '电话', minWidth: 120 },
+  { prop: 'balance', label: '余额', width: 120 },
+  { prop: 'deviceCount', label: '绑定设备数', width: 100 },
+  { prop: 'status', label: '状态', width: 100 },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'meterNo', label: '表号', minWidth: 110 },
+  { prop: 'name', label: '名称', minWidth: 130 },
+  { prop: 'area', label: '区域', minWidth: 110 },
+  { prop: 'meterType', label: '类型', width: 70, slot: 'c4' },
+  { prop: 'currentReading', label: '当前读数', width: 100 },
+  { prop: 'totalUsage', label: '累计用量', width: 100 },
+  { prop: 'status', label: '状态', width: 90 },
+  { label: '关联', width: 110, slot: 'c8' },
+];
+
 import { ref, onMounted, onUnmounted } from 'vue';
 import request from '@/api/request';
 import { ElMessage } from 'element-plus';
@@ -291,7 +307,7 @@ onUnmounted(() => { if (unSub) unSub(); });
 .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .head-actions { display: flex; gap: 8px; align-items: center; }
 .kpi-row { margin-bottom: 12px; }
-.kpi { background: #fff; border: 1px solid #e7ecf5; border-radius: 10px; padding: 14px 16px; }
-.kpi-v { font-size: 24px; font-weight: 700; color: #1f2430; }
-.kpi-l { font-size: 12px; color: #8b93a3; }
+.kpi { background: $n-0; border: 1px solid $n-100; border-radius: 10px; padding: 14px 16px; }
+.kpi-v { font-size: 24px; font-weight: 700; color: $n-900; }
+.kpi-l { font-size: 12px; color: $n-400; }
 </style>

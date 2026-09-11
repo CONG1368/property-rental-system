@@ -16,24 +16,13 @@
       <div class="action-group"><el-button type="primary" @click="showCreate">新增项目</el-button></div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column prop="name" label="项目名称" width="180" show-overflow-tooltip />
-      <el-table-column prop="code" label="编码" width="100" />
-      <el-table-column prop="type" label="类型" width="110"><template #default="{ row }"><el-tag size="small">{{ row.type }}</el-tag></template></el-table-column>
-      <el-table-column prop="address" label="地址" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="managerName" label="负责人" width="100" />
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="row.status === '运营中' ? 'success' : row.status === '筹备中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="房源/已出租" width="110"><template #default="{ row }">{{ row.propertyCount }} / {{ row.rentedCount }}</template></el-table-column>
-      <el-table-column label="入住率" width="110"><template #default="{ row }">{{ row.propertyCount ? Math.round(row.rentedCount / row.propertyCount * 100) : 0 }}%</template></el-table-column>
-      <el-table-column label="操作" width="130" fixed="right">
-        <template #default="{ row }"><el-button size="small" link @click="showEdit(row)">编辑</el-button><el-button size="small" link type="danger" @click="del(row.id)">删除</el-button></template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c3="{ row }"><el-tag size="small">{{ row.type }}</el-tag></template>
+      <template #c6="{ row }"><el-tag :type="row.status === '运营中' ? 'success' : row.status === '筹备中' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }">{{ row.propertyCount }} / {{ row.rentedCount }}</template>
+      <template #c8="{ row }">{{ row.propertyCount ? Math.round(row.rentedCount / row.propertyCount * 100) : 0 }}%</template>
+      <template #c9="{ row }"><el-button size="small" link @click="showEdit(row)">编辑</el-button><el-button size="small" link type="danger" @click="del(row.id)">删除</el-button></template>
+    </DataTable>
 
     <el-dialog :title="editId ? '编辑项目' : '新增项目'" v-model="dialogVisible" width="560px" @closed="resetForm">
       <el-form :model="form" label-width="90px">
@@ -53,6 +42,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '项目名称', width: 180, tooltip: true },
+  { prop: 'code', label: '编码', width: 100 },
+  { prop: 'type', label: '类型', width: 110, slot: 'c3' },
+  { prop: 'address', label: '地址', minWidth: 180, tooltip: true },
+  { prop: 'managerName', label: '负责人', width: 100 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c6' },
+  { label: '房源/已出租', width: 110, slot: 'c7' },
+  { label: '入住率', width: 110, slot: 'c8' },
+  { label: '操作', width: 130, fixed: 'right', slot: 'c9' },
+];
+
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';
@@ -99,11 +103,11 @@ onMounted(() => { fetchData(); });
 <style lang="scss" scoped>
 .project-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 26px; font-weight: 700; color: #1f2430; }
-.stat-num.running { color: #67C23A; }
-.stat-num.live { color: #409EFF; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 26px; font-weight: 700; color: $n-900; }
+.stat-num.running { color: $ok-600; }
+.stat-num.live { color: $brand-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

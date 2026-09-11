@@ -4,9 +4,9 @@
     :collapse="false"
     router
     class="sidebar-menu"
-    background-color="#fff"
-    text-color="#34495E"
-    active-text-color="#2b57c9"
+    background-color="var(--n-0)"
+    text-color="var(--n-900)"
+    active-text-color="var(--brand-600)"
   >
     <el-menu-item index="/dashboard">
       <el-icon><HomeFilled /></el-icon>

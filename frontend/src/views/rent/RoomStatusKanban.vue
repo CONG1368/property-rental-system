@@ -34,7 +34,7 @@
     />
 
     <!-- 网格视图 -->
-    <div v-if="filteredFloors.length === 0" class="empty-hint">暂无房间数据，请先<a @click="$router.push('/rent/room-kanban/batch-gen')" style="color:#409EFF;cursor:pointer">批量生成房间</a></div>
+    <div v-if="filteredFloors.length === 0" class="empty-hint">暂无房间数据，请先<a @click="$router.push('/rent/room-kanban/batch-gen')" style="color:var(--brand-600);cursor:pointer">批量生成房间</a></div>
     <div v-for="floor in filteredFloors" :key="`${floor.buildingName || ''}-${floor.floorOrder}`" class="floor-group">
       <div class="floor-header">
         <span class="floor-label">{{ (floor as any).buildingName || '' }} {{ (floor as any).label || (floor as any).floorOrder + 'F' }}</span>
@@ -73,7 +73,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts">import { tokens } from '@/styles/tokens';
+
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { getRoomKanban, getRoomStats, exportRoomReport, exportRoomReportPDF } from '@/api/properties';
 import { useWebSocket } from '@/composables/useWebSocket';
@@ -194,13 +195,13 @@ function buildRoomReportHTML(data: any): string {
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>房态报表</title>
 <style>
-  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; font-size: 12px; color: #333; padding: 16px; }
+  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; font-size: 12px; color: ${tokens.n900}; padding: 16px; }
   h1 { text-align: center; font-size: 20px; margin-bottom: 4px; }
-  .subtitle { text-align: center; font-size: 11px; color: #909399; margin-bottom: 16px; }
+  .subtitle { text-align: center; font-size: 11px; color: ${tokens.n600}; margin-bottom: 16px; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  th, td { border: 1px solid #dcdfe6; padding: 6px 8px; text-align: center; }
-  th { background: #4472C4; color: #fff; font-weight: bold; }
-  .section-title { font-size: 14px; font-weight: bold; margin: 12px 0 8px; padding: 6px 0; border-bottom: 2px solid #4472C4; }
+  th, td { border: 1px solid ${tokens.n200}; padding: 6px 8px; text-align: center; }
+  th { background: ${tokens.brand600}; color: ${tokens.n0}; font-weight: bold; }
+  .section-title { font-size: 14px; font-weight: bold; margin: 12px 0 8px; padding: 6px 0; border-bottom: 2px solid ${tokens.brand600}; }
 </style></head><body>
 <h1>房态报表</h1>
 <p class="subtitle">导出时间：${now}　共 ${total || 0} 间</p>
@@ -257,16 +258,16 @@ onUnmounted(() => {
 .floor-group { margin-bottom: 20px; }
 .floor-header {
   display: flex; align-items: center; gap: 12px;
-  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ebeef5;
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid $n-200;
 }
-.floor-label { font-size: 16px; font-weight: 600; color: #303133; }
-.floor-count { font-size: 12px; color: #909399; }
+.floor-label { font-size: 16px; font-weight: 600; color: $n-900; }
+.floor-count { font-size: 12px; color: $n-600; }
 
 .batch-bar {
   position: fixed; bottom: 0; left: 0; right: 0;
-  background: #fff; border-top: 2px solid #409EFF;
+  background: $n-0; border-top: 2px solid $brand-600;
   padding: 12px 24px; display: flex; align-items: center; gap: 12px;
-  z-index: 100; box-shadow: 0 -2px 12px rgba(0,0,0,0.1);
+  z-index: 100; box-shadow: 0 -2px 12px $n-100;
 }
-.empty-hint { text-align: center; padding: 80px 0; color: #909399; font-size: 14px; }
+.empty-hint { text-align: center; padding: 80px 0; color: $n-600; font-size: 14px; }
 </style>

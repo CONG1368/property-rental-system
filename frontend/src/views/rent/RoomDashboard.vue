@@ -7,7 +7,7 @@
         <span class="header-time">{{ currentTime }}</span>
       </div>
       <div class="header-right">
-        <span v-if="!wsConnected" style="color:#f56c6c;font-size:12px;margin-right:12px">● 连接断开</span>
+        <span v-if="!wsConnected" style="color:var(--bad-600);font-size:12px;margin-right:12px">● 连接断开</span>
         <el-button text @click="enterFullscreen">全屏</el-button>
         <el-button text @click="$router.push('/rent/room-kanban')">房态看板</el-button>
       </div>
@@ -68,7 +68,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts">import { tokens } from '@/styles/tokens';
+
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Warning } from '@element-plus/icons-vue';
 import { getRoomStats, getRoomAnalytics } from '@/api/properties';
@@ -90,10 +91,10 @@ const floorHeatmap = ref<any[]>([]);
 const statusFlow = ref<any[]>([]);
 
 const kpis = computed(() => [
-  { label: '入住率', value: `${stats.value.occupancyRate ?? 0}%`, sub: '', color: '#67C23A' },
-  { label: '空置房', value: stats.value['空置'] ?? 0, sub: '套', color: '#909399' },
-  { label: '已出租', value: stats.value['已出租'] ?? 0, sub: '套', color: '#409EFF' },
-  { label: '维修中', value: (stats.value['维修中'] ?? 0) + (stats.value['待保洁'] ?? 0) + (stats.value['待验收'] ?? 0), sub: '套', color: '#F56C6C' },
+  { label: '入住率', value: `${stats.value.occupancyRate ?? 0}%`, sub: '', color: tokens.ok600 },
+  { label: '空置房', value: stats.value['空置'] ?? 0, sub: '套', color: tokens.n600 },
+  { label: '已出租', value: stats.value['已出租'] ?? 0, sub: '套', color: tokens.brand600 },
+  { label: '维修中', value: (stats.value['维修中'] ?? 0) + (stats.value['待保洁'] ?? 0) + (stats.value['待验收'] ?? 0), sub: '套', color: tokens.bad600 },
 ]);
 
 const alerts = computed(() => {
@@ -106,20 +107,20 @@ const alerts = computed(() => {
 // 玫瑰饼图
 const roseOption = computed(() => ({
   tooltip: { trigger: 'item' },
-  legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#ccc', fontSize: 11 } },
+  legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: tokens.n300, fontSize: 11 } },
   series: [{
     type: 'pie', roseType: 'area', radius: ['20%', '70%'], center: ['35%', '50%'],
     itemStyle: { borderRadius: 4 },
     data: [
-      { value: stats.value['空置'] || 0, name: '空置', itemStyle: { color: '#a0d911' } },
-      { value: stats.value['已预订'] || 0, name: '已预订', itemStyle: { color: '#faad14' } },
-      { value: stats.value['已出租'] || 0, name: '已出租', itemStyle: { color: '#1890ff' } },
-      { value: stats.value['维修中'] || 0, name: '维修中', itemStyle: { color: '#ff4d4f' } },
-      { value: stats.value['待保洁'] || 0, name: '待保洁', itemStyle: { color: '#722ed1' } },
-      { value: stats.value['待验收'] || 0, name: '待验收', itemStyle: { color: '#13c2c2' } },
-      { value: stats.value['已锁定'] || 0, name: '已锁定', itemStyle: { color: '#8c8c8c' } },
-      { value: stats.value['已冻结'] || 0, name: '已冻结', itemStyle: { color: '#595959' } },
-      { value: stats.value['退租中'] || 0, name: '退租中', itemStyle: { color: '#fadb14' } },
+      { value: stats.value['空置'] || 0, name: '空置', itemStyle: { color: tokens.ok600 } },
+      { value: stats.value['已预订'] || 0, name: '已预订', itemStyle: { color: tokens.warn600 } },
+      { value: stats.value['已出租'] || 0, name: '已出租', itemStyle: { color: tokens.brand600 } },
+      { value: stats.value['维修中'] || 0, name: '维修中', itemStyle: { color: tokens.bad600 } },
+      { value: stats.value['待保洁'] || 0, name: '待保洁', itemStyle: { color: tokens.info600 } },
+      { value: stats.value['待验收'] || 0, name: '待验收', itemStyle: { color: tokens.info600 } },
+      { value: stats.value['已锁定'] || 0, name: '已锁定', itemStyle: { color: tokens.n600 } },
+      { value: stats.value['已冻结'] || 0, name: '已冻结', itemStyle: { color: tokens.n700 } },
+      { value: stats.value['退租中'] || 0, name: '退租中', itemStyle: { color: tokens.stBooked } },
     ].filter(d => d.value > 0),
   }],
 }));
@@ -128,8 +129,8 @@ const roseOption = computed(() => ({
 const buildingBarOption = computed(() => ({
   tooltip: { trigger: 'axis' },
   grid: { left: 50, right: 30, top: 20, bottom: 30 },
-  xAxis: { type: 'category', data: buildingData.value.map((b: any) => b.buildingName || '未分组'), axisLabel: { color: '#ccc' } },
-  yAxis: { type: 'value', max: 100, axisLabel: { color: '#ccc', formatter: '{value}%' } },
+  xAxis: { type: 'category', data: buildingData.value.map((b: any) => b.buildingName || '未分组'), axisLabel: { color: tokens.n300 } },
+  yAxis: { type: 'value', max: 100, axisLabel: { color: tokens.n300, formatter: '{value}%' } },
   series: [{
     type: 'bar', data: buildingData.value.map((b: any) => {
       const t = Number(b.total) || 1;
@@ -137,7 +138,7 @@ const buildingBarOption = computed(() => ({
     }),
     itemStyle: {
       color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-        colorStops: [{ offset: 0, color: '#1890ff' }, { offset: 1, color: '#096dd9' }],
+        colorStops: [{ offset: 0, color: tokens.brand600 }, { offset: 1, color: tokens.brand700 }],
       },
     },
     barWidth: 40,
@@ -150,11 +151,11 @@ const gaugeOption = computed(() => ({
     type: 'gauge', radius: '85%', center: ['50%', '55%'],
     startAngle: 210, endAngle: -30,
     min: 0, max: 100,
-    axisLine: { lineStyle: { width: 16, color: [[0.5, '#ff4d4f'], [0.75, '#faad14'], [1, '#52c41a']] } },
+    axisLine: { lineStyle: { width: 16, color: [[0.5, tokens.bad600], [0.75, tokens.warn600], [1, tokens.ok600]] } },
     axisTick: { show: false },
     splitLine: { show: false },
     axisLabel: { show: false },
-    detail: { valueAnimation: true, formatter: '{value}%', fontSize: 28, color: '#fff', offsetCenter: [0, '60%'] },
+    detail: { valueAnimation: true, formatter: '{value}%', fontSize: 28, color: tokens.n0, offsetCenter: [0, '60%'] },
     data: [{ value: stats.value.occupancyRate ?? 0, name: '入住率' }],
   }],
 }));
@@ -172,10 +173,10 @@ const heatmapOption = computed(() => {
   return {
     tooltip: { formatter: (p: any) => `${bn[p.value[0]]} ${p.value[1] + 1}F: ${p.value[2]}%` },
     grid: { left: 80, right: 40, top: 10, bottom: 30 },
-    xAxis: { type: 'category', data: bn, axisLabel: { color: '#ccc' } },
-    yAxis: { type: 'category', data: Array.from({ length: maxFloor }, (_, i) => `${i + 1}F`), axisLabel: { color: '#ccc' } },
-    visualMap: { min: 0, max: 100, calculable: true, orient: 'vertical', right: 0, bottom: 20, inRange: { color: ['#ff4d4f', '#faad14', '#a0d911', '#52c41a'] } },
-    series: [{ type: 'heatmap', data, label: { show: true, color: '#fff', fontSize: 10 } }],
+    xAxis: { type: 'category', data: bn, axisLabel: { color: tokens.n300 } },
+    yAxis: { type: 'category', data: Array.from({ length: maxFloor }, (_, i) => `${i + 1}F`), axisLabel: { color: tokens.n300 } },
+    visualMap: { min: 0, max: 100, calculable: true, orient: 'vertical', right: 0, bottom: 20, inRange: { color: [tokens.bad600, tokens.warn600, tokens.ok600, tokens.ok600] } },
+    series: [{ type: 'heatmap', data, label: { show: true, color: tokens.n0, fontSize: 10 } }],
   };
 });
 
@@ -191,14 +192,14 @@ const trendOption = computed(() => {
   return {
     tooltip: { trigger: 'axis' },
     grid: { left: 40, right: 20, top: 20, bottom: 30 },
-    xAxis: { type: 'category', data: months, axisLabel: { color: '#ccc', rotate: 30, fontSize: 10 } },
-    yAxis: { type: 'value', min: 0, max: 100, axisLabel: { color: '#ccc', formatter: '{value}%' } },
+    xAxis: { type: 'category', data: months, axisLabel: { color: tokens.n300, rotate: 30, fontSize: 10 } },
+    yAxis: { type: 'value', min: 0, max: 100, axisLabel: { color: tokens.n300, formatter: '{value}%' } },
     series: [{
       type: 'line', smooth: true,
       data: months.map((_, i) => Math.round(baseRate + (Math.sin(i * 0.6) * 5) - (i * 0.2))),
-      lineStyle: { color: '#1890ff', width: 2 },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(24,144,255,0.3)' }, { offset: 1, color: 'rgba(24,144,255,0.02)' }] } },
-      itemStyle: { color: '#1890ff' },
+      lineStyle: { color: tokens.brand600, width: 2 },
+      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: tokens.n300 }, { offset: 1, color: tokens.n50 }] } },
+      itemStyle: { color: tokens.brand600 },
     }],
   };
 });
@@ -251,7 +252,7 @@ const sankeyOption = computed(() => {
     series: [{
       type: 'sankey', layout: 'none', emphasis: { focus: 'adjacency' },
       nodeWidth: 14, nodeGap: 10,
-      label: { color: '#ccc', fontSize: 11 },
+      label: { color: tokens.n300, fontSize: 11 },
       lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.4 },
       data: nodes, links,
     }],
@@ -305,29 +306,29 @@ onUnmounted(() => {
 <style scoped>
 .dashboard-dark {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0f2b47 100%);
+  background: linear-gradient(135deg, $n-900 0%, $n-900 50%, $n-900 100%);
   padding: 16px 20px;
-  color: #fff;
+  color: $n-0;
   margin: -20px;
 }
 
 .dash-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px;
+  padding-bottom: 12px; border-bottom: 1px solid $n-700; margin-bottom: 16px;
 }
-.header-left h2 { margin: 0; font-size: 20px; letter-spacing: 2px; color: #fff; }
-.header-time { font-size: 14px; color: #8899aa; margin-left: 16px; }
-.header-right .el-button { color: #8899aa; }
+.header-left h2 { margin: 0; font-size: 20px; letter-spacing: 2px; color: $n-0; }
+.header-time { font-size: 14px; color: $n-600; margin-left: 16px; }
+.header-right .el-button { color: $n-600; }
 
 .kpi-row { display: flex; gap: 16px; margin-bottom: 16px; }
 .kpi-item {
-  flex: 1; background: rgba(255,255,255,0.05); border-radius: 8px;
-  padding: 14px 20px; border-top: 3px solid #1890ff;
+  flex: 1; background: $n-700; border-radius: 8px;
+  padding: 14px 20px; border-top: 3px solid $brand-600;
   text-align: center;
 }
-.kpi-val { font-size: 28px; font-weight: 700; color: #fff; }
-.kpi-lbl { font-size: 13px; color: #8899aa; margin-top: 4px; }
-.kpi-sub { font-size: 11px; color: #556677; }
+.kpi-val { font-size: 28px; font-weight: 700; color: $n-0; }
+.kpi-lbl { font-size: 13px; color: $n-600; margin-top: 4px; }
+.kpi-sub { font-size: 11px; color: $n-600; }
 
 .chart-grid {
   display: grid;
@@ -335,18 +336,18 @@ onUnmounted(() => {
   gap: 14px;
 }
 .chart-card {
-  background: rgba(255,255,255,0.04);
+  background: $n-700;
   border-radius: 8px; padding: 12px 14px;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid $n-700;
 }
 .chart-wide { grid-column: span 2; }
 .chart-gauge { display: flex; flex-direction: column; align-items: center; }
 .card-title {
-  font-size: 14px; font-weight: 600; color: #aabbcc;
-  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 14px; font-weight: 600; color: $n-400;
+  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid $n-700;
 }
 
 .alert-ticker { max-height: 240px; overflow-y: auto; }
-.alert-item { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); color: #fadb14; font-size: 13px; }
-.alert-empty { color: #556677; text-align: center; padding: 40px 0; }
+.alert-item { padding: 8px 0; border-bottom: 1px solid $n-700; color: $st-booked; font-size: 13px; }
+.alert-empty { color: $n-600; text-align: center; padding: 40px 0; }
 </style>

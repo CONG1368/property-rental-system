@@ -141,9 +141,9 @@ async function submitStatus() {
 </script>
 
 <style scoped>
-.section { margin-top: 20px; border-top: 1px solid #ebeef5; padding-top: 12px; }
-.section h4 { margin: 0 0 8px 0; font-size: 14px; color: #303133; }
-.section p { margin: 4px 0; font-size: 13px; color: #606266; }
-.log-note { color: #909399; font-size: 12px; }
-.text-muted { color: #c0c4cc; font-size: 13px; }
+.section { margin-top: 20px; border-top: 1px solid $n-200; padding-top: 12px; }
+.section h4 { margin: 0 0 8px 0; font-size: 14px; color: $n-900; }
+.section p { margin: 4px 0; font-size: 13px; color: $n-700; }
+.log-note { color: $n-600; font-size: 12px; }
+.text-muted { color: $n-300; font-size: 13px; }
 </style>

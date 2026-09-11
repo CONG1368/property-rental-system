@@ -2,7 +2,7 @@
   <div class="finance-dashboard">
     <h2 class="page-title">财务看板</h2>
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-      <span style="font-size:13px;color:#606266">周期:</span>
+      <span style="font-size:13px;color:var(--n-700)">周期:</span>
       <el-radio-group v-model="periodMode" size="small" @change="onModeChange">
         <el-radio-button value="yearly">年度</el-radio-button>
         <el-radio-button value="quarterly">季度</el-radio-button>
@@ -66,7 +66,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts">import { tokens } from '@/styles/tokens';
+
 import { ref, computed, onMounted } from 'vue';
 import request from '@/api/request';
 import { use } from 'echarts/core';
@@ -90,10 +91,10 @@ const currentPeriod = ref('');
 const yearOptions = computed(() => Array.from({ length: 4 }, (_, i) => currentYear - i));
 
 const kpis = ref([
-  { label: '总收入', value: '--', color: '#10b981' },
-  { label: '总支出', value: '--', color: '#f97316' },
-  { label: '净利润', value: '--', color: '#4f7cf7' },
-  { label: '利润率', value: '--', color: '#f59e0b' },
+  { label: '总收入', value: '--', color: tokens.ok600 },
+  { label: '总支出', value: '--', color: tokens.warn600 },
+  { label: '净利润', value: '--', color: tokens.brand600 },
+  { label: '利润率', value: '--', color: tokens.warn600 },
 ]);
 
 const incomeTrendOption = ref({});
@@ -110,9 +111,9 @@ function buildTrendChart(data: any[], labels: string[]) {
     xAxis: { type: 'category', data: labels, axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => (v / 10000).toFixed(0) + '万' } },
     series: [
-      { name: '收入', type: 'line', data: data.map((t: any) => t.income), smooth: true, lineStyle: { color: '#10b981' }, itemStyle: { color: '#10b981' } },
-      { name: '支出', type: 'line', data: data.map((t: any) => t.expense), smooth: true, lineStyle: { color: '#f97316' }, itemStyle: { color: '#f97316' } },
-      { name: '净利润', type: 'line', data: data.map((t: any) => t.net), smooth: true, lineStyle: { color: '#4f7cf7', type: 'dashed' }, itemStyle: { color: '#4f7cf7' } },
+      { name: '收入', type: 'line', data: data.map((t: any) => t.income), smooth: true, lineStyle: { color: tokens.ok600 }, itemStyle: { color: tokens.ok600 } },
+      { name: '支出', type: 'line', data: data.map((t: any) => t.expense), smooth: true, lineStyle: { color: tokens.warn600 }, itemStyle: { color: tokens.warn600 } },
+      { name: '净利润', type: 'line', data: data.map((t: any) => t.net), smooth: true, lineStyle: { color: tokens.brand600, type: 'dashed' }, itemStyle: { color: tokens.brand600 } },
     ],
   };
 }
@@ -125,19 +126,19 @@ function buildCashFlowChart(data: any[], labels: string[]) {
     xAxis: { type: 'category', data: labels, axisLabel: { fontSize: 10 } },
     yAxis: { type: 'value', axisLabel: { formatter: (v: number) => (v / 10000).toFixed(0) + '万' } },
     series: [
-      { name: '经营活动', type: 'bar', data: data.map((t: any) => t.operating), barGap: '10%', itemStyle: { color: '#0984E3' } },
-      { name: '投资活动', type: 'bar', data: data.map((t: any) => t.investing), barGap: '10%', itemStyle: { color: '#636E72' } },
-      { name: '筹资活动', type: 'bar', data: data.map((t: any) => t.financing), barGap: '10%', itemStyle: { color: '#B2BEC3' } },
+      { name: '经营活动', type: 'bar', data: data.map((t: any) => t.operating), barGap: '10%', itemStyle: { color: tokens.brand600 } },
+      { name: '投资活动', type: 'bar', data: data.map((t: any) => t.investing), barGap: '10%', itemStyle: { color: tokens.n600 } },
+      { name: '筹资活动', type: 'bar', data: data.map((t: any) => t.financing), barGap: '10%', itemStyle: { color: tokens.n400 } },
     ],
   };
 }
 
 function updateDisplay(d: any, prefix: string) {
   kpis.value = [
-    { label: prefix + '总收入', value: '¥' + formatWan(d.totalRevenue), color: '#10b981' },
-    { label: prefix + '总支出', value: '¥' + formatWan(d.totalExpense), color: '#f97316' },
-    { label: prefix + '净利润', value: '¥' + formatWan(d.netProfit), color: '#4f7cf7' },
-    { label: '利润率', value: d.profitMargin + '%', color: '#f59e0b' },
+    { label: prefix + '总收入', value: '¥' + formatWan(d.totalRevenue), color: tokens.ok600 },
+    { label: prefix + '总支出', value: '¥' + formatWan(d.totalExpense), color: tokens.warn600 },
+    { label: prefix + '净利润', value: '¥' + formatWan(d.netProfit), color: tokens.brand600 },
+    { label: '利润率', value: d.profitMargin + '%', color: tokens.warn600 },
   ];
 
   if (d.expenseBreakdown && d.expenseBreakdown.length > 0) {
@@ -148,7 +149,7 @@ function updateDisplay(d: any, prefix: string) {
         type: 'pie', radius: ['45%', '75%'], center: ['50%', '45%'],
         data: d.expenseBreakdown.map((e: any) => ({ name: e.name, value: e.value })),
         label: { formatter: '{b}\n{d}%' },
-        emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.3)' } },
+        emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: tokens.scrim } },
       }],
     };
   } else {
@@ -220,8 +221,8 @@ onMounted(() => loadData());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .kpi-card { text-align: center; }
-.kpi-label { font-size: 12px; color: #7F8C8D; margin-bottom: 8px; }
+.kpi-label { font-size: 12px; color: $n-600; margin-bottom: 8px; }
 .kpi-value { font-size: 28px; font-weight: 700; }
 </style>

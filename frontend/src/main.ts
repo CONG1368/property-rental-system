@@ -1,3 +1,4 @@
+import { tokens } from '@/styles/tokens';
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import ElementPlus from 'element-plus';
@@ -25,7 +26,7 @@ if (import.meta.env.DEV) {
   app.config.errorHandler = (err, instance, info) => {
     console.error('[Vue Error]', err, info);
     const el = document.createElement('div');
-    el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#f56c6c;color:#fff;padding:12px 20px;z-index:99999;font-size:13px;white-space:pre-wrap;max-height:200px;overflow:auto;';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:' + tokens.bad600 + ';color:' + tokens.n0 + ';padding:12px 20px;z-index:99999;font-size:13px;white-space:pre-wrap;max-height:200px;overflow:auto;';
     el.textContent = '[Vue Error] ' + (err instanceof Error ? err.message : String(err)) + '\nInfo: ' + info;
     document.body.prepend(el);
   };

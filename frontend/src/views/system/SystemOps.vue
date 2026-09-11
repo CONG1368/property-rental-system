@@ -29,20 +29,20 @@
             <div style="font-weight:600;margin-bottom:8px">审计日志开关</div>
             <div style="display:flex;align-items:center;gap:12px">
               <el-switch v-model="auditEnabled" active-text="开启" inactive-text="关闭" @change="toggleAudit" />
-              <span style="font-size:12px;color:#909399">关闭后系统将不再记录操作审计日志</span>
+              <span style="font-size:12px;color:var(--n-600)">关闭后系统将不再记录操作审计日志</span>
             </div>
           </div>
           <div style="margin-bottom:16px">
             <div style="font-weight:600;margin-bottom:8px">演示数据开关</div>
             <div style="display:flex;align-items:center;gap:12px">
               <el-switch v-model="demoEnabled" active-text="开启" inactive-text="关闭" @change="toggleDemo" />
-              <span style="font-size:12px;color:#909399">开启=新装/空库时生成演示数据；关闭后不再生成任何演示数据</span>
+              <span style="font-size:12px;color:var(--n-600)">开启=新装/空库时生成演示数据；关闭后不再生成任何演示数据</span>
             </div>
           </div>
           <el-divider />
           <div style="margin-bottom:12px">
             <el-button type="primary" @click="exportBackup">下载数据库备份</el-button>
-            <span style="font-size:12px;color:#909399;margin-left:12px">仅支持 SQLite 数据库，含全部业务数据</span>
+            <span style="font-size:12px;color:var(--n-600);margin-left:12px">仅支持 SQLite 数据库，含全部业务数据</span>
           </div>
           <el-alert type="warning" :closable="false" show-icon title="备份建议" description="重大变更/发版前请先下载数据库备份，便于回退。电子桌面版数据存储于 %APPDATA%/物业租赁综合管理系统/data/。" />
         </el-card>
@@ -64,34 +64,20 @@
           </div>
         </div>
       </template>
-      <el-table :data="cronList" stripe size="small">
-        <el-table-column prop="name" label="任务名称" width="140" />
-        <el-table-column prop="schedule" label="调度时间" width="140" />
-        <el-table-column prop="desc" label="说明" min-width="220" />
-        <el-table-column label="最近执行" width="230">
-          <template #default="{ row }">
-            <span v-if="!row.lastRun" style="color:#909399">未执行</span>
-            <span v-else>
-              <el-tag :type="row.lastRun.ok ? 'success' : 'danger'" size="small" effect="plain">
-                {{ row.lastRun.ok ? '成功' : '失败' }}
-              </el-tag>
-              <span style="margin-left:6px">{{ formatRunTime(row.lastRun.at) }}</span>
-              <div style="font-size:12px;color:#909399">{{ row.lastRun.detail }}</div>
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" :loading="runningKey === row.key" @click="runCronTask(row)">
-              立即执行
-            </el-button>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
-      <div style="margin-top:12px;font-size:12px;color:#909399">
+      <DataTable :data="cronList" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c4="{ row }"><span v-if="!row.lastRun" style="color:var(--n-600)">未执行</span>
+                  <span v-else>
+                    <el-tag :type="row.lastRun.ok ? 'success' : 'danger'" size="small" effect="plain">
+                      {{ row.lastRun.ok ? '成功' : '失败' }}
+                    </el-tag>
+                    <span style="margin-left:6px">{{ formatRunTime(row.lastRun.at) }}</span>
+                    <div style="font-size:12px;color:var(--n-600)">{{ row.lastRun.detail }}</div>
+                  </span></template>
+        <template #c5="{ row }"><el-button link type="primary" size="small" :loading="runningKey === row.key" @click="runCronTask(row)">
+                    立即执行
+                  </el-button></template>
+      </DataTable>
+      <div style="margin-top:12px;font-size:12px;color:var(--n-600)">
         调度器随后端启动自动挂载（设 CRON_ENABLED=false 可关闭）。手动执行与定时执行走同一份逻辑；账单生成、折旧计提均已做幂等保护，重复执行不会产生重复数据。
       </div>
     </el-card>
@@ -99,6 +85,17 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '任务名称', width: 140 },
+  { prop: 'schedule', label: '调度时间', width: 140 },
+  { prop: 'desc', label: '说明', minWidth: 220 },
+  { label: '最近执行', width: 230, slot: 'c4' },
+  { label: '操作', width: 100, fixed: 'right', slot: 'c5' },
+];
+
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
@@ -217,5 +214,5 @@ onMounted(() => { fetchInfo(); fetchCron(); fetchToggle(); });
 <style lang="scss" scoped>
 .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
 .page-head { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.page-title { font-size:18px; font-weight:700; color:#1f2430; margin:0; }
+.page-title { font-size:18px; font-weight:700; color:$n-900; margin:0; }
 </style>

@@ -4,38 +4,21 @@
       <h2 class="page-title">数据字典</h2>
       <el-button type="primary" @click="showTypeDialog()">新增字典类型</el-button>
     </div>
-    <TableSkeleton v-if="loading && !dictTypes.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !dictTypes.length)" :data="dictTypes" stripe v-loading="loading" @row-click="(row: any) => { selectedType = row.code; fetchItems(); }" highlight-current-row>
-      <el-table-column prop="code" label="字典编码" width="180" />
-      <el-table-column prop="name" label="字典名称" />
-      <el-table-column label="操作" width="180">
-        <template #default="{ row }">
-          <el-button size="small" @click.stop="showTypeDialog(row)">编辑</el-button>
-          <el-popconfirm title="确定删除？同时会删除所有字典项" @confirm="handleDeleteType(row.code)"><template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无字典项" description="新增字典类型与条目，统一维护下拉选项" />
-      </template>
-    </el-table>
+    <DataTable :data="dictTypes" :loading="loading" :columns="COLUMNS" row-key="id" @row-click="(row: any) => { selectedType = row.code; fetchItems(); }" empty-title="暂无字典项" empty-description="新增字典类型与条目，统一维护下拉选项">
+      <template #c3="{ row }"><el-button size="small" @click.stop="showTypeDialog(row)">编辑</el-button>
+              <el-popconfirm title="确定删除？同时会删除所有字典项" @confirm="handleDeleteType(row.code)"><template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <template v-if="selectedType">
       <div class="toolbar" style="margin-top:24px">
         <h3>{{ selectedType }} - 字典项</h3>
         <el-button type="primary" size="small" @click="showItemDialog()">新增字典项</el-button>
       </div>
-      <el-table :data="dictItems" stripe>
-        <el-table-column prop="code" label="编码" width="150" />
-        <el-table-column prop="name" label="名称" />
-        <el-table-column prop="sortOrder" label="排序" width="80" />
-        <el-table-column label="启用" width="80"><template #default="{ row }"><el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">{{ row.isEnabled ? '是' : '否' }}</el-tag></template></el-table-column>
-        <el-table-column label="操作" width="180">
-          <template #default="{ row }">
-            <el-button size="small" @click.stop="showItemDialog(row)">编辑</el-button>
-            <el-popconfirm title="确定删除？" @confirm="handleDeleteItem(row.id)"><template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template></el-popconfirm>
-          </template>
-        </el-table-column>
-      </el-table>
+      <DataTable :data="dictItems" :columns="COLUMNS_2" row-key="id">
+        <template #c4="{ row }"><el-tag :type="row.isEnabled ? 'success' : 'info'" size="small">{{ row.isEnabled ? '是' : '否' }}</el-tag></template>
+        <template #c5="{ row }"><el-button size="small" @click.stop="showItemDialog(row)">编辑</el-button>
+                  <el-popconfirm title="确定删除？" @confirm="handleDeleteItem(row.id)"><template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template></el-popconfirm></template>
+      </DataTable>
     </template>
 
     <!-- 字典类型对话框 -->
@@ -61,6 +44,23 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'code', label: '编码', width: 150 },
+  { prop: 'name', label: '名称' },
+  { prop: 'sortOrder', label: '排序', width: 80 },
+  { label: '启用', width: 80, slot: 'c4' },
+  { label: '操作', width: 180, slot: 'c5' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'code', label: '字典编码', width: 180 },
+  { prop: 'name', label: '字典名称' },
+  { label: '操作', width: 180, slot: 'c3' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -152,7 +152,7 @@ onMounted(() => fetchTypes());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-h3 { margin: 0; font-size: 15px; color: #1f2430; }
+h3 { margin: 0; font-size: 15px; color: $n-900; }
 </style>

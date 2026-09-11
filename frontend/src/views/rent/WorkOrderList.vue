@@ -43,42 +43,15 @@
     </div>
 
     <!-- 表格 -->
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading" style="margin-top:12px">
-      <el-table-column prop="ticketNo" label="工单号" width="150" />
-      <el-table-column prop="title" label="报修标题" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="type" label="类型" width="90" />
-      <el-table-column prop="priority" label="优先级" width="90">
-        <template #default="{ row }"><el-tag :type="priorityTagType(row.priority)" size="small">{{ row.priority }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="reporter" label="报修人" width="100" />
-      <el-table-column prop="phone" label="手机" width="130" />
-      <el-table-column label="操作" width="230" fixed="right">
-        <template #default="{ row }">
-          <el-button v-if="row.status === '待派单'" size="small" type="warning" @click="showAssignDialog(row)">派单</el-button>
-          <el-button v-if="row.status === '已派单'" size="small" type="primary" @click="handleAdvance(row, '处理中')">处理</el-button>
-          <el-button v-if="row.status === '处理中'" size="small" type="primary" @click="handleAdvance(row, '待验收')">验收</el-button>
-          <el-button v-if="row.status === '待验收'" size="small" type="success" @click="showFinishDialog(row)">完工</el-button>
-          <el-button size="small" @click="showDetail(row)">详情</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无工单" description="住户报修或巡检发现问题后，工单会显示在这里" />
-      </template>
-    </el-table>
-
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="page"
-      :page-size="pageSize"
-      :total="total"
-      @current-change="fetchData"
-      layout="total, prev, pager, next"
-      style="margin-top:16px; justify-content:flex-end"
-    />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无工单" empty-description="住户报修或巡检发现问题后，工单会显示在这里" style="margin-top:12px">
+      <template #c4="{ row }"><el-tag :type="priorityTagType(row.priority)" size="small">{{ row.priority }}</el-tag></template>
+      <template #c5="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }"><el-button v-if="row.status === '待派单'" size="small" type="warning" @click="showAssignDialog(row)">派单</el-button>
+              <el-button v-if="row.status === '已派单'" size="small" type="primary" @click="handleAdvance(row, '处理中')">处理</el-button>
+              <el-button v-if="row.status === '处理中'" size="small" type="primary" @click="handleAdvance(row, '待验收')">验收</el-button>
+              <el-button v-if="row.status === '待验收'" size="small" type="success" @click="showFinishDialog(row)">完工</el-button>
+              <el-button size="small" @click="showDetail(row)">详情</el-button></template>
+    </DataTable>
 
     <!-- 新增工单弹窗 -->
     <el-dialog title="新增工单" v-model="createVisible" width="620px" @closed="resetCreateForm">
@@ -192,6 +165,20 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'ticketNo', label: '工单号', width: 150 },
+  { prop: 'title', label: '报修标题', minWidth: 180, tooltip: true },
+  { prop: 'type', label: '类型', width: 90 },
+  { prop: 'priority', label: '优先级', width: 90, slot: 'c4' },
+  { prop: 'status', label: '状态', width: 100, slot: 'c5' },
+  { prop: 'reporter', label: '报修人', width: 100 },
+  { prop: 'phone', label: '手机', width: 130 },
+  { label: '操作', width: 230, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -346,17 +333,17 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .work-order-list {
-  .page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+  .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
   .stats-row {
     display: flex; gap: 16px; margin-bottom: 16px;
     .stat-card {
-      flex: 1; background: #fff; border-radius: 8px; padding: 16px 20px;
-      text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-      .stat-value { font-size: 28px; font-weight: 700; color: #303133; }
-      .stat-label { font-size: 13px; color: #909399; margin-top: 4px; }
-      &.warning { border-left: 4px solid #E6A23C; .stat-value { color: #E6A23C; } }
-      &.primary { border-left: 4px solid #409EFF; .stat-value { color: #409EFF; } }
-      &.success { border-left: 4px solid #67C23A; .stat-value { color: #67C23A; } }
+      flex: 1; background: $n-0; border-radius: 8px; padding: 16px 20px;
+      text-align: center; box-shadow: 0 1px 4px $n-100;
+      .stat-value { font-size: 28px; font-weight: 700; color: $n-900; }
+      .stat-label { font-size: 13px; color: $n-600; margin-top: 4px; }
+      &.warning { border-left: 4px solid $warn-600; .stat-value { color: $warn-600; } }
+      &.primary { border-left: 4px solid $brand-600; .stat-value { color: $brand-600; } }
+      &.success { border-left: 4px solid $ok-600; .stat-value { color: $ok-600; } }
     }
   }
   .toolbar {

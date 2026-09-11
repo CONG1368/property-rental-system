@@ -69,5 +69,5 @@ async function submit() {
 </script>
 
 <style scoped>
-.batch-info { margin-bottom: 16px; font-size: 14px; color: #606266; }
+.batch-info { margin-bottom: 16px; font-size: 14px; color: $n-700; }
 </style>

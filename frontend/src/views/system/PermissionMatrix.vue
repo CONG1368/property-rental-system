@@ -32,31 +32,14 @@
       角色：<b>{{ role }}</b> — 模块 × 操作（含全局模块 <code>*</code>），共 {{ filteredRows.length }} 个模块
     </el-alert>
 
-    <TableSkeleton v-if="loading && !filteredRows.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !filteredRows.length)" ref="tableRef" :data="filteredRows" border v-loading="loading" row-key="module" @selection-change="onSelectionChange">
-      <el-table-column type="selection" width="45" />
-      <el-table-column prop="module" label="模块" width="180">
-        <template #default="{ row }">
-          <div class="mod-cell">
-            <span>{{ moduleLabels[row.module] || row.module }}</span>
-            <code class="mod-key">{{ row.module }}</code>
-          </div>
-        </template>
-      </el-table-column>
-      <el-table-column v-for="a in actions" :key="a" :label="actionLabels[a]" width="80" align="center">
-        <template #default="{ row }">
-          <el-checkbox :model-value="row[a]" :disabled="row.module === '*'" :title="row.module === '*' ? '全局兜底权限不直接编辑，请针对具体模块配置' : ''" @change="(v:any)=>toggle(row, a, v)" />
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="120" align="center">
-        <template #default="{ row }">
-          <el-button size="small" link type="danger" @click="confirmResetModule(row)">回退默认</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
+    <DataTable :data="filteredRows" :loading="loading" :columns="COLUMNS" row-key="module" selectable @selection-change="onSelectionChange" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #module="{ row }"><div class="mod-cell">
+                <span>{{ moduleLabels[row.module] || row.module }}</span>
+                <code class="mod-key">{{ row.module }}</code>
+              </div></template>
+      <template #action="{ row, column }"><el-checkbox :model-value="row[column.property]" :disabled="row.module === '*'" :title="row.module === '*' ? '全局兜底权限不直接编辑，请针对具体模块配置' : ''" @change="(v:any)=>toggle(row, column.property, v)" /></template>
+      <template #ops="{ row }"><el-button size="small" link type="danger" @click="confirmResetModule(row)">回退默认</el-button></template>
+    </DataTable>
 
     <div v-if="!role" class="empty-tip">请先选择一个角色查看/配置权限矩阵。</div>
 
@@ -70,26 +53,14 @@
         <!-- 保存变更：展示差异清单 -->
         <template v-if="confirmMode === 'save'">
           <div class="diff-summary">共 <b>{{ dirtyModules.length }}</b> 个模块发生权限变更：</div>
-          <el-table :data="dirtyModules" size="small" border max-height="260" style="margin-bottom:12px">
-            <el-table-column label="模块" min-width="150">
-              <template #default="{ row }">
-                <span>{{ row.label }}</span>
-                <code class="mod-key">{{ row.module }}</code>
-              </template>
-            </el-table-column>
-            <el-table-column label="新增权限" min-width="160">
-              <template #default="{ row }">
-                <template v-if="row.add.length"><el-tag v-for="a in row.add" :key="a" size="small" type="success" style="margin:1px 3px 0 0">{{ actionLabels[a] }}</el-tag></template>
-                <span v-else class="hint">—</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="移除权限" min-width="160">
-              <template #default="{ row }">
-                <template v-if="row.remove.length"><el-tag v-for="a in row.remove" :key="a" size="small" type="danger" style="margin:1px 3px 0 0">{{ actionLabels[a] }}</el-tag></template>
-                <span v-else class="hint">—</span>
-              </template>
-            </el-table-column>
-          </el-table>
+          <DataTable :data="dirtyModules" :columns="COLUMNS_2" row-key="id" style="margin-bottom:12px">
+            <template #c1="{ row }"><span>{{ row.label }}</span>
+                          <code class="mod-key">{{ row.module }}</code></template>
+            <template #c2="{ row }"><template v-if="row.add.length"><el-tag v-for="a in row.add" :key="a" size="small" type="success" style="margin:1px 3px 0 0">{{ actionLabels[a] }}</el-tag></template>
+                          <span v-else class="hint">—</span></template>
+            <template #c3="{ row }"><template v-if="row.remove.length"><el-tag v-for="a in row.remove" :key="a" size="small" type="danger" style="margin:1px 3px 0 0">{{ actionLabels[a] }}</el-tag></template>
+                          <span v-else class="hint">—</span></template>
+          </DataTable>
         </template>
 
         <!-- 回退类操作：展示影响模块 -->
@@ -114,6 +85,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { label: '模块', minWidth: 150, slot: 'c1' },
+  { label: '新增权限', minWidth: 160, slot: 'c2' },
+  { label: '移除权限', minWidth: 160, slot: 'c3' },
+];
+
+const COLUMNS = computed<TableColumn[]>(() => [
+  { prop: 'module', label: '模块', width: 180, slot: 'module' },
+  ...actions.map((a): TableColumn => ({ prop: a, label: actionLabels[a], width: 80, align: 'center', slot: 'action' })),
+  { label: '操作', width: 120, align: 'center', slot: 'ops' },
+]);
+
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Search } from '@element-plus/icons-vue';
@@ -302,11 +288,11 @@ onMounted(() => load());
 <style lang="scss" scoped>
 .perm-page { padding: 0; }
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
-.batch-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; padding: 8px 12px; background: #f7f8fa; border: 1px solid #ebeef5; border-radius: 6px; flex-wrap: wrap; }
-.hint { color: #909399; font-size: 12px; }
+.batch-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; padding: 8px 12px; background: $n-50; border: 1px solid $n-200; border-radius: 6px; flex-wrap: wrap; }
+.hint { color: $n-600; font-size: 12px; }
 .mod-cell { display: flex; flex-direction: column; line-height: 1.2; }
-.mod-key { color: #909399; font-size: 11px; }
-.empty-tip { color: #909399; text-align: center; padding: 48px 0; }
-.diff-summary { margin-bottom: 8px; font-size: 13px; color: #303133; }
+.mod-key { color: $n-600; font-size: 11px; }
+.empty-tip { color: $n-600; text-align: center; padding: 48px 0; }
+.diff-summary { margin-bottom: 8px; font-size: 13px; color: $n-900; }
 .confirm-body { padding-top: 4px; }
 </style>

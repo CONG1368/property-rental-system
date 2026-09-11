@@ -1,3 +1,4 @@
+import { tokens } from '@/styles/tokens';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -78,11 +79,11 @@ async function printPDF(options: PrintOptions): Promise<void> {
   for (let i = 0; i < blocksHTML.length; i++) {
     const blockContainer = document.createElement('div');
     blockContainer.innerHTML = styleTag + blocksHTML[i];
-    blockContainer.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + width + ';background:#fff;z-index:-1;';
+    blockContainer.style.cssText = 'position:fixed;left:-9999px;top:0;width:' + width + ';background:' + tokens.n0 + ';z-index:-1;';
     document.body.appendChild(blockContainer);
 
     try {
-      const canvas = await html2canvas(blockContainer, { scale: 1.5, useCORS: true, backgroundColor: '#ffffff' });
+      const canvas = await html2canvas(blockContainer, { scale: 1.5, useCORS: true, backgroundColor: tokens.n0 });
       document.body.removeChild(blockContainer);
 
       const imgW = usableW;

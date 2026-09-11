@@ -24,17 +24,9 @@
     <!-- Excel 预览 -->
     <el-card v-if="fileType === 'excel'" style="margin-bottom:16px">
       <template #header><span>数据预览（前10行）</span></template>
-      <el-table :data="excelPreview" border stripe size="small" max-height="400">
-        <el-table-column prop="name" label="租客姓名" min-width="100" />
-        <el-table-column prop="phone" label="租客手机" width="130" />
-        <el-table-column prop="title" label="条款标题" min-width="140" />
-        <el-table-column prop="content" label="条款内容" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="sortOrder" label="排序" width="70" />
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
-      <div style="margin-top:12px;color:#909399;font-size:12px">共 {{ excelRows.length }} 行</div>
+      <DataTable :data="excelPreview" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      </DataTable>
+      <div style="margin-top:12px;color:var(--n-600);font-size:12px">共 {{ excelRows.length }} 行</div>
       <div style="margin-top:8px">
         <el-form-item label="同步到模板">
           <el-select v-model="syncTemplateId" clearable placeholder="选择模板（可选）" style="width:100%">
@@ -54,7 +46,7 @@
         <el-button size="small" type="primary" text style="float:right" @click="smartSplit">
           <el-icon><MagicStick /></el-icon> 智能拆分
         </el-button>
-        <span style="font-size:12px;color:#909399;float:right;margin-right:12px;line-height:28px">
+        <span style="font-size:12px;color:var(--n-600);float:right;margin-right:12px;line-height:28px">
           拆分阈值: <el-input-number v-model="splitMinLength" :min="10" :max="100" size="small" style="width:70px" /> 字
         </span>
       </template>
@@ -62,23 +54,11 @@
       <el-alert v-if="parsedClauses.length > 0" type="info" :closable="false" style="margin-bottom:12px">
         已识别 {{ parsedClauses.length }} 条条款，每条可在下方编辑标题和内容后导入
       </el-alert>
-      <el-table v-if="parsedClauses.length > 0" :data="parsedClauses" border size="small" max-height="400" style="margin-bottom:12px">
-        <el-table-column prop="title" label="条款标题" min-width="140">
-          <template #default="{ row, $index }">
-            <el-input v-model="row.title" size="small" placeholder="标题" />
-          </template>
-        </el-table-column>
-        <el-table-column prop="content" label="条款内容" min-width="300">
-          <template #default="{ row, $index }">
-            <el-input v-model="row.content" type="textarea" :rows="2" size="small" placeholder="内容" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="60" fixed="right">
-          <template #default="{ $index }">
-            <el-button size="small" type="danger" text @click="parsedClauses.splice($index, 1)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <DataTable :data="parsedClauses" :columns="COLUMNS_2" row-key="id" style="margin-bottom:12px">
+        <template #c1="{ row, $index }"><el-input v-model="row.title" size="small" placeholder="标题" /></template>
+        <template #c2="{ row, $index }"><el-input v-model="row.content" type="textarea" :rows="2" size="small" placeholder="内容" /></template>
+        <template #c3="{ $index }"><el-button size="small" type="danger" text @click="parsedClauses.splice($index, 1)">删除</el-button></template>
+      </DataTable>
       <div style="margin-top:12px">
         <el-form-item label="选择租客" style="margin-bottom:12px">
           <el-select v-model="selectedTenantIds" multiple filterable placeholder="搜索选择目标租客" style="width:100%">
@@ -89,7 +69,7 @@
           <el-select v-model="syncTemplateId" clearable placeholder="选择模板（可选，自动按业态匹配）" style="width:100%">
             <el-option v-for="tpl in templates" :key="tpl.id" :label="tpl.name + ' (' + tpl.type + ')'" :value="tpl.id" />
           </el-select>
-          <span style="font-size:11px;color:#909399">导入的条款将同步到所选模板，新建合同时可一键加载</span>
+          <span style="font-size:11px;color:var(--n-600)">导入的条款将同步到所选模板，新建合同时可一键加载</span>
         </el-form-item>
       </div>
       <div style="display:flex;gap:8px">
@@ -114,7 +94,7 @@
         <el-descriptions-item label="暂存条款(待起草)">{{ importResult.data.pendingTenants || 0 }}</el-descriptions-item>
         <el-descriptions-item label="未匹配租客">{{ (importResult.data.unmatched || []).join(', ') || '无' }}</el-descriptions-item>
       </el-descriptions>
-      <div v-if="importResult.data?.pendingTenants > 0" style="margin-top:8px;font-size:12px;color:#409EFF">
+      <div v-if="importResult.data?.pendingTenants > 0" style="margin-top:8px;font-size:12px;color:var(--brand-600)">
         暂存条款将在新建合同时自动加载到条款列表
       </div>
     </el-card>
@@ -122,6 +102,23 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'title', label: '条款标题', minWidth: 140, slot: 'c1' },
+  { prop: 'content', label: '条款内容', minWidth: 300, slot: 'c2' },
+  { label: '操作', width: 60, fixed: 'right', slot: 'c3' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '租客姓名', minWidth: 100 },
+  { prop: 'phone', label: '租客手机', width: 130 },
+  { prop: 'title', label: '条款标题', minWidth: 140 },
+  { prop: 'content', label: '条款内容', minWidth: 200, tooltip: true },
+  { prop: 'sortOrder', label: '排序', width: 70 },
+];
+
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled, MagicStick } from '@element-plus/icons-vue'
@@ -375,7 +372,7 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .upload-drag-area {
   :deep(.el-upload-dragger) {
     padding: 40px 20px;
@@ -385,9 +382,9 @@ onMounted(async () => {
 .upload-text {
   margin-top: 12px;
   font-size: 15px;
-  color: #34495E;
+  color: $n-900;
   .click-hint {
-    color: #1f2430;
+    color: $n-900;
     text-decoration: underline;
     cursor: pointer;
     font-style: normal;
@@ -397,6 +394,6 @@ onMounted(async () => {
 .upload-tip {
   margin-top: 8px;
   font-size: 12px;
-  color: #909399;
+  color: $n-600;
 }
 </style>

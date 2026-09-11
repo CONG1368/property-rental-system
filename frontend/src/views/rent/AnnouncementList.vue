@@ -38,43 +38,17 @@
     </div>
 
     <!-- 表格 -->
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading" style="margin-top:12px">
-      <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="category" label="类别" width="110">
-        <template #default="{ row }"><el-tag :type="categoryTagType(row.category)" size="small">{{ row.category }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="publisher" label="发布人" width="110" />
-      <el-table-column prop="publishDate" label="发布日期" width="120">
-        <template #default="{ row }">{{ row.publishDate || '-' }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="230" fixed="right">
-        <template #default="{ row }">
-          <el-button v-if="row.status !== '已发布'" size="small" type="success" @click="handlePublish(row)">发布</el-button>
-          <el-button v-if="row.status === '已发布'" size="small" type="warning" @click="handleRevoke(row)">撤回</el-button>
-          <el-button size="small" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
-            <template #reference><el-button size="small" type="danger">删除</el-button></template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无公告" description="发布公告后可推送给指定楼栋或全部住户" />
-      </template>
-    </el-table>
-
-    <el-pagination
-      v-if="total > 0"
-      v-model:current-page="page"
-      :page-size="pageSize"
-      :total="total"
-      @current-change="fetchData"
-      layout="total, prev, pager, next"
-      style="margin-top:16px; justify-content:flex-end"
-    />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无公告" empty-description="发布公告后可推送给指定楼栋或全部住户" style="margin-top:12px">
+      <template #c2="{ row }"><el-tag :type="categoryTagType(row.category)" size="small">{{ row.category }}</el-tag></template>
+      <template #c3="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c5="{ row }">{{ row.publishDate || '-' }}</template>
+      <template #c6="{ row }"><el-button v-if="row.status !== '已发布'" size="small" type="success" @click="handlePublish(row)">发布</el-button>
+              <el-button v-if="row.status === '已发布'" size="small" type="warning" @click="handleRevoke(row)">撤回</el-button>
+              <el-button size="small" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
+                <template #reference><el-button size="small" type="danger">删除</el-button></template>
+              </el-popconfirm></template>
+    </DataTable>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog :title="editing ? '编辑公告' : '新建公告'" v-model="dialogVisible" width="600px">
@@ -106,6 +80,18 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'title', label: '标题', minWidth: 200, tooltip: true },
+  { prop: 'category', label: '类别', width: 110, slot: 'c2' },
+  { prop: 'status', label: '状态', width: 100, slot: 'c3' },
+  { prop: 'publisher', label: '发布人', width: 110 },
+  { prop: 'publishDate', label: '发布日期', width: 120, slot: 'c5' },
+  { label: '操作', width: 230, fixed: 'right', slot: 'c6' },
+];
+
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -193,17 +179,17 @@ onMounted(() => { fetchStats(); fetchProperties(); fetchData(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .announcement-list {
   .stats-row {
     display: flex; gap: 16px; margin-bottom: 16px;
     .stat-card {
-      flex: 1; background: #fff; border-radius: 8px; padding: 16px 20px;
-      text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-      .stat-value { font-size: 28px; font-weight: 700; color: #303133; }
-      .stat-label { font-size: 13px; color: #909399; margin-top: 4px; }
-      &.published { border-left: 4px solid #67C23A; }
-      &.draft { border-left: 4px solid #E6A23C; }
+      flex: 1; background: $n-0; border-radius: 8px; padding: 16px 20px;
+      text-align: center; box-shadow: 0 1px 4px $n-100;
+      .stat-value { font-size: 28px; font-weight: 700; color: $n-900; }
+      .stat-label { font-size: 13px; color: $n-600; margin-top: 4px; }
+      &.published { border-left: 4px solid $ok-600; }
+      &.draft { border-left: 4px solid $warn-600; }
     }
   }
   .toolbar {

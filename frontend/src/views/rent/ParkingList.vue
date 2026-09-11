@@ -21,28 +21,15 @@
           </div>
           <div class="action-group"><el-button type="primary" @click="showCreate">新增车位</el-button></div>
         </div>
-        <TableSkeleton v-if="loading && !spaces.length" :rows="8" :columns="7" />
-        <el-table v-show="!(loading && !spaces.length)" :data="spaces" stripe v-loading="loading">
-          <el-table-column prop="spaceNo" label="车位号" width="100" />
-          <el-table-column prop="location" label="位置" width="80" />
-          <el-table-column prop="type" label="类型" width="80" />
-          <el-table-column label="关联房源" width="140" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
-          <el-table-column prop="pricePerMonth" label="月租" width="90" align="right"><template #default="{ row }">{{ fmt(row.pricePerMonth) }}</template></el-table-column>
-          <el-table-column prop="plateNumber" label="车牌" width="110" />
-          <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="spaceTag(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-          <el-table-column label="操作" width="210" fixed="right">
-            <template #default="{ row }">
-              <el-button size="small" link :disabled="['占用','月租'].includes(row.status)" @click="showCheckIn(row)">驶入</el-button>
-              <el-button size="small" link :disabled="row.status === '空闲'" @click="checkOut(row)">驶出</el-button>
-              <el-button size="small" link @click="showEdit(row)">编辑</el-button>
-              <el-button size="small" link type="danger" @click="delSpace(row.id)">删除</el-button>
-            </template>
-          </el-table-column>
-                  <template #empty>
-            <EmptyState title="暂无车位" description="登记车位后可管理租售与进出记录" />
-          </template>
-        </el-table>
-        <el-pagination v-model:current-page="spacePage" :total="spaceTotal" :page-size="pageSize" @current-change="fetchSpaces" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+        <DataTable :data="spaces" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="spacePage" :total="spaceTotal" :page-size="pageSize" @page-change="fetchSpaces" empty-title="暂无车位" empty-description="登记车位后可管理租售与进出记录">
+          <template #c4="{ row }">{{ row.property?.name }}</template>
+          <template #c5="{ row }">{{ fmt(row.pricePerMonth) }}</template>
+          <template #c7="{ row }"><el-tag :type="spaceTag(row.status)" size="small">{{ row.status }}</el-tag></template>
+          <template #c8="{ row }"><el-button size="small" link :disabled="['占用','月租'].includes(row.status)" @click="showCheckIn(row)">驶入</el-button>
+                      <el-button size="small" link :disabled="row.status === '空闲'" @click="checkOut(row)">驶出</el-button>
+                      <el-button size="small" link @click="showEdit(row)">编辑</el-button>
+                      <el-button size="small" link type="danger" @click="delSpace(row.id)">删除</el-button></template>
+        </DataTable>
       </el-tab-pane>
 
       <el-tab-pane label="停车记录" name="records">
@@ -55,16 +42,11 @@
             <el-button type="primary" @click="fetchRecords">查询</el-button>
           </div>
         </div>
-        <el-table :data="records" stripe v-loading="loading">
-          <el-table-column label="车位号" width="100"><template #default="{ row }">{{ row.space?.spaceNo }}</template></el-table-column>
-          <el-table-column prop="plateNumber" label="车牌" width="120" />
-          <el-table-column prop="type" label="类型" width="80" />
-          <el-table-column prop="startTime" label="入场时间" width="170" />
-          <el-table-column prop="endTime" label="出场时间" width="170" />
-          <el-table-column prop="amount" label="计费" width="100" align="right"><template #default="{ row }">{{ fmt(row.amount) }}</template></el-table-column>
-          <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="row.status === '进行中' ? 'warning' : 'success'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-        </el-table>
-        <el-pagination v-model:current-page="recordPage" :total="recordTotal" :page-size="pageSize" @current-change="fetchRecords" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+        <DataTable :data="records" :loading="loading" :columns="COLUMNS_2" row-key="id" v-model:page="recordPage" :total="recordTotal" :page-size="pageSize" @page-change="fetchRecords">
+          <template #c1="{ row }">{{ row.space?.spaceNo }}</template>
+          <template #c6="{ row }">{{ fmt(row.amount) }}</template>
+          <template #c7="{ row }"><el-tag :type="row.status === '进行中' ? 'warning' : 'success'" size="small">{{ row.status }}</el-tag></template>
+        </DataTable>
       </el-tab-pane>
     </el-tabs>
 
@@ -94,6 +76,30 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { label: '车位号', width: 100, slot: 'c1' },
+  { prop: 'plateNumber', label: '车牌', width: 120 },
+  { prop: 'type', label: '类型', width: 80 },
+  { prop: 'startTime', label: '入场时间', width: 170 },
+  { prop: 'endTime', label: '出场时间', width: 170 },
+  { prop: 'amount', label: '计费', width: 100, align: 'right', slot: 'c6' },
+  { prop: 'status', label: '状态', width: 90, slot: 'c7' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'spaceNo', label: '车位号', width: 100 },
+  { prop: 'location', label: '位置', width: 80 },
+  { prop: 'type', label: '类型', width: 80 },
+  { label: '关联房源', width: 140, tooltip: true, slot: 'c4' },
+  { prop: 'pricePerMonth', label: '月租', width: 90, align: 'right', slot: 'c5' },
+  { prop: 'plateNumber', label: '车牌', width: 110 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c7' },
+  { label: '操作', width: 210, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';
@@ -175,13 +181,13 @@ onMounted(() => { fetchSpaces(); fetchRecords(); });
 <style lang="scss" scoped>
 .parking-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.idle { color: #67C23A; }
-.stat-num.occ { color: #F56C6C; }
-.stat-num.mon { color: #409EFF; }
-.stat-num.mending { color: #E6A23C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.idle { color: $ok-600; }
+.stat-num.occ { color: $bad-600; }
+.stat-num.mon { color: $brand-600; }
+.stat-num.mending { color: $warn-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

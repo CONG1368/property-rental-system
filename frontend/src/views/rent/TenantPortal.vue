@@ -21,42 +21,26 @@
       </header>
       <el-tabs v-model="tab" class="portal-tabs">
         <el-tab-pane label="我的账单" name="bills">
-          <TableSkeleton v-if="loading && !bills.length" :rows="8" :columns="7" />
-          <el-table v-show="!(loading && !bills.length)" :data="bills" stripe v-loading="loading">
-            <el-table-column prop="billNo" label="账单号" width="150" />
-            <el-table-column prop="period" label="账期" width="100" />
-            <el-table-column prop="totalAmount" label="金额" width="120" align="right"><template #default="{ row }">{{ fmt(row.totalAmount) }}</template></el-table-column>
-            <el-table-column prop="dueDate" label="到期日" width="120" />
-            <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="row.status === '已缴' ? 'success' : row.status === '逾期' ? 'danger' : 'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-            <el-table-column label="操作" width="90"><template #default="{ row }"><el-button v-if="row.status !== '已缴'" size="small" type="primary" link>去缴费</el-button></template></el-table-column>
-                      <template #empty>
-              <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-            </template>
-          </el-table>
+          <DataTable :data="bills" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+            <template #c3="{ row }">{{ fmt(row.totalAmount) }}</template>
+            <template #c5="{ row }"><el-tag :type="row.status === '已缴' ? 'success' : row.status === '逾期' ? 'danger' : 'warning'" size="small">{{ row.status }}</el-tag></template>
+            <template #c6="{ row }"><el-button v-if="row.status !== '已缴'" size="small" type="primary" link>去缴费</el-button></template>
+          </DataTable>
         </el-tab-pane>
         <el-tab-pane label="我的报修" name="repairs">
-          <el-table :data="repairs" stripe v-loading="loading">
-            <el-table-column prop="ticketNo" label="工单号" width="150" />
-            <el-table-column prop="title" label="标题" min-width="160" />
-            <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template></el-table-column>
-            <el-table-column label="操作" width="90"><template #default="{ row }"><el-button size="small" @click="submitRepairFromRow(row)">跟进</el-button></template></el-table-column>
-          </el-table>
+          <DataTable :data="repairs" :loading="loading" :columns="COLUMNS_2" row-key="id">
+            <template #c3="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template>
+            <template #c4="{ row }"><el-button size="small" @click="submitRepairFromRow(row)">跟进</el-button></template>
+          </DataTable>
           <el-button type="primary" class="add-repair" @click="openRepair">提交报修</el-button>
         </el-tab-pane>
         <el-tab-pane label="公告" name="anns">
-          <el-table :data="anns" stripe>
-            <el-table-column prop="title" label="标题" min-width="180" />
-            <el-table-column prop="category" label="类别" width="90" />
-            <el-table-column prop="publishDate" label="日期" width="120" />
-            <el-table-column prop="content" label="内容" min-width="240" show-overflow-tooltip />
-          </el-table>
+          <DataTable :data="anns" :columns="COLUMNS_3" row-key="id">
+          </DataTable>
         </el-tab-pane>
         <el-tab-pane label="我的消息" name="msgs">
-          <el-table :data="msgs" stripe v-loading="loading">
-            <el-table-column prop="title" label="标题" width="180" />
-            <el-table-column prop="content" label="内容" min-width="220" show-overflow-tooltip />
-            <el-table-column prop="createdAt" label="时间" width="180" />
-          </el-table>
+          <DataTable :data="msgs" :loading="loading" :columns="COLUMNS_4" row-key="id">
+          </DataTable>
         </el-tab-pane>
       </el-tabs>
 
@@ -76,6 +60,38 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_4: TableColumn[] = [
+  { prop: 'title', label: '标题', width: 180 },
+  { prop: 'content', label: '内容', minWidth: 220, tooltip: true },
+  { prop: 'createdAt', label: '时间', width: 180 },
+];
+
+const COLUMNS_3: TableColumn[] = [
+  { prop: 'title', label: '标题', minWidth: 180 },
+  { prop: 'category', label: '类别', width: 90 },
+  { prop: 'publishDate', label: '日期', width: 120 },
+  { prop: 'content', label: '内容', minWidth: 240, tooltip: true },
+];
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'ticketNo', label: '工单号', width: 150 },
+  { prop: 'title', label: '标题', minWidth: 160 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c3' },
+  { label: '操作', width: 90, slot: 'c4' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'billNo', label: '账单号', width: 150 },
+  { prop: 'period', label: '账期', width: 100 },
+  { prop: 'totalAmount', label: '金额', width: 120, align: 'right', slot: 'c3' },
+  { prop: 'dueDate', label: '到期日', width: 120 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c5' },
+  { label: '操作', width: 90, slot: 'c6' },
+];
+
 import { ref, onMounted } from 'vue';
 import { House } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
@@ -127,14 +143,14 @@ onMounted(() => { if (token()) { logged.value = true; loadData(); } });
 </script>
 
 <style lang="scss" scoped>
-.tenant-portal { min-height: 100vh; background: #f5f7fa; }
+.tenant-portal { min-height: 100vh; background: $n-50; }
 .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 .login-card { width: 400px; padding: 12px 6px; }
-.portal-title { text-align: center; margin-bottom: 18px; color: #1f2430; }
-.login-tip { margin-top: 12px; color: #909399; font-size: 12px; text-align: center; }
+.portal-title { text-align: center; margin-bottom: 18px; color: $n-900; }
+.login-tip { margin-top: 12px; color: $n-600; font-size: 12px; text-align: center; }
 .portal-wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
-.portal-header { display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 14px 20px; border-radius: 8px; margin-bottom: 16px; }
-.ttl { font-size: 18px; font-weight: 700; color: #1f2430; }
-.user { color: #606266; }
+.portal-header { display: flex; justify-content: space-between; align-items: center; background: $n-0; padding: 14px 20px; border-radius: 8px; margin-bottom: 16px; }
+.ttl { font-size: 18px; font-weight: 700; color: $n-900; }
+.user { color: $n-700; }
 .add-repair { margin-top: 12px; }
 </style>

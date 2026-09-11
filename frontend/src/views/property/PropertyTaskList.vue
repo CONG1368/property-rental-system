@@ -19,35 +19,18 @@
       <div class="action-group"><el-button type="primary" @click="showForm(null)">新增任务</el-button></div>
     </div>
 
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
-      <el-table-column prop="type" label="任务类型" width="100"><template #default="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template></el-table-column>
-      <el-table-column prop="area" label="区域" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="frequency" label="频次" width="80" />
-      <el-table-column prop="assignee" label="执行人" width="100" />
-      <el-table-column prop="scheduleDate" label="计划日期" width="110" />
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column prop="result" label="质检结果" width="100">
-        <template #default="{ row }">
-          <el-tag v-if="row.status === '已完成'" :type="resultTag(row.result)" size="small">{{ row.result }}</el-tag>
-          <span v-else style="color:#c0c4cc">—</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="评分" width="70"><template #default="{ row }">{{ row.status === '已完成' ? row.qualityScore : '—' }}</template></el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" link type="primary" @click="showInspect(row)">质检</el-button>
-          <el-button size="small" link @click="showForm(row)">编辑</el-button>
-          <el-popconfirm title="确认删除该任务?" @confirm="handleDelete(row.id)">
-            <template #reference><el-button size="small" link type="danger">删除</el-button></template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c1="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template>
+      <template #c6="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }"><el-tag v-if="row.status === '已完成'" :type="resultTag(row.result)" size="small">{{ row.result }}</el-tag>
+              <span v-else style="color:var(--n-300)">—</span></template>
+      <template #c8="{ row }">{{ row.status === '已完成' ? row.qualityScore : '—' }}</template>
+      <template #c9="{ row }"><el-button size="small" link type="primary" @click="showInspect(row)">质检</el-button>
+              <el-button size="small" link @click="showForm(row)">编辑</el-button>
+              <el-popconfirm title="确认删除该任务?" @confirm="handleDelete(row.id)">
+                <template #reference><el-button size="small" link type="danger">删除</el-button></template>
+              </el-popconfirm></template>
+    </DataTable>
 
     <!-- 新增/编辑 -->
     <el-dialog :title="editing ? '编辑任务' : '新增任务'" v-model="formVisible" width="560px">
@@ -78,6 +61,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'type', label: '任务类型', width: 100, slot: 'c1' },
+  { prop: 'area', label: '区域', minWidth: 140, tooltip: true },
+  { prop: 'frequency', label: '频次', width: 80 },
+  { prop: 'assignee', label: '执行人', width: 100 },
+  { prop: 'scheduleDate', label: '计划日期', width: 110 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c6' },
+  { prop: 'result', label: '质检结果', width: 100, slot: 'c7' },
+  { label: '评分', width: 70, slot: 'c8' },
+  { label: '操作', width: 200, fixed: 'right', slot: 'c9' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -201,12 +199,12 @@ onMounted(() => { fetchData(); fetchStats() })
 <style lang="scss" scoped>
 .property-task-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.pending { color: #E6A23C; }
-.stat-num.done { color: #67C23A; }
-.stat-num.fail { color: #F56C6C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.pending { color: $warn-600; }
+.stat-num.done { color: $ok-600; }
+.stat-num.fail { color: $bad-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

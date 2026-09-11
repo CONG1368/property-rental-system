@@ -8,21 +8,27 @@
     </div>
     <el-alert type="info" :closable="false" style="margin-bottom:16px">系统每月 1 日上午自动生成并归档当月经营简报 PDF（文字版，可搜索）。</el-alert>
 
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
-      <el-table-column label="文件" min-width="220"><template #default="{ row }"><el-icon><Document /></el-icon> {{ row.name }}</template></el-table-column>
-      <el-table-column label="大小" width="120"><template #default="{ row }">{{ fmt(row.size) }}</template></el-table-column>
-      <el-table-column label="生成时间" width="200"><template #default="{ row }">{{ fmtTime(row.mtime) }}</template></el-table-column>
-      <el-table-column label="操作" width="120" fixed="right"><template #default="{ row }"><el-button size="small" type="primary" link @click="download(row)">下载</el-button></template></el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c1="{ row }"><el-icon><Document /></el-icon> {{ row.name }}</template>
+      <template #c2="{ row }">{{ fmt(row.size) }}</template>
+      <template #c3="{ row }">{{ fmtTime(row.mtime) }}</template>
+      <template #c4="{ row }"><el-button size="small" type="primary" link @click="download(row)">下载</el-button></template>
+    </DataTable>
     <el-empty v-if="!loading && list.length === 0" description="暂无归档简报，点击右上角生成" />
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { label: '文件', minWidth: 220, slot: 'c1' },
+  { label: '大小', width: 120, slot: 'c2' },
+  { label: '生成时间', width: 200, slot: 'c3' },
+  { label: '操作', width: 120, fixed: 'right', slot: 'c4' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Document } from '@element-plus/icons-vue';
@@ -59,5 +65,5 @@ onMounted(() => loadList());
 <style lang="scss" scoped>
 .archive-page { padding: 0; }
 .head-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-title { font-size: 20px; font-weight: 700; color: #1f2430; margin: 0; }
+.page-title { font-size: 20px; font-weight: 700; color: $n-900; margin: 0; }
 </style>

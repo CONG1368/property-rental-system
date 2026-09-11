@@ -12,29 +12,16 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
-      <el-table-column type="selection" width="45" />
-      <el-table-column label="模板名称" width="220">
-        <template #default="{ row }">
-          {{ row.name }}
-          <el-tag size="small" type="info" v-if="row.content?.isAuto" style="margin-left:4px">自动</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="type" label="适用业态" width="120"><template #default="{ row }"><el-tag size="small">{{ row.type }}</el-tag></template></el-table-column>
-      <el-table-column label="条款数" width="100"><template #default="{ row }">{{ row.clauses?.length || 0 }}</template></el-table-column>
-      <el-table-column prop="createdAt" label="创建时间" width="170"><template #default="{ row }">{{ row.createdAt?.slice(0, 16)?.replace('T', ' ') }}</template></el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click="showDialog(row)">编辑</el-button>
-          <el-button size="small" @click="showClauseDialog(row)">管理条款</el-button>
-          <el-popconfirm title="确定删除?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无合同模板" description="创建模板可在起草合同时一键套用条款" />
-      </template>
-    </el-table>
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" selectable @selection-change="(rows: any[]) => selectedRows = rows" empty-title="暂无合同模板" empty-description="创建模板可在起草合同时一键套用条款">
+      <template #c1="{ row }">{{ row.name }}
+              <el-tag size="small" type="info" v-if="row.content?.isAuto" style="margin-left:4px">自动</el-tag></template>
+      <template #c2="{ row }"><el-tag size="small">{{ row.type }}</el-tag></template>
+      <template #c3="{ row }">{{ row.clauses?.length || 0 }}</template>
+      <template #c4="{ row }">{{ row.createdAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+      <template #c5="{ row }"><el-button size="small" @click="showDialog(row)">编辑</el-button>
+              <el-button size="small" @click="showClauseDialog(row)">管理条款</el-button>
+              <el-popconfirm title="确定删除?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <el-dialog :title="dialogTitle" v-model="dialogVisible" width="600px">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
@@ -51,18 +38,36 @@
 
     <el-dialog title="条款管理" v-model="clauseDialogVisible" width="700px">
       <div style="margin-bottom:12px"><el-button type="primary" size="small" @click="addClause">添加条款</el-button></div>
-      <el-table :data="clauseForm" stripe>
-        <el-table-column label="标题" width="180"><template #default="{ row }"><el-input v-model="row.title" size="small" /></template></el-table-column>
-        <el-table-column label="内容" min-width="280"><template #default="{ row }"><el-input v-model="row.content" type="textarea" size="small" :rows="2" /></template></el-table-column>
-        <el-table-column label="排序" width="80"><template #default="{ row }"><el-input-number v-model="row.sortOrder" size="small" :min="0" /></template></el-table-column>
-        <el-table-column label="操作" width="80"><template #default="{ $index }"><el-button type="danger" size="small" @click="clauseForm.splice($index, 1)">删除</el-button></template></el-table-column>
-      </el-table>
+      <DataTable :data="clauseForm" :columns="COLUMNS_2" row-key="id">
+        <template #c1="{ row }"><el-input v-model="row.title" size="small" /></template>
+        <template #c2="{ row }"><el-input v-model="row.content" type="textarea" size="small" :rows="2" /></template>
+        <template #c3="{ row }"><el-input-number v-model="row.sortOrder" size="small" :min="0" /></template>
+        <template #c4="{ $index }"><el-button type="danger" size="small" @click="clauseForm.splice($index, 1)">删除</el-button></template>
+      </DataTable>
       <template #footer><el-button @click="clauseDialogVisible = false">取消</el-button><el-button type="primary" @click="saveClauses">保存条款</el-button></template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { label: '标题', width: 180, slot: 'c1' },
+  { label: '内容', minWidth: 280, slot: 'c2' },
+  { label: '排序', width: 80, slot: 'c3' },
+  { label: '操作', width: 80, slot: 'c4' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { label: '模板名称', width: 220, slot: 'c1' },
+  { prop: 'type', label: '适用业态', width: 120, slot: 'c2' },
+  { label: '条款数', width: 100, slot: 'c3' },
+  { prop: 'createdAt', label: '创建时间', width: 170, slot: 'c4' },
+  { label: '操作', width: 240, fixed: 'right', slot: 'c5' },
+];
+
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';
@@ -144,8 +149,8 @@ onMounted(() => { fetchData(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; flex: 1; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; flex: 1; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff; }
-.batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }
+.batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border-radius: 6px; border: 1px solid $brand-100; }
+.batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

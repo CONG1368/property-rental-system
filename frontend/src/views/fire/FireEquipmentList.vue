@@ -8,21 +8,11 @@
         <el-col :span="3"><el-select v-model="filters.status" placeholder="状态" clearable @change="fetchData" style="width:100%"><el-option v-for="s in statuses" :key="s" :label="s" :value="s" /></el-select></el-col>
         <el-col :span="4"><el-button type="primary" @click="showDialog(null)">添加器材</el-button></el-col>
       </el-row>
-      <el-table :data="list" size="small" stripe :row-class-name="rowClass">
-        <el-table-column prop="property" label="房源" width="120"><template #default="{row}">{{ row.property?.name || '-' }}</template></el-table-column>
-        <el-table-column prop="name" label="器材名称" min-width="160" />
-        <el-table-column prop="category" label="类别" width="100" />
-        <el-table-column prop="quantity" label="数量" width="60" />
-        <el-table-column prop="location" label="位置" width="100" />
-        <el-table-column prop="expiryDate" label="有效期至" width="110" />
-        <el-table-column prop="status" label="状态" width="100"><template #default="{row}"><el-tag :type="row.status==='正常'?'success':row.status==='即将过期'?'warning':'danger'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-        <el-table-column prop="nextCheckDate" label="下次检查" width="110" />
-        <el-table-column label="操作" width="100"><template #default="{row}"><el-button link size="small" @click="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template></el-table-column>
-              <template #empty>
-          <EmptyState title="暂无消防器材" description="登记灭火器、应急照明灯等器材后可跟踪有效期与状态" />
-        </template>
-      </el-table>
-      <el-pagination v-if="total>0" style="margin-top:12px" v-model:current-page="page" :page-size="20" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
+      <DataTable :data="list" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="20" @page-change="fetchData" empty-title="暂无消防器材" empty-description="登记灭火器、应急照明灯等器材后可跟踪有效期与状态">
+        <template #c1="{ row }">{{ row.property?.name || '-' }}</template>
+        <template #c7="{ row }"><el-tag :type="row.status==='正常'?'success':row.status==='即将过期'?'warning':'danger'" size="small">{{ row.status }}</el-tag></template>
+        <template #c9="{ row }"><el-button link size="small" @click="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+      </DataTable>
     </el-card>
 
     <el-dialog :title="editing ? '编辑器材' : '添加器材'" v-model="dialogVisible" width="500px">
@@ -40,6 +30,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'property', label: '房源', width: 120, slot: 'c1' },
+  { prop: 'name', label: '器材名称', minWidth: 160 },
+  { prop: 'category', label: '类别', width: 100 },
+  { prop: 'quantity', label: '数量', width: 60 },
+  { prop: 'location', label: '位置', width: 100 },
+  { prop: 'expiryDate', label: '有效期至', width: 110 },
+  { prop: 'status', label: '状态', width: 100, slot: 'c7' },
+  { prop: 'nextCheckDate', label: '下次检查', width: 110 },
+  { label: '操作', width: 100, slot: 'c9' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -77,6 +82,6 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
-:deep(.row-expired) { background: #fef0f0 !important; } :deep(.row-expiring) { background: #fdf6ec !important; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
+:deep(.row-expired) { background: $bad-100 !important; } :deep(.row-expiring) { background: $warn-100 !important; }
 </style>

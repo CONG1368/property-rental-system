@@ -1,64 +1,160 @@
-# UI 主题设计准则（湛蓝玻璃拟物）
+# UI 主题设计准则（冷调中性 · 令牌 v2）
 
-> 本文是本项目前端视觉的唯一权威规范。新增页面/组件必须遵循，改造存量页面时按此对齐。
-> 来源：better-design（语义 token + 品牌系统 + WCAG 门禁）与 design-taste-frontend（品牌材料库 + QA 门禁）两套设计准则的项目化落地。
+> 本文是本项目前端视觉的**唯一权威规范**。新增页面/组件必须遵循；改造存量页面时按此对齐。
+> 本版为**令牌 v2**（冷调中性 · 现代极简），取代 v1 的「湛蓝玻璃拟物」；v1 的玻璃卡片与 `$color-*` 命名已全部废弃。
+> 配套：`frontend/src/styles/variables.scss`（SCSS 令牌）、`styles/global.scss`（EP 覆盖 + CSS 变量镜像）、`styles/tokens.ts`（JS 镜像）。
 
-## 一、全局基线
+## 一、一句话
 
-| 维度 | 取值 | 含义 |
-|------|------|------|
-| DESIGN_VARIANCE | 8 | 允许不对称、有变化的版式，禁死板居中 |
-| MOTION_INTENSITY | 6 | 适中动效，交互有物理反馈 |
-| VISUAL_DENSITY | 4 | 中等密度，数据不挤不空 |
+**保留湛蓝、砍掉玻璃卡片、补上中间层。**
+颜色按「中性阶 + 品牌 + 语义 + 房态阶」收成一套全局令牌；玻璃只留给应用外壳；界面类型只切密度、不切颜色；列表页默认**组装组件**而不是新建样式。
 
 ## 二、铁律（CRITICAL）
 
-1. **ANTI-EMOJI**：代码、模板、文案、alt 文本一律禁用 emoji，统一使用 Element Plus 线性图标（`@element-plus/icons-vue`）。历史 emoji 数据由 `utils/avatars.ts` 的 `resolveAvatarIcon()` 做兼容映射。
-2. **THE LILA BAN**：禁"AI 紫/蓝紫"审美，禁紫色发光与霓虹渐变。
-3. **最多 1 个强调色**，饱和度 < 80%。本项目强调色为湛蓝 `#4f7cf7`，语义色仅在状态表达时使用（success `#10b981` / warning `#f59e0b` / danger `#ef4444`）。
+1. **ANTI-EMOJI**：代码、模板、文案、alt 一律禁用 emoji，统一用 `@element-plus/icons-vue` 线性图标。
+2. **颜色字面量只允许出现在令牌文件**：`styles/variables.scss`、`styles/global.scss`、`styles/tokens.ts`。其它任何文件**不得出现 `#hex` / `oklch()` / `rgb()` / `rgba()`**——由门禁 **R2** 强制；打印模板 `components/print/**` 按纸质输出豁免。
+3. **每屏最多 2 处品牌强调色**，只用于主操作与链接。
+4. **不做深色模式、不做模块识别色、不做模块专属图表主题**（理由见第七节）。
+5. **不重写** `components/common/EmptyState.vue`、`components/common/TableSkeleton.vue`、`components/print/**`。
 
-## 三、设计令牌（`frontend/src/styles/variables.scss`）
+## 三、令牌 v2
 
-| 类别 | 令牌 | 值 |
-|------|------|----|
-| 强调 | `$color-primary` / `$color-accent` | `#4f7cf7` / `#3b66e0` |
-| 背景 | `$color-bg` / `$color-bg-fixed` | `linear-gradient(135deg,#e3ecfb,#dbe6f8 45%,#e0edf7)` / `#dde7f5` |
-| 玻璃面 | `$color-bg-elev` / `$color-bg-elev-strong` | `rgba(255,255,255,.62)` / `rgba(255,255,255,.78)` |
-| 描边 | `$color-border` / `$color-border-soft` | `rgba(255,255,255,.72)` / `rgba(255,255,255,.5)` |
-| 文字 | `$color-text-title` / `$color-text-body` / `$color-text-aux` | `#1f2430` / `#3a4354` / `#5b6472` |
-| 圆角 | `$radius-sm` / `$radius-md` / `$radius-lg` | 8px / 14px / 20px |
-| 阴影 | `$color-shadow` + `$color-shadow-inset` | `0 8px 32px rgba(31,41,55,.14)` + `inset 0 1px 0 rgba(255,255,255,.55)` |
+### 3.1 中性阶（唯一色相 250）
 
-Element Plus 变量在 `global.scss` 的 `html:root` 中整体覆盖，禁止在页面内重复定义主题色字面量。
+| 令牌 | 值 | 用途 |
+|---|---|---|
+| `$n-0` | oklch(100% 0 0) | 卡片 / 弹层净表面 |
+| `$n-50` | oklch(98.4% 0.003 250) | 页面底 |
+| `$n-100` | oklch(96.5% 0.005 250) | 表头 / 骨架底 |
+| `$n-200` | oklch(92% 0.006 250) | 分割线、卡片描边（**不做控件边界**）|
+| `$n-300` | oklch(85% 0.008 250) | 弱化装饰 |
+| `$n-400` | oklch(64% 0.012 250) | **控件边界**（实测 3.21:1，满足 WCAG SC 1.4.11 ≥3:1）|
+| `$n-500` | oklch(56% 0.012 250) | 禁用态文字 |
+| `$n-600` | oklch(52% 0.012 250) | 次要文字（5.23:1）|
+| `$n-700` | oklch(40% 0.012 250) | 正文 |
+| `$n-900` | oklch(21% 0.012 250) | 主文字（16.90:1）|
 
-### 无障碍文字变体（WCAG 2.1 AA）
+**文字只允许 `$n-900` / `$n-700` / `$n-600`；`$n-400` 专供控件边界。**
 
-原色（`$color-primary` / `$color-success` / `$color-warning` / `$color-danger`）在浅玻璃底上**只满足 UI 组件门槛 3:1**，作正文会低至 1.72:1。因此拆成两组用途：
+> 注：v2 定稿时 `$n-400` 原为 75%（实测仅 2.12:1，不达标），已压深到 64%；`$n-500` 相应调到 56% 以免与 600 档撞车。
 
-| 用途 | 令牌 | 值 | 允许场景 |
-|------|------|----|----------|
-| 主色文字/链接 | `$color-primary-text` / `$color-primary-text-hover` | `#2b57c9` / `#1e50bd` | 正文、链接、文字型按钮、选中态文字 |
-| 成功/警告/危险文字 | `$color-success-text` / `$color-warning-text` / `$color-danger-text` | `#0a7652` / `#8a5200` / `#bf2626` | 状态文字、细线图标、实心按钮底 |
-| 控件边界 | `$color-border-control` | `#6f8299` | 输入框/选择器等交互控件描边（SC 1.4.11 强制 ≥3:1） |
-| 深色顶栏元素 | `$color-on-dark-primary` / `$color-on-dark-danger` | `#a8c2fc` / `#fca5a5` | 顶栏上的主色徽标、红点 |
-| 次要文字 | `$color-text-subtle` | `#5f6675` | 占位符、辅助说明（原 `#8b93a3` 仅 2.47:1） |
+### 3.2 品牌（唯一强调色，每屏 ≤2 处）
 
-**原色继续用于**：填充、标签底、图表系列色、进度条、KPI 大号数值。白描边 `$color-border` 仅作装饰轮廓，不可用作功能性边界。
+| 令牌 | 值 | 用途 |
+|---|---|---|
+| `$brand-100` | oklch(94% 0.03 255) | 浅底填充 |
+| `$brand-300` | oklch(80% 0.08 255) | 边框 / hover 底 |
+| `$brand-600` | oklch(46% 0.15 255) | 主操作 / 链接（白字 7.22:1）|
+| `$brand-700` | oklch(40% 0.15 255) | hover |
 
-## 四、六条执行规则
+**成对规则**：浅档（100/300）配 `$n-900`；深档（600/700）配白字；中间明度不配白字。
 
-- **Rule 1 排版**：标题字重 700、字距收紧；Dashboard 禁衬线体；正文行高 1.6。
-- **Rule 2 用色**：单一强调色；中性基础统一冷灰，禁冷暖灰混用；页面标题用 `#1f2430`，数值强调用 `#4f7cf7`。
-- **Rule 3 布局**：禁居中 Hero。登录页采用 Split Screen（左品牌区 + 右玻璃表单卡）。
-- **Rule 4 材质（Anti-Card Overuse）**：卡片仅在需要层级时使用；玻璃面 = `background: rgba(255,255,255,.62)` + `backdrop-filter: blur(14px)` + 1px 白描边 + 外阴影/内高光；高密度表格区保持不透明以保证可读性。
-- **Rule 5 交互态**：必须完整实现 loading / 空态 / 错误态。首屏加载用 `<TableSkeleton>`（骨架屏，禁用通用转圈）；空数据用 `<EmptyState>`（图标 + 标题 + 引导说明，必要时带操作按钮），二者均为全局自动注册组件，位于 `components/common/`；按钮 `:active` 用 `translateY(-1px) scale(.98)`。
-  标准接法：`<TableSkeleton v-if="loading && !list.length" />` + `<el-table v-show="!(loading && !list.length)">` + `<template #empty><EmptyState ... /></template>`。
-- **Rule 6 表单**：label 在 input 上方，错误提示在下方，输入块间距 8px。
+### 3.3 语义（只表达状态，不做图表系列色）
 
-## 五、维护约定
+`$ok-100/$ok-600`、`$warn-100/$warn-600`、`$bad-100/$bad-600`、`$info-100/$info-600`。
+600 档即「文字安全档」（白字 5.94–7.37:1，作正文 5.72–7.05:1）。**v1 的 `-text` 无障碍变体已被 v2 的 600 档吸收，不再单列。**
 
-- 新增页面禁止硬编码旧色值（`#0A3D62` / `#F6B93B` / `#00B894` / `#FF6B35` / `#82CCDD` / `#1a5f8a`），一律引用 SCSS 令牌。
-- 存量页面批量迁移用 `scripts/theme-migrate.cjs`（自动跳过 `components/print/`：打印模板面向纸质输出，保留深墨蓝）。
-- 版本号唯一来源为根 `package.json`，前端通过 Vite `define` 注入 `__APP_VERSION__`，禁止在页面里写死版本字符串。
-- 新增页面的文字色必须使用无障碍变体（见上表），提交前跑 `node scripts/check-contrast.cjs`（全通过退出码 0，可作 CI 门禁）；批量迁移用 `scripts/apply-a11y-colors.cjs`。
-- 新增列表页用 `node scripts/apply-loading-states.cjs`（支持 `--dry` 预演）自动接入骨架屏与空态，接入后跑 `node scripts/verify-ux-states.cjs` 验收。
+### 3.4 房态生命周期阶（唯一的业务流程色阶，全模块复用）
+
+`$st-vacant`（空置）/ `$st-locked`（已锁定）/ `$st-booked`（已预订）/ `$st-rented`（已出租）。
+配对：前三档配 `$n-900`（6.15–14.40:1）；`$st-rented` 配白字（4.92:1）。维修中 / 已冻结走语义色，待保洁 / 待验收走中性 + 斜纹。
+
+### 3.5 非颜色令牌
+
+- 阴影三档：`$sh-0`（无）/ `$sh-1`（浮起，必须对应真实可点击）/ `$sh-2`（覆盖：弹层 / 抽屉）
+- 玻璃：`$glass`（**仅顶栏 / 侧栏 / 抽屉 / 弹层可用**）；遮罩 `$scrim`
+- 字号三级：`$fs-page 22` / `$fs-section 15` / `$fs-body 13.5`（中文下限）/ `$fs-meta 12`；行高 `$lh-body 1.7`
+- 字体：`$font-display` / `$font-body` / `$font-mono`
+- 圆角：`$r-ctl 6`（控件）/ `$r-box 10`（卡片）/ `$r-panel 14`（面板）——**控件圆角恒小于容器**
+
+### 3.6 Element Plus 覆盖（`global.scss` 的 `html:root`）
+
+`--el-color-primary: $brand-600`；`--el-color-primary-light-3/5/7/9: $brand-300 → $brand-100`；`--el-color-success/warning/danger: 600 档`；`--el-text-color-*: $n-900/700/600`；`--el-border-color: $n-400`；`--el-fill-color-blank: $n-0`（**取消半透明填充**）；`--el-border-radius-base: $r-box`；`--el-box-shadow-light: $sh-1`。
+
+CSS 变量镜像（`--n-900`…、`--brand-600`…、`--glass`、`--sh-1`…）同样在该文件 `:root` 输出，供**内联样式与 JS** 使用（ECharts 请用 `tokens.ts`）。
+
+## 四、界面类型（只切密度，不动颜色）
+
+由外壳组件在根节点设置 `data-surface`，`global.scss` 提供 `--row-h / --pad-page / --pad-card / --gap-card`：
+
+| 外壳 | data-surface | 场景 |
+|---|---|---|
+| `ListShell` | list | A 数据列表 |
+| `DashboardShell` | dashboard | B 看板仪表 |
+| `FormShell` | form | C 表单录入 |
+| `DocumentShell` | document | D 文档打印 |
+| `PortalShell` | portal | E 自助门户 |
+
+## 五、组件契约（新增页面的默认动作 = 组装组件）
+
+```
+components/
+  base/       无业务含义；出现业务词汇即违规
+    DataTable  FilterBar  StatusTag  MoneyText  DateText  FormDialog  PageHeader  types.ts
+  surfaces/   板式外壳，只切密度
+    ListShell  DashboardShell  FormShell  DocumentShell  PortalShell
+  modules/    业务组件，允许业务语义
+    rent/TenantFormDialog  finance/VoucherAutoGenerate  finance/VoucherEntryRows  rent/BillLifecycle  contract/ClausePreview
+  common/     EmptyState / TableSkeleton（全局自动注册，直接复用，不要重写）
+```
+
+**依赖方向是硬约束**：`modules/` 可引用 `base/` 与 `surfaces/`；**反向一律禁止**——`base/` 里出现业务词汇（如「已缴」「租客」）即违规，状态映射必须由调用方以 `statusMap` 传入。
+
+### 5.1 列表页标准写法
+
+```vue
+<PageHeader title="…" :breadcrumb="[…]">
+  <template #actions>…</template>   <!-- 每屏只放一个主按钮 -->
+</PageHeader>
+<FilterBar v-model:keyword="filters.keyword" :fields="FILTERS" v-model:values="filters" @search="fetchData">
+  <template #actions>…</template>
+</FilterBar>
+<DataTable :data :loading :columns="COLUMNS" row-key="id" selectable :page :total @page-change="fetchData">
+  <template #batch>…</template>     <!-- 批量操作 -->
+  <template #自定义列="{ row }">…</template>
+</DataTable>
+```
+
+`DataTable` 的列类型（**优先用内置类型，不要再写插槽**）：`money`（金额 → `MoneyText`）、`status`（状态标签 → `StatusTag` + `statusMap`）、`date`（日期 → `DateText`）、`mono`（等宽文本）、`slot`（兜底）。`prop` 支持嵌套路径（如 `contract.tenant.name`）。
+
+复用件：批量删除 `composables/useBatchDelete.ts`；行密度 `composables/useDensity.ts`（全局持久化，`show-density` 给用户开关）。
+
+## 六、硬约束
+
+**禁止**：
+1. 在令牌文件之外出现 `#hex` / `oklch()` / `rgb(a)`（R2 门禁）
+2. 令牌名里出现模块名（`--fire-*`、`--rent-*`）
+3. 浅档（100–300）上放白字，或深档（600–700）上放墨字
+4. 玻璃 / `backdrop-filter` 用在内容区卡片上（**仅顶栏、侧栏、抽屉、弹层**；全站模糊区 ≤4）
+5. 重写 `EmptyState` / `TableSkeleton` / `components/print/`
+6. 列表页重复声明 `.toolbar` / `.search-group` 样式与内联 `<el-table>`（**已全部清零**：87 个视图 / 95 张表统一走 `DataTable`；门禁 P5 基线 = 0，写回内联表即失败）
+
+**必须**：
+1. **不新增颜色的默认答案是不加**；需要新颜色先证明不能由现有令牌派生
+2. 层级由**字号与字重**承担，颜色退役
+3. 控件圆角恒小于容器圆角
+4. 金额、房号、编号、日期、页码一律 `font-variant-numeric: tabular-nums`
+5. 中文正文不低于 13.5px，最小字号不低于 12px
+6. 交互态成对定义前景与背景；hover 只动背景 / 边框，不改文字颜色
+7. 每完成一步跑 `node scripts/check-contrast.cjs`（41 条，须全通过）
+
+## 七、明确不做（防止自行扩展）
+
+| 不做 | 原因 |
+|---|---|
+| **深色模式** | 维护成本翻倍（打印 / 导出须另做亮色）；物业前台白天在强光下工作，暗色更差。待令牌落地满月、新增颜色趋近 0 再谈 |
+| 按模块分主题 / 模块识别色 | 半年内会长成六套配色。模块识别改用文字标签 + 面包屑 |
+| 模块专属图表主题 | 只允许自定义系列色**顺序**，取值仍限于全局阶 |
+| 动效体系 | 当前阶段收益最低 |
+
+## 八、门禁与自检
+
+| 门禁 | 命令 | 阈值 |
+|---|---|---|
+| 静态铁律（含 R2 颜色字面量）| `node scripts/check-static-rules.cjs` | 6/6 |
+| 对比度 | `node scripts/check-contrast.cjs` | 41/41（+2 装饰性豁免）|
+| 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 5/5（内联 `<el-table>` = 0、自写工具栏样式 ≤ 40）|
+| 三档密度无破损 | `node scripts/verify-table-density.cjs` | 14/14 |
+| 全链路 | `npm run test:regression` | 全绿 |
+
+令牌改动后跑 `node scripts/gen-tokens-ts.cjs` 重新生成 JS 镜像；存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演；存量内联表格迁移用 `node scripts/migrate-tables-to-datatable.cjs --dry` 预演（支持一页多表，遇 `v-for` / 绑定 `:label`/`:prop` 的动态列会跳过，需手工迁移并改用 `column.property`）。

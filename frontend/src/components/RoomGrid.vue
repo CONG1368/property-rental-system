@@ -37,7 +37,7 @@ defineEmits<{
 .empty-hint {
   grid-column: 1 / -1;
   text-align: center;
-  color: #909399;
+  color: $n-600;
   padding: 60px 0;
   font-size: 14px;
 }

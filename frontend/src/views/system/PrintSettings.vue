@@ -21,10 +21,10 @@
                 >
                   <el-button>选择图片</el-button>
                 </el-upload>
-                <span style="font-size:12px;color:#909399">建议 200×80px，PNG/JPG</span>
+                <span style="font-size:12px;color:var(--n-600)">建议 200×80px，PNG/JPG</span>
               </div>
               <div v-if="form.companyLogo" style="margin-top:8px;position:relative;display:inline-block">
-                <img :src="form.companyLogo" style="max-width:300px;max-height:80px;border:1px solid #eee;border-radius:4px" />
+                <img :src="form.companyLogo" style="max-width:300px;max-height:80px;border:1px solid var(--n-100);border-radius:4px" />
                 <el-button size="small" type="danger" circle style="position:absolute;top:-8px;right:-8px" @click="form.companyLogo = ''">×</el-button>
               </div>
             </el-form-item>
@@ -56,10 +56,10 @@
                 >
                   <el-button>选择图片</el-button>
                 </el-upload>
-                <span style="font-size:12px;color:#909399">建议 200×200px，透明PNG</span>
+                <span style="font-size:12px;color:var(--n-600)">建议 200×200px，透明PNG</span>
               </div>
               <div v-if="form.companySeal" style="margin-top:8px;position:relative;display:inline-block">
-                <img :src="form.companySeal" style="max-width:200px;max-height:200px;border:1px solid #eee;border-radius:4px;background:#f5f5f5" />
+                <img :src="form.companySeal" style="max-width:200px;max-height:200px;border:1px solid var(--n-100);border-radius:4px;background:var(--n-50)" />
                 <el-button size="small" type="danger" circle style="position:absolute;top:-8px;right:-8px" @click="form.companySeal = ''">×</el-button>
               </div>
             </el-form-item>
@@ -74,66 +74,66 @@
       <el-col :span="10">
         <el-card header="打印预览">
           <div class="preview-section">
-            <h4 style="margin:0 0 8px;color:#606266">合同抬头预览</h4>
+            <h4 style="margin:0 0 8px;color:var(--n-700)">合同抬头预览</h4>
             <div class="preview-box contract-preview">
               <div v-if="form.companyLogo" style="margin-bottom:4px">
                 <img :src="form.companyLogo" style="max-width:160px;max-height:48px" />
               </div>
-              <div style="font-size:16px;font-weight:bold;color:#1f2430;letter-spacing:3px">物业租赁合同</div>
-              <div style="font-size:11px;color:#999;margin-top:2px">合同编号：CT-2024-001</div>
-              <div style="font-size:12px;color:#333;margin-top:8px">
+              <div style="font-size:16px;font-weight:bold;color:var(--n-900);letter-spacing:3px">物业租赁合同</div>
+              <div style="font-size:11px;color:var(--n-600);margin-top:2px">合同编号：CT-2024-001</div>
+              <div style="font-size:12px;color:var(--n-900);margin-top:8px">
                 <p style="margin:2px 0">出租方（甲方）：{{ form.companyName || '物业租赁管理公司' }}</p>
-                <p v-if="form.companyIdType || form.companyIdNumber" style="margin:1px 0 1px 12px;font-size:11px;color:#666">
+                <p v-if="form.companyIdType || form.companyIdNumber" style="margin:1px 0 1px 12px;font-size:11px;color:var(--n-700)">
                   证件类型/号码：{{ form.companyIdType || '--' }} / {{ form.companyIdNumber || '--' }}
                 </p>
-                <p v-if="form.companyPhone" style="margin:1px 0 1px 12px;font-size:11px;color:#666">
+                <p v-if="form.companyPhone" style="margin:1px 0 1px 12px;font-size:11px;color:var(--n-700)">
                   联系电话：{{ form.companyPhone }}
                 </p>
                 <p style="margin:2px 0;margin-top:4px">承租方（乙方）：张伟</p>
-                <p style="margin:1px 0 1px 12px;font-size:11px;color:#666">证件类型/号码：身份证 / 320106199001011234</p>
-                <p style="margin:1px 0 1px 12px;font-size:11px;color:#666">联系电话：13800138000</p>
+                <p style="margin:1px 0 1px 12px;font-size:11px;color:var(--n-700)">证件类型/号码：身份证 / 320106199001011234</p>
+                <p style="margin:1px 0 1px 12px;font-size:11px;color:var(--n-700)">联系电话：13800138000</p>
               </div>
             </div>
           </div>
 
           <div class="preview-section" style="margin-top:16px">
-            <h4 style="margin:0 0 8px;color:#606266">签章预览</h4>
+            <h4 style="margin:0 0 8px;color:var(--n-700)">签章预览</h4>
             <div class="preview-box seal-preview" style="display:flex;justify-content:space-around;text-align:center">
               <div>
-                <p style="font-size:12px;color:#666;margin:0 0 8px">甲方（出租方）</p>
+                <p style="font-size:12px;color:var(--n-700);margin:0 0 8px">甲方（出租方）</p>
                 <div v-if="form.companySeal" style="width:100px;height:100px;display:flex;align-items:center;justify-content:center;margin:0 auto">
                   <img :src="form.companySeal" style="max-width:100px;max-height:100px" />
                 </div>
-                <p v-else style="font-size:12px;color:#999">_______________</p>
-                <p style="font-size:11px;color:#999">日期：____年____月____日</p>
+                <p v-else style="font-size:12px;color:var(--n-600)">_______________</p>
+                <p style="font-size:11px;color:var(--n-600)">日期：____年____月____日</p>
               </div>
               <div>
-                <p style="font-size:12px;color:#666;margin:0 0 8px">乙方（承租方）</p>
-                <p style="font-size:12px;color:#999;margin-top:20px">_______________</p>
-                <p style="font-size:11px;color:#999">日期：____年____月____日</p>
+                <p style="font-size:12px;color:var(--n-700);margin:0 0 8px">乙方（承租方）</p>
+                <p style="font-size:12px;color:var(--n-600);margin-top:20px">_______________</p>
+                <p style="font-size:11px;color:var(--n-600)">日期：____年____月____日</p>
               </div>
             </div>
           </div>
 
           <div class="preview-section" style="margin-top:16px">
-            <h4 style="margin:0 0 8px;color:#606266">收据预览</h4>
-            <div class="preview-box receipt-preview" style="width:220px;margin:0 auto;font-size:10px;line-height:1.6;border:1px dashed #ccc;padding:12px">
+            <h4 style="margin:0 0 8px;color:var(--n-700)">收据预览</h4>
+            <div class="preview-box receipt-preview" style="width:220px;margin:0 auto;font-size:10px;line-height:1.6;border:1px dashed var(--n-300);padding:12px">
               <div style="text-align:center">
                 <div style="font-size:13px;font-weight:bold">{{ form.companyName || '物业租赁管理公司' }}</div>
-                <div style="font-size:11px;color:#1f2430">收款凭证</div>
+                <div style="font-size:11px;color:var(--n-900)">收款凭证</div>
               </div>
-              <div style="margin:8px 0;padding:4px 0;border-top:1px dashed #999;border-bottom:1px dashed #999;font-size:9px">
+              <div style="margin:8px 0;padding:4px 0;border-top:1px dashed var(--n-600);border-bottom:1px dashed var(--n-600);font-size:9px">
                 <div>收据号：REC-001</div><div>日期：2026-05-16</div>
               </div>
               <div style="text-align:center;margin:8px 0">
-                <div style="font-size:9px;color:#999">收款金额</div>
-                <div style="font-size:18px;font-weight:bold;color:#E6A23C">¥2,500.00</div>
+                <div style="font-size:9px;color:var(--n-600)">收款金额</div>
+                <div style="font-size:18px;font-weight:bold;color:var(--warn-600)">¥2,500.00</div>
               </div>
               <div style="text-align:center;margin-top:12px">
                 <div v-if="form.companySeal" style="width:50px;height:50px;margin:0 auto">
                   <img :src="form.companySeal" style="max-width:50px;max-height:50px" />
                 </div>
-                <div v-else style="font-size:9px;color:#999">收款人：_______</div>
+                <div v-else style="font-size:9px;color:var(--n-600)">收款人：_______</div>
               </div>
             </div>
           </div>
@@ -213,9 +213,9 @@ async function handleSave() {
     h4 { font-size: 13px; }
   }
   .preview-box {
-    background: #fff; border: 1px solid #e8e8e8; border-radius: 6px;
+    background: $n-0; border: 1px solid $n-100; border-radius: 6px;
     padding: 16px;
   }
-  .receipt-preview { box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+  .receipt-preview { box-shadow: 0 1px 4px $n-100; }
 }
 </style>

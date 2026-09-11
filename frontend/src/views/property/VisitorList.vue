@@ -20,28 +20,13 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
-      <el-table-column prop="name" label="姓名" width="100" />
-      <el-table-column prop="phone" label="电话" width="120" />
-      <el-table-column prop="visitTarget" label="被访人" width="120" show-overflow-tooltip />
-      <el-table-column prop="purpose" label="事由" width="120" show-overflow-tooltip />
-      <el-table-column prop="plateNumber" label="车牌" width="110" show-overflow-tooltip />
-      <el-table-column prop="visitTime" label="到访时间" width="110" />
-      <el-table-column prop="leaveTime" label="离开时间" width="110"><template #default="{ row }">{{ row.leaveTime || '-' }}</template></el-table-column>
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="row.status === '在访' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="210" fixed="right">
-        <template #default="{ row }">
-          <el-popconfirm v-if="row.status === '在访'" title="确认该访客已离开?" @confirm="handleLeave(row.id)"><template #reference><el-button link size="small" type="warning">离开</el-button></template></el-popconfirm>
-          <el-button link size="small" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确定删除该访客?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c7="{ row }">{{ row.leaveTime || '-' }}</template>
+      <template #c8="{ row }"><el-tag :type="row.status === '在访' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag></template>
+      <template #c9="{ row }"><el-popconfirm v-if="row.status === '在访'" title="确认该访客已离开?" @confirm="handleLeave(row.id)"><template #reference><el-button link size="small" type="warning">离开</el-button></template></el-popconfirm>
+              <el-button link size="small" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确定删除该访客?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <el-dialog :title="editing ? '编辑访客' : '访客登记'" v-model="dialogVisible" width="600px" @closed="resetForm">
       <el-form :model="form" label-width="90px" size="small">
@@ -70,6 +55,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '姓名', width: 100 },
+  { prop: 'phone', label: '电话', width: 120 },
+  { prop: 'visitTarget', label: '被访人', width: 120, tooltip: true },
+  { prop: 'purpose', label: '事由', width: 120, tooltip: true },
+  { prop: 'plateNumber', label: '车牌', width: 110, tooltip: true },
+  { prop: 'visitTime', label: '到访时间', width: 110 },
+  { prop: 'leaveTime', label: '离开时间', width: 110, slot: 'c7' },
+  { prop: 'status', label: '状态', width: 90, slot: 'c8' },
+  { label: '操作', width: 210, fixed: 'right', slot: 'c9' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -167,10 +167,10 @@ onMounted(() => {
 <style lang="scss" scoped>
 .visitor-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.warn { color: #E6A23C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.warn { color: $warn-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

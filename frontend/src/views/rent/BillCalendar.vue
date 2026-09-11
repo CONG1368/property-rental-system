@@ -15,44 +15,34 @@
     </el-calendar>
 
     <el-drawer title="当日账单" v-model="drawerVisible" size="700px">
-      <el-table :data="dayBills" stripe size="small">
-        <el-table-column label="租户" width="100">
-          <template #default="{ row }">
-            <el-link type="primary" size="small" @click="goTenant(row.tenantId)">{{ row.tenantName }}</el-link>
-          </template>
-        </el-table-column>
-        <el-table-column label="租金" width="75" align="right">
-          <template #default="{ row }">¥{{ (row.rentAmount || 0).toFixed(0) }}</template>
-        </el-table-column>
-        <el-table-column label="物业费" width="75" align="right">
-          <template #default="{ row }">¥{{ (row.propertyFee || 0).toFixed(0) }}</template>
-        </el-table-column>
-        <el-table-column label="水费" width="65" align="right">
-          <template #default="{ row }">¥{{ (row.waterFee || 0).toFixed(0) }}</template>
-        </el-table-column>
-        <el-table-column label="电费" width="65" align="right">
-          <template #default="{ row }">¥{{ (row.electricFee || 0).toFixed(0) }}</template>
-        </el-table-column>
-        <el-table-column label="合计" width="85" align="right">
-          <template #default="{ row }">
-            <b>¥{{ (row.totalAmount || 0).toFixed(2) }}</b>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="70">
-          <template #default="{ row }">
-            <el-tag :type="row.status === '已缴' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="dayBills" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c1="{ row }"><el-link type="primary" size="small" @click="goTenant(row.tenantId)">{{ row.tenantName }}</el-link></template>
+        <template #c2="{ row }">¥{{ (row.rentAmount || 0).toFixed(0) }}</template>
+        <template #c3="{ row }">¥{{ (row.propertyFee || 0).toFixed(0) }}</template>
+        <template #c4="{ row }">¥{{ (row.waterFee || 0).toFixed(0) }}</template>
+        <template #c5="{ row }">¥{{ (row.electricFee || 0).toFixed(0) }}</template>
+        <template #c6="{ row }"><b>¥{{ (row.totalAmount || 0).toFixed(2) }}</b></template>
+        <template #c7="{ row }"><el-tag :type="row.status === '已缴' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag></template>
+      </DataTable>
       <el-empty v-if="!dayBills.length" description="当日无账单" />
     </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { label: '租户', width: 100, slot: 'c1' },
+  { label: '租金', width: 75, align: 'right', slot: 'c2' },
+  { label: '物业费', width: 75, align: 'right', slot: 'c3' },
+  { label: '水费', width: 65, align: 'right', slot: 'c4' },
+  { label: '电费', width: 65, align: 'right', slot: 'c5' },
+  { label: '合计', width: 85, align: 'right', slot: 'c6' },
+  { label: '状态', width: 70, slot: 'c7' },
+];
+
 import { ref, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { getBillCalendar } from '@/api/bills';
@@ -100,7 +90,7 @@ onMounted(() => loadCalendar());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .calendar-cell { cursor: pointer; text-align: center; padding: 4px; }
 .day-text { font-size: 14px; }
 .day-stats { margin-top: 2px; }

@@ -21,24 +21,29 @@
         <el-col :span="8" style="margin-top:8px"><el-tag :type="data.flammableOk ? 'success' : 'danger'">{{ data.flammableOk ? '√' : '×' }} 易燃易爆管理</el-tag></el-col>
       </el-row>
 
-      <div style="margin-top:16px" v-if="data.notes"><p style="font-weight:bold;margin:0 0 4px">备注：</p><p style="margin:0;color:#606266;white-space:pre-wrap">{{ data.notes }}</p></div>
+      <div style="margin-top:16px" v-if="data.notes"><p style="font-weight:bold;margin:0 0 4px">备注：</p><p style="margin:0;color:var(--n-700);white-space:pre-wrap">{{ data.notes }}</p></div>
 
       <el-divider content-position="left" v-if="data.violations?.length">关联违规记录</el-divider>
-      <el-table :data="data.violations" size="small" v-if="data.violations?.length">
-        <el-table-column prop="category" label="类别" width="100" />
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="severity" label="严重程度" width="100"><template #default="{row}"><el-tag :type="row.severity==='紧急'?'danger':'warning'" size="small">{{ row.severity }}</el-tag></template></el-table-column>
-        <el-table-column prop="status" label="状态" width="100"><template #default="{row}"><el-tag :type="row.status==='已整改'?'success':row.status==='逾期未改'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="data.violations" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c3="{ row }"><el-tag :type="row.severity==='紧急'?'danger':'warning'" size="small">{{ row.severity }}</el-tag></template>
+        <template #c4="{ row }"><el-tag :type="row.status==='已整改'?'success':row.status==='逾期未改'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template>
+      </DataTable>
     </el-card>
     <el-empty v-if="!data" description="加载中..." />
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'category', label: '类别', width: 100 },
+  { prop: 'description', label: '描述', minWidth: 200, tooltip: true },
+  { prop: 'severity', label: '严重程度', width: 100, slot: 'c3' },
+  { prop: 'status', label: '状态', width: 100, slot: 'c4' },
+];
+
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import request from '@/api/request'

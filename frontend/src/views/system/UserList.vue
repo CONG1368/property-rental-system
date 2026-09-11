@@ -3,39 +3,17 @@
     <h2 class="page-title">用户管理</h2>
     <el-button type="primary" style="margin-bottom:16px" @click="showDialog()">新增用户</el-button>
     <el-button style="margin-bottom:16px; margin-left:8px" @click="showPermissionMatrix">权限矩阵</el-button>
-    <TableSkeleton v-if="loading && !users.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !users.length)" :data="users" stripe v-loading="loading">
-      <el-table-column label="头像" width="70" align="center">
-        <template #default="{ row }">
-          <img v-if="row.permissions?.avatarUrl" :src="row.permissions.avatarUrl" class="avatar-img-sm" />
-          <span v-else class="avatar-icon-sm" :style="{ background: getRoleBg(row.role) }"><el-icon :size="16" color="#fff"><component :is="getRoleIcon(row)" /></el-icon></span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="username" label="用户名" width="110" />
-      <el-table-column prop="displayName" label="姓名" width="110" />
-      <el-table-column prop="role" label="角色" width="100">
-        <template #default="{ row }">
-          <el-tag :type="row.role === '管理员' ? 'danger' : row.role === '总经理' ? 'warning' : 'info'" size="small">{{ row.role }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="可访问模块" min-width="240">
-        <template #default="{ row }">
-          <span style="font-size:12px;color:#606266">{{ getRoleModules(row.role) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="80"><template #default="{ row }"><el-tag :type="row.status === '正常' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column prop="lastLogin" label="最后登录" width="160"><template #default="{ row }">{{ row.lastLogin?.slice(0, 16)?.replace('T', ' ') || '-' }}</template></el-table-column>
-      <el-table-column label="操作" width="200">
-        <template #default="{ row }">
-          <el-button size="small" @click="showDialog(row)">编辑</el-button>
-          <el-button size="small" type="warning" @click="showResetPwd(row)">重置密码</el-button>
-          <el-popconfirm title="确定删除该用户?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
+    <DataTable :data="users" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c1="{ row }"><img v-if="row.permissions?.avatarUrl" :src="row.permissions.avatarUrl" class="avatar-img-sm" />
+              <span v-else class="avatar-icon-sm" :style="{ background: getRoleBg(row.role) }"><el-icon :size="16" color="var(--n-0)"><component :is="getRoleIcon(row)" /></el-icon></span></template>
+      <template #c4="{ row }"><el-tag :type="row.role === '管理员' ? 'danger' : row.role === '总经理' ? 'warning' : 'info'" size="small">{{ row.role }}</el-tag></template>
+      <template #c5="{ row }"><span style="font-size:12px;color:var(--n-700)">{{ getRoleModules(row.role) }}</span></template>
+      <template #c6="{ row }"><el-tag :type="row.status === '正常' ? 'success' : 'danger'" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }">{{ row.lastLogin?.slice(0, 16)?.replace('T', ' ') || '-' }}</template>
+      <template #c8="{ row }"><el-button size="small" @click="showDialog(row)">编辑</el-button>
+              <el-button size="small" type="warning" @click="showResetPwd(row)">重置密码</el-button>
+              <el-popconfirm title="确定删除该用户?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <!-- 新增/编辑对话框 -->
     <el-dialog :title="isEdit ? '编辑用户' : '新增用户'" v-model="dialogVisible" width="450px">
@@ -62,25 +40,14 @@
 
     <!-- 权限矩阵对话框 -->
     <el-dialog title="角色权限矩阵" v-model="permMatrixVisible" width="800px">
-      <el-table :data="rolePermMatrix" stripe size="small">
-        <el-table-column prop="role" label="角色" width="100" />
-        <el-table-column label="租赁管理" width="150">
-          <template #default="{ row }"><el-tag :type="row.rent ? 'success' : 'info'" size="small">{{ row.rent ? '可访问' : '无权限' }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="财务管理" width="150">
-          <template #default="{ row }"><el-tag :type="row.finance ? 'success' : 'info'" size="small">{{ row.finance ? '可访问' : '无权限' }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="合同管理" width="150">
-          <template #default="{ row }"><el-tag :type="row.contract ? 'success' : 'info'" size="small">{{ row.contract ? '可访问' : '无权限' }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="系统设置" width="150">
-          <template #default="{ row }"><el-tag :type="row.system ? 'success' : 'info'" size="small">{{ row.system ? '可访问' : '无权限' }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="权限级别" min-width="120">
-          <template #default="{ row }"><span style="font-size:12px">{{ row.level }}</span></template>
-        </el-table-column>
-      </el-table>
-      <div style="margin-top:12px;font-size:12px;color:#909399">
+      <DataTable :data="rolePermMatrix" :columns="COLUMNS_2" row-key="id">
+        <template #c2="{ row }"><el-tag :type="row.rent ? 'success' : 'info'" size="small">{{ row.rent ? '可访问' : '无权限' }}</el-tag></template>
+        <template #c3="{ row }"><el-tag :type="row.finance ? 'success' : 'info'" size="small">{{ row.finance ? '可访问' : '无权限' }}</el-tag></template>
+        <template #c4="{ row }"><el-tag :type="row.contract ? 'success' : 'info'" size="small">{{ row.contract ? '可访问' : '无权限' }}</el-tag></template>
+        <template #c5="{ row }"><el-tag :type="row.system ? 'success' : 'info'" size="small">{{ row.system ? '可访问' : '无权限' }}</el-tag></template>
+        <template #c6="{ row }"><span style="font-size:12px">{{ row.level }}</span></template>
+      </DataTable>
+      <div style="margin-top:12px;font-size:12px;color:var(--n-600)">
         角色权限由系统预定义，如需调整请在"编辑用户"中修改用户角色。仅<strong>管理员</strong>拥有系统设置访问权限。
       </div>
     </el-dialog>
@@ -88,6 +55,29 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'role', label: '角色', width: 100 },
+  { label: '租赁管理', width: 150, slot: 'c2' },
+  { label: '财务管理', width: 150, slot: 'c3' },
+  { label: '合同管理', width: 150, slot: 'c4' },
+  { label: '系统设置', width: 150, slot: 'c5' },
+  { label: '权限级别', minWidth: 120, slot: 'c6' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { label: '头像', width: 70, align: 'center', slot: 'c1' },
+  { prop: 'username', label: '用户名', width: 110 },
+  { prop: 'displayName', label: '姓名', width: 110 },
+  { prop: 'role', label: '角色', width: 100, slot: 'c4' },
+  { label: '可访问模块', minWidth: 240, slot: 'c5' },
+  { prop: 'status', label: '状态', width: 80, slot: 'c6' },
+  { prop: 'lastLogin', label: '最后登录', width: 160, slot: 'c7' },
+  { label: '操作', width: 200, slot: 'c8' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -198,11 +188,11 @@ onMounted(() => { fetchUsers(); loadProjects(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .avatar-icon-sm {
   width: 30px; height: 30px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 16px; color: #fff;
+  font-size: 16px; color: $n-0;
 }
 .avatar-img-sm { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
 </style>

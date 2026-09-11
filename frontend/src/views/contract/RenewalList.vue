@@ -8,29 +8,15 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column prop="contractNo" label="合同编号" width="180" show-overflow-tooltip />
-      <el-table-column label="房源" width="140"><template #default="{ row }">{{ row.property?.name || '-' }}</template></el-table-column>
-      <el-table-column label="租客" width="100"><template #default="{ row }">{{ row.tenant?.name || '-' }}</template></el-table-column>
-      <el-table-column prop="endDate" label="到期日" width="110" />
-      <el-table-column label="剩余天数" width="100"><template #default="{ row }">
-        <el-tag :type="getRemaining(row.endDate) <= 0 ? 'danger' : getRemaining(row.endDate) <= 7 ? 'danger' : getRemaining(row.endDate) <= 30 ? 'warning' : getRemaining(row.endDate) <= 90 ? 'primary' : getRemaining(row.endDate) <= 180 ? '' : getRemaining(row.endDate) <= 365 ? 'success' : 'info'" size="small">{{ getRemaining(row.endDate) }}天</el-tag>
-      </template></el-table-column>
-      <el-table-column prop="rentAmount" label="月租金" width="120"><template #default="{ row }">¥{{ Number(row.rentAmount || 0).toFixed(2) }}</template></el-table-column>
-      <el-table-column prop="status" label="状态" width="100"><template #default="{ row }">
-        <el-tag size="small" :type="statusTagType(row.status)">{{ row.status }}</el-tag>
-      </template></el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" type="primary" @click="handleRenew(row)" :disabled="row.status === '起草中' || row.status === '审批中'">续约</el-button>
-          <el-button size="small" @click="$router.push('/contract/detail/' + row.id)">详情</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c2="{ row }">{{ row.property?.name || '-' }}</template>
+      <template #c3="{ row }">{{ row.tenant?.name || '-' }}</template>
+      <template #c5="{ row }"><el-tag :type="getRemaining(row.endDate) <= 0 ? 'danger' : getRemaining(row.endDate) <= 7 ? 'danger' : getRemaining(row.endDate) <= 30 ? 'warning' : getRemaining(row.endDate) <= 90 ? 'primary' : getRemaining(row.endDate) <= 180 ? '' : getRemaining(row.endDate) <= 365 ? 'success' : 'info'" size="small">{{ getRemaining(row.endDate) }}天</el-tag></template>
+      <template #c6="{ row }">¥{{ Number(row.rentAmount || 0).toFixed(2) }}</template>
+      <template #c7="{ row }"><el-tag size="small" :type="statusTagType(row.status)">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }"><el-button size="small" type="primary" @click="handleRenew(row)" :disabled="row.status === '起草中' || row.status === '审批中'">续约</el-button>
+              <el-button size="small" @click="$router.push('/contract/detail/' + row.id)">详情</el-button></template>
+    </DataTable>
     <el-empty v-if="!loading && tableData.length === 0" description="暂无待续约合同" />
     <el-pagination v-if="tableData.length > 0" v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
 
@@ -48,6 +34,20 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'contractNo', label: '合同编号', width: 180, tooltip: true },
+  { label: '房源', width: 140, slot: 'c2' },
+  { label: '租客', width: 100, slot: 'c3' },
+  { prop: 'endDate', label: '到期日', width: 110 },
+  { label: '剩余天数', width: 100, slot: 'c5' },
+  { prop: 'rentAmount', label: '月租金', width: 120, slot: 'c6' },
+  { prop: 'status', label: '状态', width: 100, slot: 'c7' },
+  { label: '操作', width: 160, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -104,7 +104,7 @@ onMounted(() => { fetchData(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; flex: 1; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; flex: 1; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; }
 </style>

@@ -22,41 +22,34 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column prop="name" label="姓名" width="120" show-overflow-tooltip />
-      <el-table-column prop="phone" label="手机号" width="130" />
-      <el-table-column label="评分" width="160">
-        <template #default="{ row }">
-          <div class="score-cell">
-            <el-progress :percentage="row.creditScore || 0" :color="scoreColor(row.creditGrade)" :stroke-width="10" style="flex:1" />
-            <span class="score-num">{{ row.creditScore ?? '-' }}</span>
-          </div>
-        </template>
-      </el-table-column>
-      <el-table-column label="等级" width="90">
-        <template #default="{ row }"><el-tag :type="tagType(row.creditGrade)" size="small">{{ row.creditGrade || '-' }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }"><el-tag :type="row.status === '在租中' ? 'success' : row.status === '待入住' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="预测" min-width="140">
-        <template #default="{ row }">{{ predictText(row) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" type="primary" link @click="recompute(row)">重新评估</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c3="{ row }"><div class="score-cell">
+                <el-progress :percentage="row.creditScore || 0" :color="scoreColor(row.creditGrade)" :stroke-width="10" style="flex:1" />
+                <span class="score-num">{{ row.creditScore ?? '-' }}</span>
+              </div></template>
+      <template #c4="{ row }"><el-tag :type="tagType(row.creditGrade)" size="small">{{ row.creditGrade || '-' }}</el-tag></template>
+      <template #c5="{ row }"><el-tag :type="row.status === '在租中' ? 'success' : row.status === '待入住' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag></template>
+      <template #c6="{ row }">{{ predictText(row) }}</template>
+      <template #c7="{ row }"><el-button size="small" type="primary" link @click="recompute(row)">重新评估</el-button></template>
+    </DataTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '姓名', width: 120, tooltip: true },
+  { prop: 'phone', label: '手机号', width: 130 },
+  { label: '评分', width: 160, slot: 'c3' },
+  { label: '等级', width: 90, slot: 'c4' },
+  { prop: 'status', label: '状态', width: 100, slot: 'c5' },
+  { label: '预测', minWidth: 140, slot: 'c6' },
+  { label: '操作', width: 120, fixed: 'right', slot: 'c7' },
+];
+import { tokens } from '@/styles/tokens';
+
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -77,7 +70,7 @@ const stats = computed(() => {
 });
 
 function scoreColor(grade?: string): string {
-  return ({ A: '#67C23A', B: '#409EFF', C: '#E6A23C', D: '#F56C6C' } as Record<string, string>)[grade || 'D'] || '#909399';
+  return ({ A: tokens.ok600, B: tokens.brand600, C: tokens.warn600, D: tokens.bad600 } as Record<string, string>)[grade || 'D'] || tokens.n600;
 }
 function tagType(grade?: string): string {
   return ({ A: 'success', B: 'primary', C: 'warning', D: 'danger' } as Record<string, string>)[grade || 'D'] || 'info';
@@ -130,11 +123,11 @@ onMounted(() => { fetchData(); });
 <style lang="scss" scoped>
 .credit-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 28px; font-weight: 700; color: #1f2430; }
-.stat-num.good { color: #67C23A; }
-.stat-num.warn { color: #E6A23C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; color: $n-900; }
+.stat-num.good { color: $ok-600; }
+.stat-num.warn { color: $warn-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

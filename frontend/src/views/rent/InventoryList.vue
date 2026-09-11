@@ -23,29 +23,13 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="category" label="类别" width="90"><template #default="{ row }"><el-tag size="small">{{ row.category }}</el-tag></template></el-table-column>
-      <el-table-column prop="spec" label="规格" width="120" show-overflow-tooltip />
-      <el-table-column prop="unit" label="单位" width="70" />
-      <el-table-column prop="quantity" label="数量" width="90" align="right" />
-      <el-table-column prop="minQuantity" label="最低库存" width="100" align="right" />
-      <el-table-column prop="location" label="位置" width="120" show-overflow-tooltip />
-      <el-table-column prop="supplier" label="供应商" width="120" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" link type="primary" @click="showInOut(row)">出入库</el-button>
-          <el-button size="small" link @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确定删除该物料?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" link>删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无物料" description="登记仓库物料后可跟踪出入库与库存" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无物料" empty-description="登记仓库物料后可跟踪出入库与库存">
+      <template #c2="{ row }"><el-tag size="small">{{ row.category }}</el-tag></template>
+      <template #c9="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c10="{ row }"><el-button size="small" link type="primary" @click="showInOut(row)">出入库</el-button>
+              <el-button size="small" link @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确定删除该物料?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" link>删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <!-- 物料新增/编辑弹窗 -->
     <el-dialog :title="dialogTitle" v-model="dialogVisible" width="640px" @closed="resetForm">
@@ -92,6 +76,22 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '名称', minWidth: 140, tooltip: true },
+  { prop: 'category', label: '类别', width: 90, slot: 'c2' },
+  { prop: 'spec', label: '规格', width: 120, tooltip: true },
+  { prop: 'unit', label: '单位', width: 70 },
+  { prop: 'quantity', label: '数量', width: 90, align: 'right' },
+  { prop: 'minQuantity', label: '最低库存', width: 100, align: 'right' },
+  { prop: 'location', label: '位置', width: 120, tooltip: true },
+  { prop: 'supplier', label: '供应商', width: 120, tooltip: true },
+  { prop: 'status', label: '状态', width: 90, slot: 'c9' },
+  { label: '操作', width: 200, fixed: 'right', slot: 'c10' },
+];
+
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -212,12 +212,12 @@ onMounted(() => { fetchData() })
 <style lang="scss" scoped>
 .inventory-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.normal { color: #67C23A; }
-.stat-num.low { color: #E6A23C; }
-.stat-num.out { color: #F56C6C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.normal { color: $ok-600; }
+.stat-num.low { color: $warn-600; }
+.stat-num.out { color: $bad-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

@@ -30,7 +30,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts">import { tokens } from '@/styles/tokens';
+
 import { computed } from 'vue';
 import { Lock, Unlock, WarningFilled } from '@element-plus/icons-vue';
 
@@ -67,9 +68,9 @@ const lockStatus = computed(() => {
 });
 
 const lockColor = computed(() => {
-  if (lockStatus.value === 'online') return '#67C23A';
-  if (lockStatus.value === 'offline') return '#909399';
-  return '#E6A23C';
+  if (lockStatus.value === 'online') return tokens.ok600;
+  if (lockStatus.value === 'offline') return tokens.n600;
+  return tokens.warn600;
 });
 </script>
 
@@ -83,31 +84,31 @@ const lockColor = computed(() => {
   min-width: 130px;
   position: relative;
 }
-.room-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.room-card.is-selected { border-color: #409EFF; box-shadow: 0 0 0 2px rgba(64,158,255,0.3); }
+.room-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px $n-100; }
+.room-card.is-selected { border-color: $brand-600; box-shadow: 0 0 0 2px $brand-300; }
 
-.status-vacant { background: #f0f9eb; border-color: #c2e7b0; }
-.status-locked { background: #f5f7fa; border-color: #d3d6db; }
-.status-reserved { background: #fef3e6; border-color: #f5dab1; }
-.status-rented { background: #ecf5ff; border-color: #b3d8ff; }
-.status-exiting { background: #fdf6ec; border-color: #fae2b4; }
-.status-cleaning { background: #f4f0fe; border-color: #d9cff5; }
-.status-inspecting { background: #e8f8f0; border-color: #b7e4d0; }
-.status-maintenance { background: #fef0f0; border-color: #fbc4c4; }
-.status-frozen { background: #e9e9eb; border-color: #c8c9cc; }
+.status-vacant { background: $ok-100; border-color: $ok-100; }
+.status-locked { background: $n-50; border-color: $n-200; }
+.status-reserved { background: $warn-100; border-color: $warn-100; }
+.status-rented { background: $brand-100; border-color: $brand-100; }
+.status-exiting { background: $warn-100; border-color: $warn-100; }
+.status-cleaning { background: $info-100; border-color: $info-100; }
+.status-inspecting { background: $ok-100; border-color: $ok-100; }
+.status-maintenance { background: $bad-100; border-color: $bad-100; }
+.status-frozen { background: $n-200; border-color: $n-300; }
 
 .card-header {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
 }
-.room-number { font-size: 16px; font-weight: 700; color: #303133; }
+.room-number { font-size: 16px; font-weight: 700; color: $n-900; }
 .lock-icon { cursor: pointer; padding: 2px; border-radius: 4px; }
-.lock-icon:hover { background: rgba(0,0,0,0.05); }
+.lock-icon:hover { background: $n-100; }
 
 .card-status { margin-bottom: 6px; }
 
-.card-body { font-size: 12px; color: #606266; }
-.building { color: #909399; font-size: 11px; margin-bottom: 2px; }
+.card-body { font-size: 12px; color: $n-700; }
+.building { color: $n-600; font-size: 11px; margin-bottom: 2px; }
 .area { margin-bottom: 2px; }
-.tenant-name { color: #409EFF; font-weight: 500; }
-.contract-end { color: #909399; font-size: 11px; margin-top: 2px; }
+.tenant-name { color: $brand-600; font-weight: 500; }
+.contract-end { color: $n-600; font-size: 11px; margin-top: 2px; }
 </style>

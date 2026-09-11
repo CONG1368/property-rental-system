@@ -21,30 +21,17 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe size="small" v-loading="loading">
-      <el-table-column prop="name" label="计划名称" min-width="150" />
-      <el-table-column label="关联设备" min-width="140"><template #default="{ row }">{{ row.facility?.name || '-' }}</template></el-table-column>
-      <el-table-column prop="cycleType" label="周期" width="80" />
-      <el-table-column prop="nextRunDate" label="下次执行" width="110" />
-      <el-table-column prop="assignee" label="执行人" width="100" />
-      <el-table-column prop="status" label="状态" width="80"><template #default="{ row }"><el-tag :type="row.status === '启用' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
-        <template #default="{ row }">
-          <el-popconfirm title="确认生成一次维保并推进周期?" @confirm="handleGenerate(row)">
-            <template #reference><el-button link size="small" type="primary">生成维保</el-button></template>
-          </el-popconfirm>
-          <el-button link size="small" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
-            <template #reference><el-button link size="small" type="danger">删除</el-button></template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" style="margin-top:12px" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c2="{ row }">{{ row.facility?.name || '-' }}</template>
+      <template #c6="{ row }"><el-tag :type="row.status === '启用' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }"><el-popconfirm title="确认生成一次维保并推进周期?" @confirm="handleGenerate(row)">
+                <template #reference><el-button link size="small" type="primary">生成维保</el-button></template>
+              </el-popconfirm>
+              <el-button link size="small" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
+                <template #reference><el-button link size="small" type="danger">删除</el-button></template>
+              </el-popconfirm></template>
+    </DataTable>
 
     <el-dialog :title="editing ? '编辑计划' : '新增计划'" v-model="dialogVisible" width="560px">
       <el-form :model="form" label-width="90px" size="small">
@@ -60,6 +47,19 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '计划名称', minWidth: 150 },
+  { label: '关联设备', minWidth: 140, slot: 'c2' },
+  { prop: 'cycleType', label: '周期', width: 80 },
+  { prop: 'nextRunDate', label: '下次执行', width: 110 },
+  { prop: 'assignee', label: '执行人', width: 100 },
+  { prop: 'status', label: '状态', width: 80, slot: 'c6' },
+  { label: '操作', width: 220, fixed: 'right', slot: 'c7' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -141,13 +141,13 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.good { color: #67C23A; }
-.stat-num.warn { color: #E6A23C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.good { color: $ok-600; }
+.stat-num.warn { color: $warn-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

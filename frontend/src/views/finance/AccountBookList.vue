@@ -2,23 +2,10 @@
   <div class="account-books">
     <h2 class="page-title">账套管理</h2>
     <el-button type="primary" style="margin-bottom:16px" @click="showDialog()">新增账套</el-button>
-    <TableSkeleton v-if="loading && !books.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !books.length)" :data="books" stripe v-loading="loading">
-      <el-table-column prop="name" label="账套名称" width="200" />
-      <el-table-column prop="companyName" label="公司名称" width="200" />
-      <el-table-column prop="currency" label="币种" width="80" />
-      <el-table-column prop="startDate" label="开始日期" width="120" />
-      <el-table-column prop="endDate" label="结束日期" width="120" />
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }"><el-tag :type="row.isActive ? 'success' : 'info'" size="small">{{ row.isActive ? '启用' : '停用' }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="操作" width="160">
-        <template #default="{ row }"><el-button size="small" @click="showDialog(row)">编辑</el-button></template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
+    <DataTable :data="books" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c6="{ row }"><el-tag :type="row.isActive ? 'success' : 'info'" size="small">{{ row.isActive ? '启用' : '停用' }}</el-tag></template>
+      <template #c7="{ row }"><el-button size="small" @click="showDialog(row)">编辑</el-button></template>
+    </DataTable>
     <el-dialog :title="isEdit ? '编辑账套' : '新增账套'" v-model="dialogVisible" width="500px">
       <el-form :model="form" ref="formRef" label-width="100px">
         <el-form-item label="账套名称"><el-input v-model="form.name" /></el-form-item>
@@ -32,6 +19,19 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '账套名称', width: 200 },
+  { prop: 'companyName', label: '公司名称', width: 200 },
+  { prop: 'currency', label: '币种', width: 80 },
+  { prop: 'startDate', label: '开始日期', width: 120 },
+  { prop: 'endDate', label: '结束日期', width: 120 },
+  { label: '状态', width: 100, slot: 'c6' },
+  { label: '操作', width: 160, slot: 'c7' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -68,5 +68,5 @@ onMounted(() => fetchBooks());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 </style>

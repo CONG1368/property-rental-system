@@ -32,71 +32,50 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="9" />
-    <el-table v-show="!(loading && !tableData.length)"
-      :data="tableData" stripe v-loading="loading"
-      @row-click="onRowClick"
-      @selection-change="(rows: any[]) => selectedRows = rows"
-      style="cursor:pointer" ref="tableRef"
-    >
-      <el-table-column type="selection" width="45" />
-      <el-table-column prop="contractNo" label="合同编号" width="150" />
-      <el-table-column label="租客" width="100"><template #default="{ row }"><span v-if="row.tenant">{{ row.tenant.name }}</span></template></el-table-column>
-      <el-table-column label="房源" width="150"><template #default="{ row }"><span v-if="row.property">{{ row.property.name }}</span></template></el-table-column>
-      <el-table-column prop="rentAmount" label="月租金" width="110" />
-      <el-table-column prop="startDate" label="开始" width="110" />
-      <el-table-column prop="endDate" label="到期" width="110" />
-      <el-table-column label="状态" width="90">
-        <template #default="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column label="操作" width="360" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" type="info" @click.stop="$router.push('/contract/detail/' + row.id)">详情</el-button>
-
-          <!-- 起草中：编辑 + 提交 -->
-          <template v-if="row.status === '起草中'">
-            <el-button size="small" @click.stop="$router.push('/contract/draft/' + row.id)">编辑</el-button>
-            <el-button size="small" type="success" @click.stop="handleSubmit(row.id)">提交</el-button>
-          </template>
-
-          <!-- 审批中：驳回 + 去审批 -->
-          <template v-if="row.status === '审批中'">
-            <el-button size="small" type="danger" @click.stop="handleReject(row.id)">驳回</el-button>
-            <el-button size="small" type="warning" @click.stop="$router.push('/contract/approval')">去审批</el-button>
-          </template>
-
-          <!-- 已驳回：编辑 + 重新提交 -->
-          <template v-if="row.status === '已驳回'">
-            <el-button size="small" @click.stop="$router.push('/contract/draft/' + row.id)">编辑</el-button>
-            <el-button size="small" type="success" @click.stop="handleSubmit(row.id)">重新提交</el-button>
-          </template>
-
-          <!-- 已签订：签署 -->
-          <el-button size="small" type="primary" @click.stop="handleSign(row.id)" v-if="row.status === '已签订'">签署</el-button>
-
-          <!-- 执行中：终止 + 续约 -->
-          <template v-if="row.status === '执行中'">
-            <el-button size="small" type="danger" @click.stop="handleTerminate(row.id)">终止</el-button>
-            <el-button size="small" type="primary" @click.stop="showRenewDialog(row)">续约</el-button>
-          </template>
-
-          <!-- 已到期：终止 + 续约 -->
-          <template v-if="row.status === '已到期'">
-            <el-button size="small" type="danger" @click.stop="handleTerminate(row.id)">终止</el-button>
-            <el-button size="small" type="primary" @click.stop="showRenewDialog(row)">续约</el-button>
-          </template>
-
-          <!-- 删除 — 所有状态均可删除 -->
-          <el-popconfirm :title="'确定删除该合同? (' + row.status + ')'" @confirm="handleDelete(row.id)">
-            <template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无合同" description="从「合同起草」创建新合同，或调整筛选条件重试" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" selectable @selection-change="(rows: any[]) => selectedRows = rows" @row-click="onRowClick" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无合同" empty-description="从「合同起草」创建新合同，或调整筛选条件重试" style="cursor:pointer">
+      <template #c2="{ row }"><span v-if="row.tenant">{{ row.tenant.name }}</span></template>
+      <template #c3="{ row }"><span v-if="row.property">{{ row.property.name }}</span></template>
+      <template #c7="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }"><el-button size="small" type="info" @click.stop="$router.push('/contract/detail/' + row.id)">详情</el-button>
+    
+              <!-- 起草中：编辑 + 提交 -->
+              <template v-if="row.status === '起草中'">
+                <el-button size="small" @click.stop="$router.push('/contract/draft/' + row.id)">编辑</el-button>
+                <el-button size="small" type="success" @click.stop="handleSubmit(row.id)">提交</el-button>
+              </template>
+    
+              <!-- 审批中：驳回 + 去审批 -->
+              <template v-if="row.status === '审批中'">
+                <el-button size="small" type="danger" @click.stop="handleReject(row.id)">驳回</el-button>
+                <el-button size="small" type="warning" @click.stop="$router.push('/contract/approval')">去审批</el-button>
+              </template>
+    
+              <!-- 已驳回：编辑 + 重新提交 -->
+              <template v-if="row.status === '已驳回'">
+                <el-button size="small" @click.stop="$router.push('/contract/draft/' + row.id)">编辑</el-button>
+                <el-button size="small" type="success" @click.stop="handleSubmit(row.id)">重新提交</el-button>
+              </template>
+    
+              <!-- 已签订：签署 -->
+              <el-button size="small" type="primary" @click.stop="handleSign(row.id)" v-if="row.status === '已签订'">签署</el-button>
+    
+              <!-- 执行中：终止 + 续约 -->
+              <template v-if="row.status === '执行中'">
+                <el-button size="small" type="danger" @click.stop="handleTerminate(row.id)">终止</el-button>
+                <el-button size="small" type="primary" @click.stop="showRenewDialog(row)">续约</el-button>
+              </template>
+    
+              <!-- 已到期：终止 + 续约 -->
+              <template v-if="row.status === '已到期'">
+                <el-button size="small" type="danger" @click.stop="handleTerminate(row.id)">终止</el-button>
+                <el-button size="small" type="primary" @click.stop="showRenewDialog(row)">续约</el-button>
+              </template>
+    
+              <!-- 删除 — 所有状态均可删除 -->
+              <el-popconfirm :title="'确定删除该合同? (' + row.status + ')'" @confirm="handleDelete(row.id)">
+                <template #reference><el-button size="small" type="danger" @click.stop>删除</el-button></template>
+              </el-popconfirm></template>
+    </DataTable>
 
     <!-- 续约对话框 -->
     <el-dialog title="合同续约" v-model="renewVisible" width="450px">
@@ -113,6 +92,20 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'contractNo', label: '合同编号', width: 150 },
+  { label: '租客', width: 100, slot: 'c2' },
+  { label: '房源', width: 150, slot: 'c3' },
+  { prop: 'rentAmount', label: '月租金', width: 110 },
+  { prop: 'startDate', label: '开始', width: 110 },
+  { prop: 'endDate', label: '到期', width: 110 },
+  { label: '状态', width: 90, slot: 'c7' },
+  { label: '操作', width: 360, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -283,8 +276,8 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
-.batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff; }
-.batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }
+.batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border-radius: 6px; border: 1px solid $brand-100; }
+.batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

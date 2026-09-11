@@ -18,54 +18,22 @@
             <el-tab-pane label="二级催缴" name="2" />
             <el-tab-pane label="三级催缴" name="3" />
           </el-tabs>
-          <TableSkeleton v-if="loading && !filteredTasks.length" :rows="8" :columns="7" />
-          <el-table v-show="!(loading && !filteredTasks.length)" :data="filteredTasks" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedIds = rows.map((r: any) => r.id)">
-            <el-table-column type="selection" width="45" />
-            <el-table-column label="租户" width="100">
-              <template #default="{ row }">
-                <el-link v-if="row.bill?.contract?.tenant" type="primary" size="small" @click="goTenant(row.bill.contract.tenant.id)">
-                  {{ row.bill.contract.tenant.name }}
-                </el-link>
-                <span v-else class="text-muted">—</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="房源" width="130" show-overflow-tooltip>
-              <template #default="{ row }">
-                {{ row.bill?.contract?.property?.name || '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="欠费金额" width="100" align="right">
-              <template #default="{ row }">
-                <b v-if="row.bill">¥{{ Number(row.bill.totalAmount || 0).toFixed(2) }}</b>
-                <span v-else>—</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="channel" label="渠道" width="70" />
-            <el-table-column label="级别" width="75">
-              <template #default="{ row }">
-                <el-tag :type="row.level === 3 ? 'danger' : row.level === 2 ? 'warning' : row.level === 1 ? '' : 'info'" size="small">
-                  {{ levelLabel(row.level) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="80">
-              <template #default="{ row }">
-                <el-tag :type="row.status === '已发送' ? 'success' : row.status === '待发送' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="sentAt" label="发送时间" width="140">
-              <template #default="{ row }">{{ row.sentAt?.slice(0, 16)?.replace('T', ' ') || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="80">
-              <template #default="{ row }">
-                <el-button size="small" type="primary" @click="dispatchDunning(row)" v-if="row.status === '待发送'">发送</el-button>
-                <el-tag v-else size="small" type="info">已处理</el-tag>
-              </template>
-            </el-table-column>
-                      <template #empty>
-              <EmptyState title="暂无催缴任务" description="账单逾期后系统会自动生成催缴任务" />
-            </template>
-          </el-table>
+          <DataTable :data="filteredTasks" :loading="loading" :columns="COLUMNS" row-key="id" selectable @selection-change="(rows: any[]) => selectedIds = rows.map((r: any) => r.id)" empty-title="暂无催缴任务" empty-description="账单逾期后系统会自动生成催缴任务">
+            <template #c1="{ row }"><el-link v-if="row.bill?.contract?.tenant" type="primary" size="small" @click="goTenant(row.bill.contract.tenant.id)">
+                            {{ row.bill.contract.tenant.name }}
+                          </el-link>
+                          <span v-else class="text-muted">—</span></template>
+            <template #c2="{ row }">{{ row.bill?.contract?.property?.name || '-' }}</template>
+            <template #c3="{ row }"><b v-if="row.bill">¥{{ Number(row.bill.totalAmount || 0).toFixed(2) }}</b>
+                          <span v-else>—</span></template>
+            <template #c5="{ row }"><el-tag :type="row.level === 3 ? 'danger' : row.level === 2 ? 'warning' : row.level === 1 ? '' : 'info'" size="small">
+                            {{ levelLabel(row.level) }}
+                          </el-tag></template>
+            <template #c6="{ row }"><el-tag :type="row.status === '已发送' ? 'success' : row.status === '待发送' ? 'warning' : 'info'" size="small">{{ row.status }}</el-tag></template>
+            <template #c7="{ row }">{{ row.sentAt?.slice(0, 16)?.replace('T', ' ') || '-' }}</template>
+            <template #c8="{ row }"><el-button size="small" type="primary" @click="dispatchDunning(row)" v-if="row.status === '待发送'">发送</el-button>
+                          <el-tag v-else size="small" type="info">已处理</el-tag></template>
+          </DataTable>
         </el-card>
       </el-col>
 
@@ -77,7 +45,7 @@
             <el-progress :percentage="Math.min(agingPercent(item.value), 100)" :color="progressColor(item.label)" :stroke-width="18" />
             <span class="aging-amount">¥{{ (item.value / 10000).toFixed(1) }}万</span>
           </div>
-          <div v-if="!agingData.length" style="color:#7F8C8D;text-align:center;padding:20px">暂无欠费数据</div>
+          <div v-if="!agingData.length" style="color:var(--n-600);text-align:center;padding:20px">暂无欠费数据</div>
         </el-card>
       </el-col>
     </el-row>
@@ -120,6 +88,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { label: '租户', width: 100, slot: 'c1' },
+  { label: '房源', width: 130, tooltip: true, slot: 'c2' },
+  { label: '欠费金额', width: 100, align: 'right', slot: 'c3' },
+  { prop: 'channel', label: '渠道', width: 70 },
+  { label: '级别', width: 75, slot: 'c5' },
+  { prop: 'status', label: '状态', width: 80, slot: 'c6' },
+  { prop: 'sentAt', label: '发送时间', width: 140, slot: 'c7' },
+  { label: '操作', width: 80, slot: 'c8' },
+];
+import { tokens } from '@/styles/tokens';
+
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
@@ -169,7 +152,7 @@ function agingPercent(val: number): number {
 }
 
 function progressColor(label: string): string {
-  return label.includes('90天以上') ? '#f97316' : label.includes('61-90') ? '#f59e0b' : label.includes('31-60') ? '#10b981' : '#4f7cf7';
+  return label.includes('90天以上') ? tokens.warn600 : label.includes('61-90') ? tokens.warn600 : label.includes('31-60') ? tokens.ok600 : tokens.brand600;
 }
 
 async function fetchTasks() {
@@ -220,10 +203,10 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .actions { display: flex; gap: 8px; }
-.text-muted { color: #7F8C8D; font-size: 10px; }
+.text-muted { color: $n-600; font-size: 10px; }
 .aging-item { margin-bottom: 16px; }
-.aging-amount { font-size: 12px; color: #34495E; }
+.aging-amount { font-size: 12px; color: $n-900; }
 </style>

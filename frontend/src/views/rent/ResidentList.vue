@@ -17,23 +17,12 @@
       <div class="action-group"><el-button type="primary" @click="showCreate">新增档案</el-button></div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column prop="name" label="姓名" width="110" />
-      <el-table-column label="类型" width="80"><template #default="{ row }"><el-tag :type="row.isOwner ? 'warning' : 'primary'" size="small">{{ row.type }}</el-tag></template></el-table-column>
-      <el-table-column label="关联房源" width="150" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
-      <el-table-column prop="phone" label="手机号" width="130" />
-      <el-table-column prop="idNumber" label="证件号" width="180" show-overflow-tooltip />
-      <el-table-column prop="relation" label="与业主关系" width="100" />
-      <el-table-column prop="status" label="状态" width="80"><template #default="{ row }"><el-tag :type="row.status === '在住' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="130" fixed="right">
-        <template #default="{ row }"><el-button size="small" link @click="showEdit(row)">编辑</el-button><el-button size="small" link type="danger" @click="del(row.id)">删除</el-button></template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无住户档案" description="录入业主/住户信息，便于通知与服务" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无住户档案" empty-description="录入业主/住户信息，便于通知与服务">
+      <template #c2="{ row }"><el-tag :type="row.isOwner ? 'warning' : 'primary'" size="small">{{ row.type }}</el-tag></template>
+      <template #c3="{ row }">{{ row.property?.name }}</template>
+      <template #c7="{ row }"><el-tag :type="row.status === '在住' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }"><el-button size="small" link @click="showEdit(row)">编辑</el-button><el-button size="small" link type="danger" @click="del(row.id)">删除</el-button></template>
+    </DataTable>
 
     <el-dialog :title="editId ? '编辑档案' : '新增档案'" v-model="dialogVisible" width="560px" @closed="resetForm">
       <el-form :model="form" label-width="100px">
@@ -56,6 +45,20 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '姓名', width: 110 },
+  { label: '类型', width: 80, slot: 'c2' },
+  { label: '关联房源', width: 150, tooltip: true, slot: 'c3' },
+  { prop: 'phone', label: '手机号', width: 130 },
+  { prop: 'idNumber', label: '证件号', width: 180, tooltip: true },
+  { prop: 'relation', label: '与业主关系', width: 100 },
+  { prop: 'status', label: '状态', width: 80, slot: 'c7' },
+  { label: '操作', width: 130, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';
@@ -105,12 +108,12 @@ onMounted(() => { fetchData(); loadProps(); });
 <style lang="scss" scoped>
 .resident-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.owner { color: #E6A23C; }
-.stat-num.live { color: #67C23A; }
-.stat-num.moved { color: #909399; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.owner { color: $warn-600; }
+.stat-num.live { color: $ok-600; }
+.stat-num.moved { color: $n-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

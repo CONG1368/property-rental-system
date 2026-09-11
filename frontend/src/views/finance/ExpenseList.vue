@@ -16,24 +16,10 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @selection-change="(rows: any[]) => selectedRows = rows" ref="tableRef">
-      <el-table-column type="selection" width="45" />
-      <el-table-column prop="category" label="类别" width="100" />
-      <el-table-column prop="amount" label="金额" width="130" />
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }"><el-tag :type="row.status === '已批准' ? 'success' : 'warning'" size="small">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="notes" label="备注" />
-      <el-table-column label="操作" width="160">
-        <template #default="{ row }">
-          <el-button size="small" type="success" @click="handleApprove(row.id)" v-if="row.status === '待审批'">审批</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无费用单" description="新增费用后将进入审批流程，大额费用需上级审批" />
-      </template>
-    </el-table>
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" selectable @selection-change="(rows: any[]) => selectedRows = rows" empty-title="暂无费用单" empty-description="新增费用后将进入审批流程，大额费用需上级审批">
+      <template #c3="{ row }"><el-tag :type="row.status === '已批准' ? 'success' : 'warning'" size="small">{{ row.status }}</el-tag></template>
+      <template #c5="{ row }"><el-button size="small" type="success" @click="handleApprove(row.id)" v-if="row.status === '待审批'">审批</el-button></template>
+    </DataTable>
 
     <el-dialog title="新增费用" v-model="dialogVisible" width="450px">
       <el-form :model="form" label-width="100px">
@@ -52,6 +38,17 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'category', label: '类别', width: 100 },
+  { prop: 'amount', label: '金额', width: 130 },
+  { prop: 'status', label: '状态', width: 100, slot: 'c3' },
+  { prop: 'notes', label: '备注' },
+  { label: '操作', width: 160, slot: 'c5' },
+];
+
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';
@@ -130,8 +127,8 @@ onMounted(() => { loadBookOptions(); fetchData(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
-.batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff; }
-.batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }
+.batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border-radius: 6px; border: 1px solid $brand-100; }
+.batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

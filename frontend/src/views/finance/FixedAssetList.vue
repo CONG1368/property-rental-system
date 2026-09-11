@@ -21,30 +21,15 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column prop="name" label="资产名称" width="140" show-overflow-tooltip />
-      <el-table-column prop="category" label="类别" width="100" />
-      <el-table-column prop="originalValue" label="原值" width="110" align="right"><template #default="{ row }">{{ fmt(row.originalValue) }}</template></el-table-column>
-      <el-table-column prop="monthlyDepreciation" label="月折旧" width="110" align="right"><template #default="{ row }">{{ fmt(row.monthlyDepreciation) }}</template></el-table-column>
-      <el-table-column prop="accumulatedDepreciation" label="累计折旧" width="120" align="right"><template #default="{ row }">{{ fmt(row.accumulatedDepreciation) }}</template></el-table-column>
-      <el-table-column label="折旧进度" min-width="160">
-        <template #default="{ row }">
-          <el-progress :percentage="depPercent(row)" :color="depPercent(row) >= 100 ? '#67C23A' : '#409EFF'" :stroke-width="10" />
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="100"><template #default="{ row }"><el-tag :type="row.status === '使用中' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" link @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确定删除该资产?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" link>删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无固定资产" description="登记资产后系统按月自动计提折旧" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无固定资产" empty-description="登记资产后系统按月自动计提折旧">
+      <template #c3="{ row }">{{ fmt(row.originalValue) }}</template>
+      <template #c4="{ row }">{{ fmt(row.monthlyDepreciation) }}</template>
+      <template #c5="{ row }">{{ fmt(row.accumulatedDepreciation) }}</template>
+      <template #c6="{ row }"><el-progress :percentage="depPercent(row)" :color="depPercent(row) >= 100 ? 'var(--ok-600)' : 'var(--brand-600)'" :stroke-width="10" /></template>
+      <template #c7="{ row }"><el-tag :type="row.status === '使用中' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }"><el-button size="small" link @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确定删除该资产?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" type="danger" link>删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <el-dialog :title="dialogTitle" v-model="dialogVisible" width="560px" @closed="resetForm">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
@@ -62,6 +47,20 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '资产名称', width: 140, tooltip: true },
+  { prop: 'category', label: '类别', width: 100 },
+  { prop: 'originalValue', label: '原值', width: 110, align: 'right', slot: 'c3' },
+  { prop: 'monthlyDepreciation', label: '月折旧', width: 110, align: 'right', slot: 'c4' },
+  { prop: 'accumulatedDepreciation', label: '累计折旧', width: 120, align: 'right', slot: 'c5' },
+  { label: '折旧进度', minWidth: 160, slot: 'c6' },
+  { prop: 'status', label: '状态', width: 100, slot: 'c7' },
+  { label: '操作', width: 140, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -151,10 +150,10 @@ onMounted(() => { fetchData(); loadBooks(); });
 <style lang="scss" scoped>
 .asset-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.done { color: #67C23A; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.done { color: $ok-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

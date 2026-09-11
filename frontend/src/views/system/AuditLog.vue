@@ -29,29 +29,27 @@
       </el-form-item>
     </el-form>
 
-    <TableSkeleton v-if="loading && !logs.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !logs.length)" :data="logs" stripe v-loading="loading">
-      <el-table-column prop="userId" label="用户ID" width="80" />
-      <el-table-column prop="module" label="模块" width="100" />
-      <el-table-column prop="action" label="操作" width="80" />
-      <el-table-column label="结果" width="80">
-        <template #default="{ row }">
-          <el-tag :type="isFail(row) ? 'danger' : 'success'">{{ isFail(row) ? '失败' : '成功' }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="targetType" label="对象类型" width="100" />
-      <el-table-column prop="targetId" label="对象ID" width="80" />
-      <el-table-column prop="ip" label="IP地址" width="130" />
-      <el-table-column prop="createdAt" label="时间" width="170" />
-          <template #empty>
-        <EmptyState title="暂无审计日志" description="系统会记录敏感操作的成功、失败与越权尝试" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="logs" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无审计日志" empty-description="系统会记录敏感操作的成功、失败与越权尝试">
+      <template #c4="{ row }"><el-tag :type="isFail(row) ? 'danger' : 'success'">{{ isFail(row) ? '失败' : '成功' }}</el-tag></template>
+    </DataTable>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'userId', label: '用户ID', width: 80 },
+  { prop: 'module', label: '模块', width: 100 },
+  { prop: 'action', label: '操作', width: 80 },
+  { label: '结果', width: 80, slot: 'c4' },
+  { prop: 'targetType', label: '对象类型', width: 100 },
+  { prop: 'targetId', label: '对象ID', width: 80 },
+  { prop: 'ip', label: 'IP地址', width: 130 },
+  { prop: 'createdAt', label: '时间', width: 170 },
+];
+
 import { ref, onMounted } from 'vue';
 import request from '@/api/request';
 import { ElMessage } from 'element-plus';
@@ -131,6 +129,6 @@ onMounted(() => fetchData());
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .filter-bar { margin-bottom: 12px; }
 </style>

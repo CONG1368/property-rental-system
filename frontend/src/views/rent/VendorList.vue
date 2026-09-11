@@ -20,28 +20,14 @@
       <div class="action-group"><el-button type="primary" @click="showDialog(null)">新增供应商</el-button></div>
     </div>
 
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
-      <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="category" label="类别" width="90"><template #default="{ row }"><el-tag :type="categoryTag(row.category)" size="small">{{ row.category }}</el-tag></template></el-table-column>
-      <el-table-column prop="contact" label="联系人" width="100" />
-      <el-table-column prop="phone" label="电话" width="130" />
-      <el-table-column prop="contractNo" label="合同号" width="130" show-overflow-tooltip />
-      <el-table-column prop="contractEnd" label="合同到期" width="110" />
-      <el-table-column prop="price" label="价格" width="100"><template #default="{ row }">{{ fmtPrice(row.price) }}</template></el-table-column>
-      <el-table-column label="评分" width="140"><template #default="{ row }"><el-rate :model-value="row.rating" disabled /></template></el-table-column>
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
-        <template #default="{ row }">
-          <el-button link size="small" type="primary" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确认删除该供应商?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无供应商" description="登记外包供应商后可关联工单与结算" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无供应商" empty-description="登记外包供应商后可关联工单与结算">
+      <template #c2="{ row }"><el-tag :type="categoryTag(row.category)" size="small">{{ row.category }}</el-tag></template>
+      <template #c7="{ row }">{{ fmtPrice(row.price) }}</template>
+      <template #c8="{ row }"><el-rate :model-value="row.rating" disabled /></template>
+      <template #c9="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c10="{ row }"><el-button link size="small" type="primary" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确认删除该供应商?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <el-dialog :title="editing ? '编辑供应商' : '新增供应商'" v-model="dialogVisible" width="640px" @closed="resetForm">
       <el-form :model="form" label-width="90px">
@@ -72,6 +58,22 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '名称', minWidth: 150, tooltip: true },
+  { prop: 'category', label: '类别', width: 90, slot: 'c2' },
+  { prop: 'contact', label: '联系人', width: 100 },
+  { prop: 'phone', label: '电话', width: 130 },
+  { prop: 'contractNo', label: '合同号', width: 130, tooltip: true },
+  { prop: 'contractEnd', label: '合同到期', width: 110 },
+  { prop: 'price', label: '价格', width: 100, slot: 'c7' },
+  { label: '评分', width: 140, slot: 'c8' },
+  { prop: 'status', label: '状态', width: 90, slot: 'c9' },
+  { label: '操作', width: 140, fixed: 'right', slot: 'c10' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -123,11 +125,11 @@ onMounted(() => { fetchData() })
 <style lang="scss" scoped>
 .vendor-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.good { color: #67C23A; }
-.stat-num.warn { color: #E6A23C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.good { color: $ok-600; }
+.stat-num.warn { color: $warn-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

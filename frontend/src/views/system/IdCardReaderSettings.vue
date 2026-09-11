@@ -26,35 +26,15 @@
         <span>读卡器设备</span>
         <el-button size="small" type="primary" style="margin-left:12px" @click="showAddDialog">添加设备</el-button>
       </template>
-      <TableSkeleton v-if="loading && !devices.length" :rows="8" :columns="7" />
-      <el-table v-show="!(loading && !devices.length)" :data="devices" size="small" v-loading="loading">
-        <el-table-column prop="name" label="设备名称" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="brand" label="品牌" width="90" />
-        <el-table-column prop="model" label="型号" width="120" />
-        <el-table-column prop="interfaceType" label="接口" width="70" />
-        <el-table-column prop="port" label="端口" width="100" show-overflow-tooltip />
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="firmwareVersion" label="固件" width="80" />
-        <el-table-column label="最近读卡" width="140">
-          <template #default="{ row }">{{ row.lastReadAt?.slice(0, 16)?.replace('T', ' ') || '--' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" type="success" @click="handleTestRead(row)">测试读卡</el-button>
-            <el-button size="small" @click="showEditDialog(row)">编辑</el-button>
-            <el-popconfirm title="确定删除该设备?" @confirm="handleDelete(row.id)">
-              <template #reference><el-button size="small" type="danger">删除</el-button></template>
-            </el-popconfirm>
-          </template>
-        </el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="devices" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c6="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
+        <template #c8="{ row }">{{ row.lastReadAt?.slice(0, 16)?.replace('T', ' ') || '--' }}</template>
+        <template #c9="{ row }"><el-button size="small" type="success" @click="handleTestRead(row)">测试读卡</el-button>
+                  <el-button size="small" @click="showEditDialog(row)">编辑</el-button>
+                  <el-popconfirm title="确定删除该设备?" @confirm="handleDelete(row.id)">
+                    <template #reference><el-button size="small" type="danger">删除</el-button></template>
+                  </el-popconfirm></template>
+      </DataTable>
     </el-card>
 
     <!-- 读卡器高级设置（方案2：技术参数迁移到业务页） -->
@@ -100,30 +80,11 @@
 
     <!-- 读卡日志 -->
     <el-card header="读卡日志">
-      <el-table :data="logs" size="small" v-loading="logLoading">
-        <el-table-column label="设备" min-width="120">
-          <template #default="{ row }">{{ row.reader?.name || '--' }}</template>
-        </el-table-column>
-        <el-table-column prop="method" label="方式" width="70" />
-        <el-table-column label="结果" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.result === '成功' ? 'success' : 'danger'" size="small">{{ row.result }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="idNumber" label="身份证号" width="160" />
-        <el-table-column prop="errorMessage" label="失败原因" min-width="150" show-overflow-tooltip />
-        <el-table-column label="操作时间" width="160">
-          <template #default="{ row }">{{ row.createdAt?.slice(0, 16)?.replace('T', ' ') }}</template>
-        </el-table-column>
-      </el-table>
-      <el-pagination
-        v-model:current-page="logPage"
-        :page-size="20"
-        :total="logTotal"
-        layout="total, prev, pager, next"
-        @current-change="fetchLogs"
-        style="margin-top:12px;justify-content:center"
-      />
+      <DataTable :data="logs" :loading="logLoading" :columns="COLUMNS_2" row-key="id" v-model:page="logPage" :total="logTotal" :page-size="20" @page-change="fetchLogs">
+        <template #c1="{ row }">{{ row.reader?.name || '--' }}</template>
+        <template #c3="{ row }"><el-tag :type="row.result === '成功' ? 'success' : 'danger'" size="small">{{ row.result }}</el-tag></template>
+        <template #c6="{ row }">{{ row.createdAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+      </DataTable>
     </el-card>
 
     <!-- 添加/编辑设备对话框 -->
@@ -194,6 +155,30 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { label: '设备', minWidth: 120, slot: 'c1' },
+  { prop: 'method', label: '方式', width: 70 },
+  { label: '结果', width: 80, slot: 'c3' },
+  { prop: 'idNumber', label: '身份证号', width: 160 },
+  { prop: 'errorMessage', label: '失败原因', minWidth: 150, tooltip: true },
+  { label: '操作时间', width: 160, slot: 'c6' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '设备名称', minWidth: 140, tooltip: true },
+  { prop: 'brand', label: '品牌', width: 90 },
+  { prop: 'model', label: '型号', width: 120 },
+  { prop: 'interfaceType', label: '接口', width: 70 },
+  { prop: 'port', label: '端口', width: 100, tooltip: true },
+  { label: '状态', width: 90, slot: 'c6' },
+  { prop: 'firmwareVersion', label: '固件', width: 80 },
+  { label: '最近读卡', width: 140, slot: 'c8' },
+  { label: '操作', width: 200, fixed: 'right', slot: 'c9' },
+];
+
 import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import { confirmWithPassword } from '@/utils/confirm-password';
@@ -412,8 +397,8 @@ onMounted(() => { fetchProviderMode(); loadAdvanced(); fetchDevices(); fetchLogs
 
 <style lang="scss" scoped>
 .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; }
 .drv-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-.drv-label { color: #5b6472; font-size: 13px; }
-.drv-detail { margin-top: 6px; font-size: 12px; color: #5b6472; }
+.drv-label { color: $n-600; font-size: 13px; }
+.drv-detail { margin-top: 6px; font-size: 12px; color: $n-600; }
 </style>

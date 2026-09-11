@@ -8,19 +8,12 @@
         <el-col :span="3"><el-select v-model="filters.severity" placeholder="严重程度" clearable @change="fetchData" style="width:100%"><el-option v-for="s in ['一般隐患','重大隐患','紧急']" :key="s" :label="s" :value="s" /></el-select></el-col>
         <el-col :span="4"><el-button type="danger" @click="showDialog(null)">记录违规</el-button></el-col>
       </el-row>
-      <el-table :data="list" size="small" stripe :row-class-name="rowClass">
-        <el-table-column prop="property" label="房源" width="120"><template #default="{row}">{{ row.property?.name || '-' }}</template></el-table-column>
-        <el-table-column prop="category" label="类别" width="100" />
-        <el-table-column prop="description" label="描述" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="severity" label="严重程度" width="100"><template #default="{row}"><el-tag :type="row.severity==='紧急'?'danger':row.severity==='重大隐患'?'warning':'info'" size="small">{{ row.severity }}</el-tag></template></el-table-column>
-        <el-table-column prop="deadline" label="整改期限" width="110" />
-        <el-table-column prop="status" label="状态" width="100"><template #default="{row}"><el-tag :type="row.status==='已整改'||row.status==='已关闭'?'success':row.status==='逾期未改'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-        <el-table-column label="操作" width="140"><template #default="{row}"><el-button link size="small" v-if="row.status==='待整改'||row.status==='整改中'" type="success" @click="handleRectify(row)">标记整改</el-button><el-button link size="small" @click="showDialog(row)">编辑</el-button></template></el-table-column>
-              <template #empty>
-          <EmptyState title="暂无违规记录" description="检查发现隐患后生成整改单并跟踪闭环" />
-        </template>
-      </el-table>
-      <el-pagination v-if="total>0" style="margin-top:12px" v-model:current-page="page" :page-size="20" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
+      <DataTable :data="list" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="20" @page-change="fetchData" empty-title="暂无违规记录" empty-description="检查发现隐患后生成整改单并跟踪闭环">
+        <template #c1="{ row }">{{ row.property?.name || '-' }}</template>
+        <template #c4="{ row }"><el-tag :type="row.severity==='紧急'?'danger':row.severity==='重大隐患'?'warning':'info'" size="small">{{ row.severity }}</el-tag></template>
+        <template #c6="{ row }"><el-tag :type="row.status==='已整改'||row.status==='已关闭'?'success':row.status==='逾期未改'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template>
+        <template #c7="{ row }"><el-button link size="small" v-if="row.status==='待整改'||row.status==='整改中'" type="success" @click="handleRectify(row)">标记整改</el-button><el-button link size="small" @click="showDialog(row)">编辑</el-button></template>
+      </DataTable>
     </el-card>
 
     <el-dialog :title="editing ? '编辑违规记录' : '记录违规'" v-model="dialogVisible" width="600px">
@@ -37,6 +30,19 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'property', label: '房源', width: 120, slot: 'c1' },
+  { prop: 'category', label: '类别', width: 100 },
+  { prop: 'description', label: '描述', minWidth: 180, tooltip: true },
+  { prop: 'severity', label: '严重程度', width: 100, slot: 'c4' },
+  { prop: 'deadline', label: '整改期限', width: 110 },
+  { prop: 'status', label: '状态', width: 100, slot: 'c6' },
+  { label: '操作', width: 140, slot: 'c7' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -75,6 +81,6 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
-:deep(.row-expired) { background: #fef0f0 !important; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
+:deep(.row-expired) { background: $bad-100 !important; }
 </style>

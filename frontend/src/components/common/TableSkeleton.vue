@@ -22,20 +22,20 @@ withDefaults(defineProps<{
 <style lang="scss" scoped>
 .table-skeleton {
   border-radius: 14px; overflow: hidden;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.68);
+  background: $n-0;
+  border: 1px solid $n-200;
 }
 .sk-head, .sk-row {
   display: flex; gap: 16px; padding: 12px 16px; align-items: center;
 }
-.sk-head { background: rgba(255, 255, 255, 0.55); }
+.sk-head { background: $n-100; }
 .sk-row {
-  border-top: 1px solid rgba(255, 255, 255, 0.6);
+  border-top: 1px solid $n-200;
   animation: sk-in 0.4s ease both;
 }
 .sk-cell {
   flex: 1; height: 12px; border-radius: 6px;
-  background: linear-gradient(90deg, rgba(198, 214, 253, 0.5) 25%, rgba(236, 241, 254, 0.9) 37%, rgba(198, 214, 253, 0.5) 63%);
+  background: linear-gradient(90deg, $brand-100 25%, $n-100 37%, $brand-100 63%);
   background-size: 400% 100%;
   animation: sk-shimmer 1.4s ease infinite;
 }

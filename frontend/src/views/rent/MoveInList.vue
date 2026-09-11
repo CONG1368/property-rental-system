@@ -14,26 +14,17 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
-      <el-table-column label="合同号" width="130" show-overflow-tooltip><template #default="{ row }">{{ row.contract?.contractNo }}</template></el-table-column>
-      <el-table-column label="租客" width="110"><template #default="{ row }">{{ row.tenant?.name }}</template></el-table-column>
-      <el-table-column label="房源" min-width="150" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
-      <el-table-column label="入住日期" width="110"><template #default="{ row }">{{ row.moveInDate || '—' }}</template></el-table-column>
-      <el-table-column label="押金" width="120" align="right"><template #default="{ row }">¥{{ fmt(row.depositAmount) }}</template></el-table-column>
-      <el-table-column label="交接状态" width="100"><template #default="{ row }"><el-tag :type="row.status === '已完成' ? 'success' : 'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" link type="success" v-if="row.status === '待交接'" @click="complete(row)">交接</el-button>
-          <el-button size="small" link @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" link type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" style="margin-top:16px; justify-content:flex-end" v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c1="{ row }">{{ row.contract?.contractNo }}</template>
+      <template #c2="{ row }">{{ row.tenant?.name }}</template>
+      <template #c3="{ row }">{{ row.property?.name }}</template>
+      <template #c4="{ row }">{{ row.moveInDate || '—' }}</template>
+      <template #c5="{ row }">¥{{ fmt(row.depositAmount) }}</template>
+      <template #c6="{ row }"><el-tag :type="row.status === '已完成' ? 'success' : 'warning'" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }"><el-button size="small" link type="success" v-if="row.status === '待交接'" @click="complete(row)">交接</el-button>
+              <el-button size="small" link @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button size="small" link type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <el-dialog :title="editing ? '编辑入住交接' : '新增入住交接'" v-model="dialogVisible" width="620px" @closed="resetForm">
       <el-form :model="form" label-width="100px" size="small">
@@ -66,6 +57,19 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { label: '合同号', width: 130, tooltip: true, slot: 'c1' },
+  { label: '租客', width: 110, slot: 'c2' },
+  { label: '房源', minWidth: 150, tooltip: true, slot: 'c3' },
+  { label: '入住日期', width: 110, slot: 'c4' },
+  { label: '押金', width: 120, align: 'right', slot: 'c5' },
+  { label: '交接状态', width: 100, slot: 'c6' },
+  { label: '操作', width: 180, fixed: 'right', slot: 'c7' },
+];
+
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';

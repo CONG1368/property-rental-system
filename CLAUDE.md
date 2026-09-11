@@ -697,6 +697,12 @@ off('room:status-changed', callback);
 
 **读卡 Provider 模式**：system_configs.id_card_provider（内置，默认 mock）——mock=演示（返回内置数据，带 mock:true），real=真实读卡（RealIdCardProvider 为厂商 SDK 接入点，未接 SDK 报错不伪成功）。
 
+**身份证号 NUL 陷阱（真实踩过的坑，务必遵守）**：华视 SDK 的 `GetPeopleIDCode` 缓冲区**结尾带 `\0`（NUL）**，桥接后若不剔除，身份证号会多出一个 `\0`（19 字符）。Sequelize 的 sqlite 方言把 `WHERE` 值**内联**进 SQL 字符串（非绑定参数），而 SQLite 的 tokenizer 把 **NUL 当作字符串结束** → SQL 提前截断、收尾引号丢失 → 报 `SQLITE_ERROR: unrecognized token: "'4405…"`。**修复（纵深防御）**：① `card_bridge.py` 的 `call_str_getter` 用 `rstrip(b'\x00')` + 解码后 `replace('\x00','')`；② `id-card-service.ts` 导出 `sanitizeIdNumber()`（剔 `[\u0000-\u001f\u007f]` + trim），在 `checkDuplicateIdNumber()` 与 `readCard()` 中调用；③ `id-card-provider.ts` 源头剔除；④ `tenants.ts` POST 创建前清理。**通用约定：凡把设备/用户提供的字符串内联进 SQL 前，先剔控制字符。**
+
+**读卡日期规范化**：桥返回的 8 位日期（`20000204`）在 `id-card-provider.ts` 统一规范化为 `YYYY-MM-DD`；`validFrom`/`validTo` 优先取 `GetStartDate`/`GetEndDate`，仅缺省时回退 `dateRange` 拆分（历史 bug：三元优先级把 `2020-02-04` 截成 `2020`）。
+
+**读卡失败诊断**：`readCard()` 的 catch 把**完整 `err.message` + `err.sql` + `err.stack`** 写入 `logs/id-card-error.log` 并 `console.error`（进启动日志）；读卡日志「失败原因」存完整 SQL。
+
 ### 合同 billingConfig — 可扩展 JSON 字段
 
 `Contract.billingConfig`（JSON 类型）是合同的元数据容器，**新增可选配置项时不需修改模型列**，只需在表单、打印模板、详情页三处同步即可。当前字段：
@@ -742,36 +748,34 @@ off('room:status-changed', callback);
 5. **自动刷新**：60s 弱轮询 + WS 事件静默刷新（300ms 防抖，不闪加载态），`onUnmounted` 清理定时器与订阅。
 6. **系统信息条**：`version` 取自根 package.json（缓存一次），`uptimeSeconds` 取 `process.uptime()`。回归脚本 `scripts/verify-dashboard.js`（16 用例）。
 
-### UI 主题体系 — 湛蓝玻璃拟物
+### UI 主题体系 — 冷调中性（令牌 v2）
 
-全站视觉统一为「湛蓝玻璃拟物（Glassmorphism·湛蓝）」，完整规范见 `docs/UI设计准则.md`（唯一权威）。要点：
+全站视觉统一为「冷调中性 · 现代极简」，完整规范见 `docs/UI设计准则.md`（唯一权威）。要点：
 
-**1. 设计令牌集中在 `frontend/src/styles/variables.scss`**：强调色 `$color-primary: #4f7cf7`（全站唯一强调色）、渐变底 `$color-bg`、玻璃面 `$color-bg-elev: rgba(255,255,255,.62)`、白描边 `$color-border`、文字三阶（`#1f2430`/`#3a4354`/`#5b6472`）、大圆角（8/14/20px）、玻璃阴影（外阴影 + 内高光）。**页面内禁止硬编码主题色字面量**。
+**1. 设计令牌 v2 集中在 `frontend/src/styles/variables.scss`**（oklch）：中性阶 `$n-0…$n-900`（唯一色相 250）、品牌 `$brand-100/300/600/700`（唯一强调色）、语义 `$ok/warn/bad/info-100|600`、房态阶 `$st-vacant/locked/booked/rented`、非颜色令牌 `$sh-0/1/2`、`$glass`、`$scrim`、字号 `$fs-page/section/body/meta`、圆角 `$r-ctl/box/panel`。
+**1.1 JS 侧镜像 `styles/tokens.ts`**：由 `node scripts/gen-tokens-ts.cjs` 从 variables.scss 派生（oklch→sRGB），供 ECharts 等需要真实色值的 JS 场景使用。
+**1.2 规则：本文件之外不得出现任何颜色字面量**——由门禁 **R2** 以白名单方式强制（豁免 variables.scss / global.scss / tokens.ts / `components/print/**`）。
 
-**2. Element Plus 变量覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary`、圆角、填充色、边框色统一玻璃化；`.el-card`/`.el-dialog`/`.el-popper`/输入框统一 `backdrop-filter: blur(14px)`。
+**2. Element Plus 覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary: $brand-600`、`--el-fill-color-blank: $n-0`（取消半透明填充）、`--el-border-color: $n-400`（控件边界 ≥3:1）、`--el-border-radius-base: $r-box`；同时输出 `--n-*`/`--brand-*`/`--glass`/`--sh-*` 的 CSS 变量镜像，供内联样式与 JS 使用。
 
-**3. ANTI-EMOJI（铁律）**：UI 与代码中禁用 emoji，一律用 `@element-plus/icons-vue` 线性图标。
-- `utils/avatars.ts` 已重构为图标方案：`avatarIcons`（键名→组件）+ `roleAvatars`（角色→键名+渐变底）+ `presetAvatars`（可选头像）+ **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容数据库里已存的 emoji 头像）。渲染方式：`<el-icon><component :is="resolveAvatarIcon(key)" /></el-icon>`。
-- 首页 `HomeDashboard.vue` 的 `iconMap` 已语义化（`home/users/money/trend/bell/doc/chart/coin/check/alert/warn/list`），KPI/待办/快捷入口的 `icon` 字段存语义键而非 emoji。
+**3. 材质：玻璃只留给应用外壳**（顶栏 / 侧栏 / 抽屉 / 弹层），内容卡片一律**净表面**（`$n-0` + 1px `$n-200` + 无模糊无阴影），统一由 `global.scss` 的 `.surface` 定义，**禁止逐页复制**。门禁要求全站 `backdrop-filter` 模糊区 ≤4。
 
-**4. 存量色值迁移 `scripts/theme-migrate.cjs`**：旧色→新令牌；`#0A3D62` 按语境二分（CSS `color:`→`#1f2430`，背景/图表→`#4f7cf7`）；自动跳过 `components/print/`。
+**4. ANTI-EMOJI（铁律）**：UI 与代码中禁用 emoji，一律用 `@element-plus/icons-vue` 线性图标。
+- `utils/avatars.ts` 为图标方案：`avatarIcons` + `roleAvatars` + `presetAvatars` + **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容库里已存的 emoji 头像）。
+- 首页 `HomeDashboard.vue` 的 `iconMap` 已语义化（`home/users/money/trend/bell/doc/chart/coin/check/alert/warn/list`），`icon` 字段存语义键而非 emoji。
 
-**5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**（此前 Login 硬编码 1.0.2 与实际 1.0.3 不符）。
+**5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**。
 
-**6. 交互态（Rule 5）— 骨架屏 + 统一空态**：两个全局自动注册组件位于 `frontend/src/components/common/`：
-- `TableSkeleton.vue`（首屏骨架，shimmer 动效 + 逐行淡入，替代通用转圈）
-- `EmptyState.vue`（图标 + 标题 + 引导说明 + 可选操作按钮，props：`title/description/icon/actionText/compact`）
+**6. 组件中间层（新增页面的默认动作 = 组装组件）**：
+- `components/base/`（无业务词汇）：`DataTable`（**内置 money/status/date/mono 列类型** + 批量 + 骨架 + 空态 + 分页 + 三档密度，`prop` 支持嵌套路径）、`FilterBar`、`StatusTag`、`MoneyText`、`DateText`、`FormDialog`、`PageHeader`、`types.ts`。
+- `components/surfaces/`（只切密度）：`ListShell`/`DashboardShell`/`FormShell`/`DocumentShell`/`PortalShell`，差异来自 `data-surface` 密度变量。
+- `components/modules/`（允许业务语义）：`rent/TenantFormDialog`、`rent/BillLifecycle`、`finance/VoucherAutoGenerate`、`finance/VoucherEntryRows`、`contract/ClausePreview`。
+- `components/common/`：`EmptyState` / `TableSkeleton`（全局自动注册，**不要重写**）。
+- 依赖方向硬约束：`modules/` → `base/`/`surfaces/` 单向；反向禁止。复用件：`composables/useBatchDelete`、`composables/useDensity`、`utils/bill-print`。
 
-标准接法（已覆盖 **68 个列表页**）：`<TableSkeleton v-if="loading && !list.length" />` + `<el-table v-show="!(loading && !list.length)">` + `<template #empty><EmptyState ... /></template>`。批量接入用 `scripts/apply-loading-states.cjs`（`--dry` 预演），验收用 `scripts/verify-ux-states.cjs`。按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景（Anti-Card Overuse）。
+**7. 无障碍（WCAG 2.1 AA）**：v2 的 **600 档即文字安全档**（`$brand-600` 白字 7.22:1、`$n-600` 次要文字 5.23:1、语义 600 档 5.94–7.37:1），v1 的独立 `-text` 变体体系已被吸收，不再单列。控件边界用 `$n-400`（3.21:1，满足 SC 1.4.11）；`$n-200` 仅作分割线（装饰性豁免）。
 
-**7. 无障碍配色（WCAG 2.1 AA）**：原色只满足 UI 组件 3:1，作正文最低仅 1.72:1，故拆分用途——
-- **文字/链接/细线图标**用加深变体：`$color-primary-text: #2b57c9`、`$color-success-text: #0a7652`、`$color-warning-text: #8a5200`、`$color-danger-text: #bf2626`、`$color-text-subtle: #5f6675`
-- **交互控件边界**用 `$color-border-control: #6f8299`（`--el-border-color`，≥3:1）；白描边仅装饰
-- **深色顶栏**上的主色/红点用 `$color-on-dark-primary: #a8c2fc` / `$color-on-dark-danger: #fca5a5`
-- **实心按钮**（primary/success/warning/danger）底色在 `global.scss` 覆盖为加深变体，使白字达 5.6–6.4:1
-- **原色保留**用于填充/标签底/图表系列/进度条/KPI 数值（品牌湛蓝不变）
-
-自检门禁：`node scripts/check-contrast.cjs`（46 条清单，46/46 通过 + 2 条装饰性豁免）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 文字色）。
+自检门禁：`node scripts/check-contrast.cjs`（41 条清单，41/41 + 2 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0，新增页面不得再写 `<el-table>`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演）。
 
 ### 依赖漏洞治理（当前状态与决策）
 
@@ -845,10 +849,13 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-excel-import.js` | Excel 链路回归（房源/条款导入解析、.xls 拒绝、服务端多表导出，12 用例）；迁 exceljs 后的守护 |
 | `verify-websocket.js` | WebSocket 广播回归（房态变更/批量变更事件、载荷结构、断开后服务健康，11 用例）；对种子房源做净零流转 |
 | `check-deps-audit.cjs` | **依赖漏洞门禁**（`npm audit --omit=dev`，high/critical 阻断；xlsx 等上游无补丁项在 ALLOWLIST 豁免并带复审期限） |
-| `check-static-rules.cjs` | **静态铁律门禁**（6 条：ANTI-EMOJI / 旧主题色 / 版本号硬编码 / 生产 URL 硬编码 / multer fileFilter / 财务写端点中间件），无需服务，行尾 `ci-allow:<规则号>` 可豁免 |
+| `check-static-rules.cjs` | **静态铁律门禁**（6 条：ANTI-EMOJI / 颜色字面量 / 版本号硬编码 / 生产 URL 硬编码 / multer fileFilter / 财务写端点中间件），无需服务，行尾 `ci-allow:<规则号>` 可豁免 |
 | `verify-external-providers.ts` | 短信/电子签算法自检（编码规则/签名确定性/TC3 派生链/未配置降级，21 用例）；用 `cd backend && npx tsx ../scripts/xxx` 运行 |
-| `theme-migrate.cjs` | 湛蓝玻璃主题色值迁移（旧色→新令牌，跳过打印模板） |
+| `theme-migrate-v2.cjs` | 令牌 v2 存量色值迁移（`--dry` 预演；按上下文产出 $令牌 / var() / tokens.x） |
 | `apply-loading-states.cjs` | 批量为列表页注入骨架屏 + 统一空态（`--dry` 预演） |
-| `apply-a11y-colors.cjs` | 无障碍配色迁移（文字场景语义色→ -text 变体） |
+| `verify-table-density.cjs` | 第 5 周门槛：三档密度布局验收（14 用例） |
+| `verify-page-conventions.cjs` | 页面约定门禁（组件采用率 + 禁止复制玻璃/工具栏样式；棘轮基线 toolbarViews=40、**inlineTableView=0**） |
+| `migrate-tables-to-datatable.cjs` | 内联 `<el-table>` → `DataTable` 批量迁移（`--dry` 预演 / `--only=X` 单页；一页多表多轮处理；动态列 `v-for`/`:label`/`:prop` 自动跳过需手工迁移） |
+| `gen-tokens-ts.cjs` | 从 variables.scss 生成 JS 令牌镜像（oklch→sRGB） |
 | `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（46 条清单，可作 CI 门禁） |
 | `verify-ux-states.cjs` | 交互态验收（骨架/空态/头像图标化，10 用例）；需先启动 dev |

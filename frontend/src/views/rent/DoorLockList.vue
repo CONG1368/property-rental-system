@@ -48,77 +48,34 @@
     </div>
 
     <!-- 表格 -->
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="8" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" style="margin-top:12px">
-      <el-table-column prop="name" label="门锁名称" width="200" />
-      <el-table-column label="所属房源" width="180" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.property?.name || '-' }}</template>
-      </el-table-column>
-      <el-table-column prop="category" label="品类" width="90">
-        <template #default="{ row }">
-          <el-tag :type="row.category === '智能门锁' ? '' : 'info'" size="small">{{ row.category }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="lockType" label="门锁类型" width="120" />
-      <el-table-column label="品牌/型号" width="150">
-        <template #default="{ row }">{{ row.manufacturer }}{{ row.model ? ' / ' + row.model : '' }}</template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="90">
-        <template #default="{ row }">
-          <el-tag :type="statusTagType(row)" size="small">{{ row.status }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="电量/锁芯" width="110">
-        <template #default="{ row }">
-          <template v-if="row.category === '智能门锁' && row.battery != null">
-            <el-progress :percentage="row.battery" :stroke-width="6" :color="row.battery <= 30 ? '#F56C6C' : row.battery <= 60 ? '#E6A23C' : '#67C23A'" />
-          </template>
-          <template v-else-if="row.category === '传统门锁'">
-            <el-tag size="small" :type="row.lockCylinder === 'C级' || row.lockCylinder === '超B级' ? 'success' : 'warning'">{{ row.lockCylinder || '-' }}</el-tag>
-          </template>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="钥匙/密码" width="100">
-        <template #default="{ row }">
-          <template v-if="row.category === '智能门锁'">
-            <span style="color:#409EFF">{{ row.passwords?.filter((p: any) => p.isActive).length || 0 }} 有效</span>
-          </template>
-          <template v-else>
-            <span>{{ row.keys?.filter((k: any) => k.keyStatus === '在库').length || 0 }} 在库 / {{ row.keys?.filter((k: any) => k.keyStatus === '借出').length || 0 }} 借出</span>
-          </template>
-        </template>
-      </el-table-column>
-      <el-table-column label="最后在线" width="160">
-        <template #default="{ row }">
-          {{ row.lastOnlineAt ? new Date(row.lastOnlineAt).toLocaleString() : '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
-        <template #default="{ row }">
-          <template v-if="row.category === '智能门锁'">
-            <el-button size="small" type="success" @click="remoteOpen(row)">远程开锁</el-button>
-            <el-button size="small" type="warning" @click="showPwdDialog(row)">临时密码</el-button>
-          </template>
-          <template v-else>
-            <el-button size="small" type="warning" @click="showKeyLendDialog(row)">钥匙借出</el-button>
-          </template>
-          <el-button size="small" @click="goDetail(row.id)">详情</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无门锁设备" description="登记智能门锁或传统门锁后，可在此统一管理密码与钥匙" />
-      </template>
-    </el-table>
-
-    <el-pagination
-      v-model:current-page="page"
-      :total="total"
-      :page-size="pageSize"
-      @current-change="fetchData"
-      layout="total, prev, pager, next"
-      style="margin-top:16px; justify-content:flex-end"
-    />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无门锁设备" empty-description="登记智能门锁或传统门锁后，可在此统一管理密码与钥匙" style="margin-top:12px">
+      <template #c2="{ row }">{{ row.property?.name || '-' }}</template>
+      <template #c3="{ row }"><el-tag :type="row.category === '智能门锁' ? '' : 'info'" size="small">{{ row.category }}</el-tag></template>
+      <template #c5="{ row }">{{ row.manufacturer }}{{ row.model ? ' / ' + row.model : '' }}</template>
+      <template #c6="{ row }"><el-tag :type="statusTagType(row)" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }"><template v-if="row.category === '智能门锁' && row.battery != null">
+                <el-progress :percentage="row.battery" :stroke-width="6" :color="row.battery <= 30 ? 'var(--bad-600)' : row.battery <= 60 ? 'var(--warn-600)' : 'var(--ok-600)'" />
+              </template>
+              <template v-else-if="row.category === '传统门锁'">
+                <el-tag size="small" :type="row.lockCylinder === 'C级' || row.lockCylinder === '超B级' ? 'success' : 'warning'">{{ row.lockCylinder || '-' }}</el-tag>
+              </template>
+              <span v-else>-</span></template>
+      <template #c8="{ row }"><template v-if="row.category === '智能门锁'">
+                <span style="color:var(--brand-600)">{{ row.passwords?.filter((p: any) => p.isActive).length || 0 }} 有效</span>
+              </template>
+              <template v-else>
+                <span>{{ row.keys?.filter((k: any) => k.keyStatus === '在库').length || 0 }} 在库 / {{ row.keys?.filter((k: any) => k.keyStatus === '借出').length || 0 }} 借出</span>
+              </template></template>
+      <template #c9="{ row }">{{ row.lastOnlineAt ? new Date(row.lastOnlineAt).toLocaleString() : '-' }}</template>
+      <template #c10="{ row }"><template v-if="row.category === '智能门锁'">
+                <el-button size="small" type="success" @click="remoteOpen(row)">远程开锁</el-button>
+                <el-button size="small" type="warning" @click="showPwdDialog(row)">临时密码</el-button>
+              </template>
+              <template v-else>
+                <el-button size="small" type="warning" @click="showKeyLendDialog(row)">钥匙借出</el-button>
+              </template>
+              <el-button size="small" @click="goDetail(row.id)">详情</el-button></template>
+    </DataTable>
 
     <!-- ====== 注册/编辑门锁弹窗 ====== -->
     <el-dialog :title="isEdit ? '编辑门锁' : '注册门锁'" v-model="dialogVisible" width="650px" @closed="resetForm">
@@ -225,9 +182,9 @@
     <!-- ====== 远程开锁确认弹窗 ====== -->
     <el-dialog title="远程开锁" v-model="openDialogVisible" width="400px">
       <div style="text-align:center; padding:20px 0">
-        <el-icon :size="48" color="#409EFF"><Lock /></el-icon>
+        <el-icon :size="48" color="var(--brand-600)"><Lock /></el-icon>
         <p style="margin-top:16px; font-size:16px">确认对 <b>{{ openTarget?.name }}</b> 执行远程开锁？</p>
-        <p style="color:#909399; font-size:13px">此操作将记录到操作日志</p>
+        <p style="color:var(--n-600); font-size:13px">此操作将记录到操作日志</p>
       </div>
       <template #footer>
         <el-button @click="openDialogVisible = false">取消</el-button>
@@ -304,6 +261,22 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '门锁名称', width: 200 },
+  { label: '所属房源', width: 180, tooltip: true, slot: 'c2' },
+  { prop: 'category', label: '品类', width: 90, slot: 'c3' },
+  { prop: 'lockType', label: '门锁类型', width: 120 },
+  { label: '品牌/型号', width: 150, slot: 'c5' },
+  { prop: 'status', label: '状态', width: 90, slot: 'c6' },
+  { label: '电量/锁芯', width: 110, slot: 'c7' },
+  { label: '钥匙/密码', width: 100, slot: 'c8' },
+  { label: '最后在线', width: 160, slot: 'c9' },
+  { label: '操作', width: 240, fixed: 'right', slot: 'c10' },
+];
+
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
@@ -566,13 +539,13 @@ function goDetail(id: number) {
   .stats-row {
     display: flex; gap: 16px; margin-bottom: 16px;
     .stat-card {
-      flex: 1; background: #fff; border-radius: 8px; padding: 16px 20px;
-      text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-      .stat-value { font-size: 28px; font-weight: 700; color: #303133; }
-      .stat-label { font-size: 13px; color: #909399; margin-top: 4px; }
-      &.smart { border-left: 4px solid #409EFF; }
-      &.traditional { border-left: 4px solid #909399; }
-      &.warning { border-left: 4px solid #E6A23C; .stat-value { color: #E6A23C; } }
+      flex: 1; background: $n-0; border-radius: 8px; padding: 16px 20px;
+      text-align: center; box-shadow: 0 1px 4px $n-100;
+      .stat-value { font-size: 28px; font-weight: 700; color: $n-900; }
+      .stat-label { font-size: 13px; color: $n-600; margin-top: 4px; }
+      &.smart { border-left: 4px solid $brand-600; }
+      &.traditional { border-left: 4px solid $n-600; }
+      &.warning { border-left: 4px solid $warn-600; .stat-value { color: $warn-600; } }
     }
   }
   .toolbar {

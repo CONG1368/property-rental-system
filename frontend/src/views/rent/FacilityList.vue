@@ -25,32 +25,15 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe size="small" v-loading="loading">
-      <el-table-column prop="name" label="设备名称" min-width="140" />
-      <el-table-column prop="code" label="编码" width="100" />
-      <el-table-column prop="category" label="类别" width="90" />
-      <el-table-column prop="location" label="位置" min-width="110" show-overflow-tooltip />
-      <el-table-column prop="status" label="状态" width="90">
-        <template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="lastMaintainDate" label="上次维护" width="105" />
-      <el-table-column prop="nextMaintainDate" label="下次维护" width="105" />
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button link size="small" type="primary" @click="showMaintain(row)">维护</el-button>
-          <el-button link size="small" @click="showDetail(row)">详情</el-button>
-          <el-button link size="small" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
-            <template #reference><el-button link size="small" type="danger">删除</el-button></template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无设施设备" description="登记设备后可制定维保计划并跟踪执行" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" style="margin-top:12px" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无设施设备" empty-description="登记设备后可制定维保计划并跟踪执行">
+      <template #c5="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }"><el-button link size="small" type="primary" @click="showMaintain(row)">维护</el-button>
+              <el-button link size="small" @click="showDetail(row)">详情</el-button>
+              <el-button link size="small" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
+                <template #reference><el-button link size="small" type="danger">删除</el-button></template>
+              </el-popconfirm></template>
+    </DataTable>
 
     <!-- 新增/编辑设备 -->
     <el-dialog :title="editing ? '编辑设备' : '新增设备'" v-model="dialogVisible" width="640px">
@@ -118,19 +101,37 @@
         <el-descriptions-item label="备注" :span="2">{{ detail.notes || '—' }}</el-descriptions-item>
       </el-descriptions>
       <el-divider content-position="left">维护记录</el-divider>
-      <el-table :data="detail.maintenances || []" size="small" stripe max-height="260">
-        <el-table-column prop="date" label="日期" width="100" />
-        <el-table-column prop="type" label="类型" width="70" />
-        <el-table-column prop="performer" label="执行人" width="90" />
-        <el-table-column prop="content" label="内容" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="result" label="结果" width="80"><template #default="{ row }"><el-tag :type="row.result === '正常' ? 'success' : row.result === '已修复' ? 'warning' : 'danger'" size="small">{{ row.result }}</el-tag></template></el-table-column>
-        <el-table-column prop="cost" label="费用" width="90" align="right" />
-      </el-table>
+      <DataTable :data="detail.maintenances || []" :columns="COLUMNS_2" row-key="id">
+        <template #c5="{ row }"><el-tag :type="row.result === '正常' ? 'success' : row.result === '已修复' ? 'warning' : 'danger'" size="small">{{ row.result }}</el-tag></template>
+      </DataTable>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'date', label: '日期', width: 100 },
+  { prop: 'type', label: '类型', width: 70 },
+  { prop: 'performer', label: '执行人', width: 90 },
+  { prop: 'content', label: '内容', minWidth: 140, tooltip: true },
+  { prop: 'result', label: '结果', width: 80, slot: 'c5' },
+  { prop: 'cost', label: '费用', width: 90, align: 'right' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '设备名称', minWidth: 140 },
+  { prop: 'code', label: '编码', width: 100 },
+  { prop: 'category', label: '类别', width: 90 },
+  { prop: 'location', label: '位置', minWidth: 110, tooltip: true },
+  { prop: 'status', label: '状态', width: 90, slot: 'c5' },
+  { prop: 'lastMaintainDate', label: '上次维护', width: 105 },
+  { prop: 'nextMaintainDate', label: '下次维护', width: 105 },
+  { label: '操作', width: 180, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -224,14 +225,14 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.good { color: #67C23A; }
-.stat-num.warn { color: #E6A23C; }
-.stat-num.bad { color: #F56C6C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.good { color: $ok-600; }
+.stat-num.warn { color: $warn-600; }
+.stat-num.bad { color: $bad-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

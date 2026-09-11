@@ -50,7 +50,7 @@
         <span>费用配置</span>
         <el-button size="small" type="primary" style="margin-left:12px" @click="addFeeItem">+ 添加费用项</el-button>
       </template>
-      <div v-if="feeItems.length === 0" style="color:#909399;font-size:13px;padding:8px 0">暂无费用项，点击"添加费用项"开始配置</div>
+      <div v-if="feeItems.length === 0" style="color:var(--n-600);font-size:13px;padding:8px 0">暂无费用项，点击"添加费用项"开始配置</div>
       <div v-for="(item, index) in feeItems" :key="index" style="display:flex;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
         <el-select v-model="item.name" placeholder="费用名称" style="width:180px" filterable allow-create clearable>
           <el-option label="月租金" value="月租金" />
@@ -85,7 +85,7 @@
         </el-select>
         <el-button size="small" type="danger" :icon="Delete" circle @click="feeItems.splice(index, 1)" />
       </div>
-      <div v-if="selectedProperty" style="font-size:12px;color:#909399;margin-top:4px">
+      <div v-if="selectedProperty" style="font-size:12px;color:var(--n-600);margin-top:4px">
         房源费率参考：水费 {{ selectedProperty.waterFeeRate }}元/吨 | 电费 {{ selectedProperty.electricFeeRate }}元/度 | 物业费 {{ selectedProperty.propertyFeeRate }}元/㎡/月
       </div>
     </el-card>
@@ -153,7 +153,7 @@
         <el-col :span="8">
           <el-form-item label="违约金比例">
             <el-input-number v-model="lateFeeRate" :min="0" :max="1" :precision="3" :step="0.01" style="width:70%" />
-            <span style="margin-left:4px;font-size:12px;color:#909399">/月</span>
+            <span style="margin-left:4px;font-size:12px;color:var(--n-600)">/月</span>
           </el-form-item>
         </el-col>
         <el-col :span="8">
@@ -217,10 +217,10 @@
       <!-- 消防条款 -->
       <div style="margin-top:12px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:13px;font-weight:bold;color:#303133">消防条款</span>
+          <span style="font-size:13px;font-weight:bold;color:var(--n-900)">消防条款</span>
           <el-button size="small" type="primary" text @click="addFireClause">+ 添加</el-button>
         </div>
-        <div v-for="(c,i) in fireSafetyClauses" :key="i" style="margin-bottom:8px;padding:10px;border:1px solid #e0e0e0;border-radius:4px">
+        <div v-for="(c,i) in fireSafetyClauses" :key="i" style="margin-bottom:8px;padding:10px;border:1px solid var(--n-200);border-radius:4px">
           <div style="display:flex;gap:8px;margin-bottom:6px">
             <el-input v-model="c.title" placeholder="条款标题" size="small" style="flex:1" />
             <el-button size="small" type="danger" @click="removeFireClause(i)">删除</el-button>
@@ -232,7 +232,7 @@
       <!-- 消防限制 -->
       <div style="margin-top:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:13px;font-weight:bold;color:#303133">禁止事项</span>
+          <span style="font-size:13px;font-weight:bold;color:var(--n-900)">禁止事项</span>
           <el-button size="small" type="danger" text @click="addFireRestriction">+ 添加</el-button>
         </div>
         <div v-for="(r,i) in fireSafetyRestrictions" :key="i" style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
@@ -244,7 +244,7 @@
       <!-- 消防器材 -->
       <div style="margin-top:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-          <span style="font-size:13px;font-weight:bold;color:#303133">消防器材要求</span>
+          <span style="font-size:13px;font-weight:bold;color:var(--n-900)">消防器材要求</span>
           <el-button size="small" type="success" text @click="addFireEquipment">+ 添加</el-button>
         </div>
         <div v-for="(e,i) in fireSafetyEquipment" :key="i" style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
@@ -275,7 +275,7 @@
         <span>合同条款</span>
         <el-button size="small" type="primary" style="margin-left:12px" @click="addClause">添加条款</el-button>
       </template>
-      <div v-for="(clause, index) in clauses" :key="index" style="margin-bottom:12px;padding:12px;border:1px solid #e0e0e0;border-radius:4px">
+      <div v-for="(clause, index) in clauses" :key="index" style="margin-bottom:12px;padding:12px;border:1px solid var(--n-200);border-radius:4px">
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <el-input v-model="clause.title" placeholder="条款标题" style="flex:1" size="small" />
           <el-input-number v-model="clause.sortOrder" :min="0" size="small" style="width:80px" placeholder="排序" />
@@ -304,16 +304,12 @@
         >
           <el-button size="small" type="primary" :loading="uploading">上传文件</el-button>
         </el-upload>
-        <span style="font-size:12px;color:#909399;margin-left:8px">PDF / Word / 图片 / Excel</span>
+        <span style="font-size:12px;color:var(--n-600);margin-left:8px">PDF / Word / 图片 / Excel</span>
       </template>
-      <el-table :data="attachments" size="small" empty-text="暂无附件">
-        <el-table-column prop="name" label="文件名" min-width="200" show-overflow-tooltip />
-        <el-table-column label="大小" width="100"><template #default="{ row }">{{ formatFileSize(row.size) }}</template></el-table-column>
-        <el-table-column prop="uploadedAt" label="上传时间" width="170"><template #default="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template></el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="attachments" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c2="{ row }">{{ formatFileSize(row.size) }}</template>
+        <template #c3="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+      </DataTable>
     </el-card>
 
     <el-button type="primary" style="margin-top:16px" @click="handleSave">保存草稿</el-button>
@@ -322,6 +318,15 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '文件名', minWidth: 200, tooltip: true },
+  { label: '大小', width: 100, slot: 'c2' },
+  { prop: 'uploadedAt', label: '上传时间', width: 170, slot: 'c3' },
+];
+
 import { ref, computed, reactive, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
@@ -715,5 +720,5 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 </style>

@@ -22,23 +22,27 @@
 
     <div v-if="result.unmatched?.length" class="unmatched-box">
       <h4>未匹配明细（{{ result.unmatched.length }} 条）</h4>
-      <el-table :data="result.unmatched" size="small" border max-height="320">
-        <el-table-column prop="bank.transactionDate" label="交易日期" width="120" />
-        <el-table-column prop="bank.transactionNo" label="流水号" width="140" />
-        <el-table-column prop="bank.counterParty" label="对方户名" width="160" />
-        <el-table-column prop="bank.amount" label="金额" width="120" align="right"><template #default="{ row }">{{ fmt(row.bank?.amount) }}</template></el-table-column>
-        <el-table-column prop="bank.description" label="摘要" min-width="150" />
-        <el-table-column prop="reason" label="原因" width="200" />
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="result.unmatched" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c4="{ row }">{{ fmt(row.bank?.amount) }}</template>
+      </DataTable>
     </div>
     <el-empty v-else-if="hasRun" description="全部匹配成功，无差异" />
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'bank.transactionDate', label: '交易日期', width: 120 },
+  { prop: 'bank.transactionNo', label: '流水号', width: 140 },
+  { prop: 'bank.counterParty', label: '对方户名', width: 160 },
+  { prop: 'bank.amount', label: '金额', width: 120, align: 'right', slot: 'c4' },
+  { prop: 'bank.description', label: '摘要', minWidth: 150 },
+  { prop: 'reason', label: '原因', width: 200 },
+];
+
 import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import request, { apiBaseURL } from '@/api/request';
@@ -73,13 +77,13 @@ async function runReconcile() {
 <style lang="scss" scoped>
 .bank-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 26px; font-weight: 700; color: #1f2430; }
-.stat-num.unmatched { color: #F56C6C; }
-.stat-num.warn { color: #E6A23C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 26px; font-weight: 700; color: $n-900; }
+.stat-num.unmatched { color: $bad-600; }
+.stat-num.warn { color: $warn-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-.file-name { color: #409EFF; font-size: 13px; }
+.file-name { color: $brand-600; font-size: 13px; }
 .unmatched-box { margin-top: 12px; }
-.unmatched-box h4 { margin: 0 0 8px; color: #F56C6C; }
+.unmatched-box h4 { margin: 0 0 8px; color: $bad-600; }
 </style>

@@ -56,5 +56,5 @@ function onChange() {
 <style scoped>
 .building-floor-selector { margin-bottom: 12px; }
 .selector-row { display: flex; align-items: center; margin-bottom: 8px; gap: 8px; }
-.selector-label { font-size: 13px; color: #606266; white-space: nowrap; font-weight: 500; }
+.selector-label { font-size: 13px; color: $n-700; white-space: nowrap; font-weight: 500; }
 </style>

@@ -31,7 +31,7 @@ import Breadcrumb from './Breadcrumb.vue';
   flex-direction: column;
 }
 .top-nav {
-  background: rgba(26,43,68,.82);
+  background: $n-900;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   padding: 0 20px;
@@ -41,8 +41,8 @@ import Breadcrumb from './Breadcrumb.vue';
   flex-shrink: 0;
 }
 .sidebar {
-  background: rgba(255,255,255,.55);
-  border-right: 1px solid rgba(255,255,255,.7);
+  background: $glass;
+  border-right: 1px solid $n-200;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   overflow-y: auto;

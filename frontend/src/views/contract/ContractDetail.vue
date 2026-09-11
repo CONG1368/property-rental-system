@@ -91,8 +91,8 @@
         <el-descriptions-item label="月租金">¥{{ Number(contract.rentAmount || 0).toFixed(2) }}（大写：{{ chineseRent }}）</el-descriptions-item>
         <el-descriptions-item label="付款周期">{{ paymentCycleLabel }}</el-descriptions-item>
         <el-descriptions-item label="首期应交租金" :span="1">
-          <span style="font-weight:bold;color:#1f2430;font-size:16px">¥{{ periodRent.toFixed(2) }}</span>
-          <span style="font-size:12px;color:#909399">（大写：{{ chinesePeriodRent }}）</span>
+          <span style="font-weight:bold;color:var(--n-900);font-size:16px">¥{{ periodRent.toFixed(2) }}</span>
+          <span style="font-size:12px;color:var(--n-600)">（大写：{{ chinesePeriodRent }}）</span>
         </el-descriptions-item>
         <el-descriptions-item label="押金">¥{{ Number(contract.depositAmount || 0).toFixed(2) }}</el-descriptions-item>
         <template v-if="feeItemList.length > 0">
@@ -100,19 +100,19 @@
             ¥{{ Number(fi.amount).toFixed(2) }} {{ fi.unit || '' }}
           </el-descriptions-item>
           <el-descriptions-item label="首期费用合计">
-            <span style="font-weight:bold;color:#e67e22">¥{{ periodFeeTotal.toFixed(2) }}</span>
+            <span style="font-weight:bold;color:var(--warn-600)">¥{{ periodFeeTotal.toFixed(2) }}</span>
           </el-descriptions-item>
           <el-descriptions-item label="首期应付总计" :span="1">
-            <span style="font-weight:bold;color:#d35400;font-size:16px">¥{{ periodTotal.toFixed(2) }}</span>
-            <span style="font-size:12px;color:#909399">（大写：{{ chinesePeriodTotal }}）</span>
+            <span style="font-weight:bold;color:var(--warn-600);font-size:16px">¥{{ periodTotal.toFixed(2) }}</span>
+            <span style="font-size:12px;color:var(--n-600)">（大写：{{ chinesePeriodTotal }}）</span>
           </el-descriptions-item>
         </template>
         <el-descriptions-item v-if="feeItemList.length === 0" label="费用明细" :span="2">
-          <span style="color:#909399">暂无自定义费用项</span>
+          <span style="color:var(--n-600)">暂无自定义费用项</span>
         </el-descriptions-item>
         <el-descriptions-item label="价格类型">
           <el-tag :type="taxType === '不含税' ? 'danger' : 'success'" size="small">{{ taxType }}</el-tag>
-          <span v-if="taxType === '不含税' && taxRate" style="margin-left:8px;font-size:12px;color:#e74c3c">
+          <span v-if="taxType === '不含税' && taxRate" style="margin-left:8px;font-size:12px;color:var(--bad-600)">
             增值税 {{ taxRate }}% 另计
           </span>
         </el-descriptions-item>
@@ -147,30 +147,30 @@
       </el-descriptions>
       <!-- 消防器材 -->
       <div style="margin-top:12px" v-if="fireSafety.equipment?.length">
-        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">配备消防器材：</p>
+        <p style="font-size:13px;font-weight:bold;color:var(--n-900);margin:0 0 8px">配备消防器材：</p>
         <el-tag v-for="(e,i) in fireSafety.equipment" :key="i" size="small" type="success" style="margin-right:8px;margin-bottom:4px">{{ e }}</el-tag>
       </div>
       <!-- 禁止事项 -->
       <div style="margin-top:12px" v-if="fireSafety.restrictions?.length">
-        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">禁止事项：</p>
+        <p style="font-size:13px;font-weight:bold;color:var(--n-900);margin:0 0 8px">禁止事项：</p>
         <el-tag v-for="(r,i) in fireSafety.restrictions" :key="i" size="small" type="danger" style="margin-right:8px;margin-bottom:4px">{{ r }}</el-tag>
       </div>
       <!-- 消防条款 -->
       <div style="margin-top:16px" v-if="fireSafety.clauses?.length">
-        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 8px">消防安全条款：</p>
+        <p style="font-size:13px;font-weight:bold;color:var(--n-900);margin:0 0 8px">消防安全条款：</p>
         <el-timeline>
           <el-timeline-item v-for="(c,i) in fireSafety.clauses" :key="i" :timestamp="'第'+(i+1)+'条'" placement="top">
             <el-card shadow="hover" size="small">
-              <h4 style="margin:0 0 8px;color:#1f2430">{{ c.title || '(无标题)' }}</h4>
-              <p style="margin:0;font-size:13px;color:#606266;white-space:pre-wrap">{{ c.content }}</p>
+              <h4 style="margin:0 0 8px;color:var(--n-900)">{{ c.title || '(无标题)' }}</h4>
+              <p style="margin:0;font-size:13px;color:var(--n-700);white-space:pre-wrap">{{ c.content }}</p>
             </el-card>
           </el-timeline-item>
         </el-timeline>
       </div>
       <!-- 违规处罚 -->
       <div style="margin-top:12px" v-if="fireSafety.violationPenalty">
-        <p style="font-size:13px;font-weight:bold;color:#303133;margin:0 0 4px">违规处罚：</p>
-        <p style="font-size:13px;color:#e74c3c;margin:0;line-height:1.8;white-space:pre-wrap">{{ fireSafety.violationPenalty }}</p>
+        <p style="font-size:13px;font-weight:bold;color:var(--n-900);margin:0 0 4px">违规处罚：</p>
+        <p style="font-size:13px;color:var(--bad-600);margin:0;line-height:1.8;white-space:pre-wrap">{{ fireSafety.violationPenalty }}</p>
       </div>
       <el-empty v-if="!fireSafety.clauses?.length && !fireSafety.restrictions?.length && !fireSafety.equipment?.length" description="暂无消防约定" :image-size="40" />
     </el-card>
@@ -192,16 +192,12 @@
         >
           <el-button size="small" type="primary">上传文件</el-button>
         </el-upload>
-        <span style="font-size:12px;color:#909399;margin-left:8px">支持 PDF/DOC/DOCX/图片/Excel</span>
+        <span style="font-size:12px;color:var(--n-600);margin-left:8px">支持 PDF/DOC/DOCX/图片/Excel</span>
       </template>
-      <el-table :data="attachments" size="small" empty-text="暂无附件">
-        <el-table-column prop="name" label="文件名" min-width="200" show-overflow-tooltip />
-        <el-table-column label="大小" width="100"><template #default="{ row }">{{ formatFileSize(row.size) }}</template></el-table-column>
-        <el-table-column prop="uploadedAt" label="上传时间" width="170"><template #default="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template></el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="attachments" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c2="{ row }">{{ formatFileSize(row.size) }}</template>
+        <template #c3="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+      </DataTable>
     </el-card>
 
     <!-- 合同条款 -->
@@ -215,8 +211,8 @@
           placement="top"
         >
           <el-card shadow="hover" size="small">
-            <h4 style="margin:0 0 8px 0;color:#1f2430">{{ clause.title || '(无标题)' }}</h4>
-            <p style="margin:0;font-size:13px;color:#606266;white-space:pre-wrap">{{ clause.content }}</p>
+            <h4 style="margin:0 0 8px 0;color:var(--n-900)">{{ clause.title || '(无标题)' }}</h4>
+            <p style="margin:0;font-size:13px;color:var(--n-700);white-space:pre-wrap">{{ clause.content }}</p>
           </el-card>
         </el-timeline-item>
       </el-timeline>
@@ -237,6 +233,15 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '文件名', minWidth: 200, tooltip: true },
+  { label: '大小', width: 100, slot: 'c2' },
+  { prop: 'uploadedAt', label: '上传时间', width: 170, slot: 'c3' },
+];
+
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';

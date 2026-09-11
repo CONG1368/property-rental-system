@@ -29,30 +29,12 @@
     </div>
 
     <!-- 表格 -->
-    <el-table :data="list" size="small" stripe :row-class-name="rowClass" style="margin-top:12px">
-      <el-table-column prop="equipmentName" label="设备名称" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="category" label="类别" width="100">
-        <template #default="{ row }"><el-tag :type="categoryTagType(row.category)" size="small">{{ row.category }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="certNo" label="证书号" width="140" />
-      <el-table-column prop="inspectionDate" label="上次检验" width="110" />
-      <el-table-column prop="nextInspectionDate" label="下次检验" width="110" />
-      <el-table-column prop="status" label="状态" width="90">
-        <template #default="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
-      </el-table-column>
-      <el-table-column prop="agency" label="检验机构" min-width="140" show-overflow-tooltip />
-      <el-table-column label="操作" width="130" fixed="right">
-        <template #default="{ row }">
-          <el-button link size="small" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-
-    <el-pagination v-if="total>0" style="margin-top:12px; justify-content:flex-end" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
+    <DataTable :data="list" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里" style="margin-top:12px">
+      <template #c2="{ row }"><el-tag :type="categoryTagType(row.category)" size="small">{{ row.category }}</el-tag></template>
+      <template #c6="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }"><el-button link size="small" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <!-- 弹窗 -->
     <el-dialog :title="editing ? '编辑年检记录' : '新增年检记录'" v-model="dialogVisible" width="560px">
@@ -78,6 +60,20 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'equipmentName', label: '设备名称', minWidth: 160, tooltip: true },
+  { prop: 'category', label: '类别', width: 100, slot: 'c2' },
+  { prop: 'certNo', label: '证书号', width: 140 },
+  { prop: 'inspectionDate', label: '上次检验', width: 110 },
+  { prop: 'nextInspectionDate', label: '下次检验', width: 110 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c6' },
+  { prop: 'agency', label: '检验机构', minWidth: 140, tooltip: true },
+  { label: '操作', width: 130, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -165,24 +161,24 @@ onMounted(() => { fetchStats(); fetchData() })
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .stats-row {
   display: flex; gap: 16px; margin-bottom: 16px;
   .stat-card {
-    flex: 1; background: #fff; border-radius: 8px; padding: 16px 20px;
-    text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    .stat-value { font-size: 28px; font-weight: 700; color: #303133; }
-    .stat-label { font-size: 13px; color: #909399; margin-top: 4px; }
-    &.qualified { border-left: 4px solid #67C23A; }
-    &.pending { border-left: 4px solid #E6A23C; }
-    &.expired { border-left: 4px solid #F56C6C; }
-    &.expiring { border-left: 4px solid #409EFF; }
+    flex: 1; background: $n-0; border-radius: 8px; padding: 16px 20px;
+    text-align: center; box-shadow: 0 1px 4px $n-100;
+    .stat-value { font-size: 28px; font-weight: 700; color: $n-900; }
+    .stat-label { font-size: 13px; color: $n-600; margin-top: 4px; }
+    &.qualified { border-left: 4px solid $ok-600; }
+    &.pending { border-left: 4px solid $warn-600; }
+    &.expired { border-left: 4px solid $bad-600; }
+    &.expiring { border-left: 4px solid $brand-600; }
   }
 }
 .toolbar {
   display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
   .search-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 }
-:deep(.row-expired) { background: #fef0f0 !important; }
-:deep(.row-expiring) { background: #fdf6ec !important; }
+:deep(.row-expired) { background: $bad-100 !important; }
+:deep(.row-expiring) { background: $warn-100 !important; }
 </style>

@@ -62,9 +62,16 @@ export function validateIdNumber(idNumber: string): { valid: boolean; message: s
   return { valid: true, message: '校验通过' };
 }
 
+// 清理身份证号：剔除 NUL 等控制字符。
+// 华视 SDK 的 GetPeopleIDCode 缓冲区结尾常带 \0，而 Sequelize 的 sqlite 方言会把 WHERE 值内联进
+// SQL 字符串；SQLite tokenizer 会在 NUL 处提前截断语句（丢失收尾引号）→ 报 unrecognized token。
+export function sanitizeIdNumber(idNumber: unknown): string {
+  return String(idNumber ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
+}
+
 // 检查身份证号是否重复
 export async function checkDuplicateIdNumber(idNumber: string, excludeTenantId?: number): Promise<{ duplicate: boolean; tenant?: any }> {
-  const where: any = { idNumber };
+  const where: any = { idNumber: sanitizeIdNumber(idNumber) };
   if (excludeTenantId) where.id = { [Op.ne]: excludeTenantId };
   const existing = await Tenant.findOne({ where });
   if (existing) {
@@ -115,6 +122,8 @@ export async function readCard(readerId: number, operatorId: number): Promise<{
     const mode = await getIdCardProviderMode();
     const provider = createProvider(mode);
     const cardData = await provider.readCard((reader as any).port || readerId.toString());
+    // 剔除读卡返回身份证号里可能存在的 NUL/控制字符（华视 SDK 缓冲区结尾常带 \0）
+    cardData.idNumber = sanitizeIdNumber(cardData.idNumber);
 
     // 校验
     const warnings: string[] = [];
@@ -162,13 +171,22 @@ export async function readCard(readerId: number, operatorId: number): Promise<{
 
     return { success: true, data: cardData, mock: mode === 'mock', warnings: warnings.length > 0 ? warnings : undefined };
   } catch (err: any) {
-    // 写失败日志
+    // 诊断：完整错误 + SQL + 堆栈写入独立日志，便于定位底层查询（用户可见 message 保持干净）
+    const sql = err?.sql || err?.parent?.sql || '';
+    try {
+      const fs = await import('node:fs');
+      const dir = 'logs';
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.appendFileSync(dir + '/id-card-error.log', JSON.stringify({ time: new Date().toISOString(), readerId, operatorId, message: err?.message, sql, parent: err?.parent?.message, stack: err?.stack }) + '\n');
+    } catch { /* 诊断写入失败不影响主流程 */ }
+    console.error('[读卡失败]', err?.message, '[SQL]', sql, '[STACK]', err?.stack);
+
     await IdCardReadLog.create({
       readerId,
       operatorId,
       method: '读卡器',
       result: '失败',
-      errorMessage: err.message || '读卡失败',
+      errorMessage: (err.message || '读卡失败') + (sql ? ' [SQL: ' + sql + ']' : ''),
     } as any);
 
     broadcast('id-card:read-failure', {

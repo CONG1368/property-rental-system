@@ -44,7 +44,7 @@
       <el-popover placement="bottom-end" :width="360" trigger="click" @show="fetchNotifications">
         <template #reference>
           <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="notification-badge">
-            <el-icon :size="20" color="#fff"><Bell /></el-icon>
+            <el-icon :size="20" color="var(--n-0)"><Bell /></el-icon>
           </el-badge>
         </template>
         <div class="notify-panel">
@@ -74,7 +74,7 @@
       <el-dropdown trigger="click">
         <span class="user-info">
           <img v-if="avatarUrl" :src="avatarUrl" class="avatar-img" />
-          <span v-else class="avatar-icon" :style="{ background: avatarBg }"><el-icon :size="16" color="#fff"><component :is="avatarIconComp" /></el-icon></span>
+          <span v-else class="avatar-icon" :style="{ background: avatarBg }"><el-icon :size="16" color="var(--n-0)"><component :is="avatarIconComp" /></el-icon></span>
           <span class="username">{{ username }}</span>
           <el-tag size="small" type="danger" v-if="userRole === '管理员'" style="margin-left:6px">管理员</el-tag>
           <el-tag size="small" type="warning" v-else-if="userRole" style="margin-left:6px">{{ userRole }}</el-tag>
@@ -94,7 +94,7 @@
         <el-form-item label="用户名"><el-input v-model="profileForm.username" disabled /></el-form-item>
         <el-form-item label="显示名称"><el-input v-model="profileForm.displayName" /></el-form-item>
         <el-form-item label="角色">
-          <span class="avatar-icon" :style="{ background: avatarBg }" style="display:inline-flex;vertical-align:middle;margin-right:8px"><el-icon :size="16" color="#fff"><component :is="resolveAvatarIcon(profileForm.avatar || avatarIcon)" /></el-icon></span>
+          <span class="avatar-icon" :style="{ background: avatarBg }" style="display:inline-flex;vertical-align:middle;margin-right:8px"><el-icon :size="16" color="var(--n-0)"><component :is="resolveAvatarIcon(profileForm.avatar || avatarIcon)" /></el-icon></span>
           <el-tag>{{ authStore.user?.role || '-' }}</el-tag>
         </el-form-item>
         <el-form-item label="自定义头像">
@@ -115,8 +115,8 @@
               <el-button size="small">选择图片</el-button>
             </el-upload>
             <img v-if="profileForm.avatarUrl" :src="profileForm.avatarUrl" class="avatar-preview" />
-            <span v-if="profileForm.avatarUrl" class="avatar-icon" :style="{ background: avatarBg }" style="display:inline-flex"><el-icon :size="16" color="#fff"><component :is="resolveAvatarIcon(profileForm.avatar || avatarIcon)" /></el-icon></span>
-            <span style="font-size:11px;color:#909399">JPG/PNG/GIF ≤2MB</span>
+            <span v-if="profileForm.avatarUrl" class="avatar-icon" :style="{ background: avatarBg }" style="display:inline-flex"><el-icon :size="16" color="var(--n-0)"><component :is="resolveAvatarIcon(profileForm.avatar || avatarIcon)" /></el-icon></span>
+            <span style="font-size:11px;color:var(--n-600)">JPG/PNG/GIF ≤2MB</span>
           </div>
         </el-form-item>
         <el-form-item label="新密码"><el-input v-model="profileForm.password" type="password" placeholder="留空则不修改" /></el-form-item>
@@ -335,7 +335,7 @@ onUnmounted(() => {
 .nav-left { width: 200px; flex-shrink: 0; }
 .nav-center { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; }
 .nav-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
-.logo-text { color: #fff; font-size: 17px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+.logo-text { color: $n-0; font-size: 17px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
 .sys-logo { width: 28px; height: 28px; object-fit: contain; flex-shrink: 0; }
 .sys-logo-emoji { font-size: 22px; cursor: pointer; flex-shrink: 0; transition: transform 0.2s; user-select: none; }
 .sys-logo-emoji:hover { transform: scale(1.2); }
@@ -344,41 +344,41 @@ onUnmounted(() => {
 
 .search-dropdown {
   position: absolute; top: 100%; left: 0; right: 0; z-index: 2000;
-  background: #fff; border-radius: 6px; box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  background: $n-0; border-radius: 6px; box-shadow: 0 8px 30px $n-100;
   max-height: 380px; overflow-y: auto; margin-top: 4px;
 }
 .search-group { padding: 8px 0; }
-.search-group + .search-group { border-top: 1px solid #f0f0f0; }
-.search-group-title { font-size: 11px; color: #909399; padding: 4px 14px; font-weight: 500; }
+.search-group + .search-group { border-top: 1px solid $n-100; }
+.search-group-title { font-size: 11px; color: $n-600; padding: 4px 14px; font-weight: 500; }
 .search-item {
   display: flex; align-items: center; gap: 6px; padding: 7px 14px; cursor: pointer; font-size: 13px;
   transition: background 0.15s;
-  &:hover { background: #f0f5ff; }
+  &:hover { background: $brand-100; }
 }
-.s-name { color: #303133; font-weight: 500; text-align: center; flex: 1; }
-.s-sub { color: #909399; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; text-align: right; }
+.s-name { color: $n-900; font-weight: 500; text-align: center; flex: 1; }
+.s-sub { color: $n-600; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; text-align: right; }
 
 .notification-badge { cursor: pointer; }
 .notify-panel { max-height: 400px; display: flex; flex-direction: column; }
-.notify-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid #f0f0f0; margin-bottom: 8px; }
-.notify-title { font-size: 14px; font-weight: 600; color: #303133; }
+.notify-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid $n-100; margin-bottom: 8px; }
+.notify-title { font-size: 14px; font-weight: 600; color: $n-900; }
 .notify-list { overflow-y: auto; flex: 1; }
 .notify-item { display: flex; align-items: flex-start; gap: 8px; padding: 10px 8px; border-radius: 6px; cursor: pointer; transition: background 0.15s; }
-.notify-item:hover { background: #f5f7fa; }
-.notify-item.unread { background: #f0f5ff; }
-.notify-dot { width: 6px; height: 6px; border-radius: 50%; background: #409eff; margin-top: 6px; flex-shrink: 0; }
+.notify-item:hover { background: $n-50; }
+.notify-item.unread { background: $brand-100; }
+.notify-dot { width: 6px; height: 6px; border-radius: 50%; background: $brand-600; margin-top: 6px; flex-shrink: 0; }
 .notify-body { flex: 1; min-width: 0; }
-.notify-item-title { font-size: 13px; color: #303133; font-weight: 500; margin-bottom: 2px; }
-.notify-item-content { font-size: 12px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.notify-item-time { font-size: 11px; color: #c0c4cc; margin-top: 4px; }
-.notify-empty { text-align: center; color: #c0c4cc; font-size: 13px; padding: 24px 0; }
-.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #fff; }
+.notify-item-title { font-size: 13px; color: $n-900; font-weight: 500; margin-bottom: 2px; }
+.notify-item-content { font-size: 12px; color: $n-600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notify-item-time { font-size: 11px; color: $n-300; margin-top: 4px; }
+.notify-empty { text-align: center; color: $n-300; font-size: 13px; padding: 24px 0; }
+.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; color: $n-0; }
 .username { font-size: 13px; }
-.avatar-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #fff; flex-shrink: 0; }
+.avatar-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; color: $n-0; flex-shrink: 0; }
 .avatar-picker { display: flex; flex-wrap: wrap; gap: 6px; }
-.avatar-option { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border: 2px solid transparent; background: #f5f7fa; transition: all 0.2s; }
-.avatar-option:hover { background: #e6f0ff; border-color: #409eff; }
-.avatar-option.selected { background: #ecf5ff; border-color: #409eff; box-shadow: 0 0 0 2px rgba(64,158,255,0.2); }
+.avatar-option { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; border: 2px solid transparent; background: $n-50; transition: all 0.2s; }
+.avatar-option:hover { background: $brand-100; border-color: $brand-600; }
+.avatar-option.selected { background: $brand-100; border-color: $brand-600; box-shadow: 0 0 0 2px $brand-100; }
 .avatar-img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-.avatar-preview { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e0e0e0; }
+.avatar-preview { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid $n-200; }
 </style>

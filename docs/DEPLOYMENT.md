@@ -238,6 +238,9 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 ### 问题 6：打包时 EPERM / node.exe 被占用
 **解决：** 停止 dev 进程后再 `npm run build`。
 
+### 问题 7：读卡报 `SQLITE_ERROR: unrecognized token`
+**解决：** 华视 SDK 缓冲区结尾的 NUL 被内联进 SQL 导致语句截断。v1.0.4（2026-09-11 修订）起桥（`runtime/idcard/card_bridge.py`）与服务层（`sanitizeIdNumber()`）均已剔除。若仍出现，查 `resources/backend/logs/id-card-error.log`（完整 SQL + 堆栈）与 `%APPDATA%\property-rental-system\logs\startup-*.log` 的 `[读卡失败]` 段。
+
 ---
 
 ## 十一、联系与支持
@@ -253,4 +256,4 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 
 ---
 
-*文档版本：v1.0.4 | 更新日期：2026-09-09*
+*文档版本：v1.0.4（2026-09-11 修订）| 更新日期：2026-09-11*

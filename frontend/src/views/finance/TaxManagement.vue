@@ -11,27 +11,28 @@
 
     <el-card>
       <template #header><span>税务计算</span><el-select v-model="calcPeriod" style="width:140px; margin-left:12px" @change="fetchTaxData"><el-option v-for="m in months" :key="m" :label="m" :value="m" /></el-select><el-button type="primary" style="margin-left:12px" @click="fetchTaxData">计算</el-button></template>
-      <TableSkeleton v-if="loading && !taxDetails.length" :rows="8" :columns="7" />
-      <el-table v-show="!(loading && !taxDetails.length)" :data="taxDetails" stripe v-loading="loading">
-        <el-table-column prop="category" label="税种" width="150" />
-        <el-table-column prop="base" label="计税基础" width="180"><template #default="{ row }">¥{{ Number(row.base || 0).toFixed(2) }}</template></el-table-column>
-        <el-table-column prop="rate" label="税率" width="100" />
-        <el-table-column prop="amount" label="应纳税额" width="180"><template #default="{ row }">¥{{ Number(row.amount || 0).toFixed(2) }}</template></el-table-column>
-        <el-table-column prop="period" label="期间" width="100" />
-        <el-table-column label="操作" width="180">
-          <template #default="{ row }">
-            <el-button size="small" @click="exportTax(row.category, calcPeriod)">导出</el-button>
-          </template>
-        </el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="taxDetails" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c2="{ row }">¥{{ Number(row.base || 0).toFixed(2) }}</template>
+        <template #c4="{ row }">¥{{ Number(row.amount || 0).toFixed(2) }}</template>
+        <template #c6="{ row }"><el-button size="small" @click="exportTax(row.category, calcPeriod)">导出</el-button></template>
+      </DataTable>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'category', label: '税种', width: 150 },
+  { prop: 'base', label: '计税基础', width: 180, slot: 'c2' },
+  { prop: 'rate', label: '税率', width: 100 },
+  { prop: 'amount', label: '应纳税额', width: 180, slot: 'c4' },
+  { prop: 'period', label: '期间', width: 100 },
+  { label: '操作', width: 180, slot: 'c6' },
+];
+
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -97,5 +98,5 @@ onMounted(() => { fetchTaxData(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 </style>

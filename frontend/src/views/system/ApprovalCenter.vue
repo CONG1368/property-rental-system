@@ -2,33 +2,16 @@
   <div class="approval-page">
     <el-tabs v-model="tab">
       <el-tab-pane label="待我审批" name="pending">
-        <TableSkeleton v-if="loading && !pending.length" :rows="8" :columns="7" />
-        <el-table v-show="!(loading && !pending.length)" :data="pending" stripe v-loading="loading">
-          <el-table-column prop="title" label="标题" min-width="160" />
-          <el-table-column prop="bizType" label="业务类型" width="100" />
-          <el-table-column prop="bizNo" label="业务单号" width="140" />
-          <el-table-column prop="amount" label="金额" width="120" align="right"><template #default="{ row }">{{ fmt(row.amount) }}</template></el-table-column>
-          <el-table-column prop="applicantName" label="申请人" width="100" />
-          <el-table-column prop="currentRole" label="当前节点" width="100" />
-          <el-table-column label="操作" width="170" fixed="right">
-            <template #default="{ row }">
-              <el-button size="small" type="success" @click="act(row, 'approve')">通过</el-button>
-              <el-button size="small" type="danger" @click="act(row, 'reject')">驳回</el-button>
-            </template>
-          </el-table-column>
-                  <template #empty>
-            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-          </template>
-        </el-table>
+        <DataTable :data="pending" :loading="loading" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+          <template #c4="{ row }">{{ fmt(row.amount) }}</template>
+          <template #c7="{ row }"><el-button size="small" type="success" @click="act(row, 'approve')">通过</el-button>
+                      <el-button size="small" type="danger" @click="act(row, 'reject')">驳回</el-button></template>
+        </DataTable>
       </el-tab-pane>
       <el-tab-pane label="我发起的" name="my">
-        <el-table :data="my" stripe v-loading="loading">
-          <el-table-column prop="title" label="标题" min-width="160" />
-          <el-table-column prop="bizNo" label="单号" width="140" />
-          <el-table-column prop="status" label="状态" width="100"><template #default="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-          <el-table-column prop="currentRole" label="当前节点" width="100" />
-          <el-table-column prop="comment" label="审批意见" min-width="160" show-overflow-tooltip />
-        </el-table>
+        <DataTable :data="my" :loading="loading" :columns="COLUMNS_2" row-key="id">
+          <template #c3="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template>
+        </DataTable>
       </el-tab-pane>
     </el-tabs>
 
@@ -47,6 +30,27 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'title', label: '标题', minWidth: 160 },
+  { prop: 'bizNo', label: '单号', width: 140 },
+  { prop: 'status', label: '状态', width: 100, slot: 'c3' },
+  { prop: 'currentRole', label: '当前节点', width: 100 },
+  { prop: 'comment', label: '审批意见', minWidth: 160, tooltip: true },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'title', label: '标题', minWidth: 160 },
+  { prop: 'bizType', label: '业务类型', width: 100 },
+  { prop: 'bizNo', label: '业务单号', width: 140 },
+  { prop: 'amount', label: '金额', width: 120, align: 'right', slot: 'c4' },
+  { prop: 'applicantName', label: '申请人', width: 100 },
+  { prop: 'currentRole', label: '当前节点', width: 100 },
+  { label: '操作', width: 170, fixed: 'right', slot: 'c7' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '@/api/request';

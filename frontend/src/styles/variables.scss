@@ -1,63 +1,67 @@
-// Design Tokens — Property Rental Management System
+// Design Tokens v2 — 冷调中性（现代极简）
 // ============================================================
-// 主题：湛蓝玻璃拟物（Glassmorphism·湛蓝）— 2026 主流风格
-// 依据：better-design + design-taste-frontend 设计准则
-// 要素：毛玻璃半透明卡片 / 渐变底 / 单一湛蓝强调 / 大圆角 / 无 emoji
+// 规则：本文件之外不得出现任何颜色字面量（打印模板按准则豁免）。
+// 依据：docs/UI设计准则.md（令牌 v2 定稿）
+// 与 v1 的差异：砍掉玻璃面令牌与旧 $color-* 命名，改为语义化阶。
 // ============================================================
-// Colors（湛蓝玻璃拟物）
-$color-primary: #4f7cf7;           // 强调（湛蓝）
-$color-accent: #3b66e0;            // 强调 hover
-$color-success: #10b981;
-$color-warning: #f59e0b;
-$color-danger: #ef4444;
-$color-info: #5b6472;
-// 背景（玻璃拟物渐变底）
-$color-bg: linear-gradient(135deg, #e3ecfb, #dbe6f8 45%, #e0edf7);
-$color-bg-fixed: #dde7f5;          // 渐变固定色（回退）
-// 卡片（半透明白 + 毛玻璃）
-$color-bg-elev: rgba(255, 255, 255, 0.62);
-$color-bg-elev-strong: rgba(255, 255, 255, 0.78);
-$color-bg-elev2: rgba(255, 255, 255, 0.42);
-$color-border: rgba(255, 255, 255, 0.72);
-$color-border-soft: rgba(255, 255, 255, 0.5);
-// 文字（深蓝灰）
-$color-text-title: #1f2430;
-$color-text-body: #3a4354;
-$color-text-aux: #5b6472;
-$color-text-subtle: #5f6675;    // 原 #8b93a3 仅 2.47:1，提深至 AA（见 docs/对比度检查报告.md）
-$color-white: #FFFFFF;
-// ------------------------------------------------------------
-// 无障碍文字变体（WCAG 2.1 AA ≥4.5:1）
-// 说明：$color-primary / $color-success 等原色继续用于「填充/标签底/图表」
-//      （UI 组件门槛 3:1 已满足）；下列 -text 变体专供「正文文字与细线图标」
-// ------------------------------------------------------------
-$color-primary-text: #2b57c9;        // 主色文字/链接（原 #4f7cf7 仅 3.03:1）
-$color-primary-text-hover: #1e50bd;  // 主色文字 hover
-$color-success-text: #0a7652;        // 成功文字（原 #10b981 仅 2.03:1）
-$color-warning-text: #8a5200;        // 警告文字（原 #f59e0b 仅 1.72:1，最严重）
-$color-danger-text: #bf2626;         // 危险文字（原 #ef4444 仅 3.01:1）
-$color-border-control: #6f8299;      // 交互控件边界（白描边仅 1.06:1，违反 SC 1.4.11）
-$color-on-dark-primary: #a8c2fc;     // 深色顶栏上的主色元素
-$color-on-dark-danger: #fca5a5;      // 深色顶栏上的红点/告警
-// 阴影（玻璃拟物：外阴影 + 内高光）
-$color-shadow: 0 8px 32px rgba(31, 41, 55, 0.14);
-$color-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.55);
 
-// Typography
-$font-family-base: 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-$font-size-page-title: 26px;
-$font-size-module-title: 18px;
-$font-size-card-title: 14px;
-$font-size-body: 12px;
-$font-size-aux: 10px;
-$font-size-label: 9px;
+// ── 中性阶（唯一色相 250）──────────────────────────────────
+$n-0:   oklch(100% 0 0); // 纯白
+$n-50:  oklch(98.4% 0.003 250); // 页面底
+$n-100: oklch(96.5% 0.005 250);
+$n-200: oklch(92% 0.006 250); // 分割线（不做控件边界）
+$n-300: oklch(85% 0.008 250);
+$n-400: oklch(64% 0.012 250); // 控件边界（实测 3.21:1，满足 WCAG SC 1.4.11 ≥3:1；原 75% 仅 2.12:1）
+$n-500: oklch(56% 0.012 250); // 中间态（禁用文字等；与 600 档拉开距离）
+$n-600: oklch(52% 0.012 250); // 次要文字
+$n-700: oklch(40% 0.012 250);
+$n-900: oklch(21% 0.012 250); // 主文字
 
-// Radius（玻璃拟物大圆角）
-$radius-sm: 8px;
-$radius-md: 14px;
-$radius-lg: 20px;
+// ── 品牌（唯一强调色，每屏 ≤ 2 处）─────────────────────────
+$brand-100: oklch(94% 0.03 255);
+$brand-300: oklch(80% 0.08 255);
+$brand-600: oklch(46% 0.15 255); // 主操作 / 链接（白字 ≈6.9:1）
+$brand-700: oklch(40% 0.15 255); // hover
 
-// Layout
+// ── 语义（只表达状态，不做图表系列色）───────────────────────
+$ok-100:   oklch(94% 0.04 152);  $ok-600:   oklch(44% 0.11 152);
+$warn-100: oklch(95% 0.045 62);  $warn-600: oklch(50% 0.11 62);
+$bad-100:  oklch(95% 0.035 27);  $bad-600:  oklch(48% 0.15 27);
+$info-100: oklch(95% 0.01 250);  $info-600: oklch(50% 0.012 250);
+
+// ── 房态生命周期阶（唯一的业务流程色阶）─────────────────────
+$st-vacant: oklch(93% 0.022 255);
+$st-locked: oklch(80% 0.062 255);
+$st-booked: oklch(68% 0.105 255);
+$st-rented: oklch(55% 0.17 255);
+
+// ── 非颜色令牌：遮罩 / 阴影 ────────────────────────────────
+$scrim: oklch(0% 0 0 / 0.45); // 模态遮罩
+$sh-0: none;
+$sh-1: 0 1px 2px oklch(0% 0 0 / 0.06);  // 浮起：必须对应真实可点击
+$sh-2: 0 4px 16px oklch(0% 0 0 / 0.08); // 覆盖：弹层 / 抽屉
+$sh-inset: inset 0 1px 0 oklch(100% 0 0 / 0.6);
+$glass: oklch(100% 0 0 / 0.72); // 外壳/弹层玻璃面（仅顶栏/侧栏/抽屉/弹层允许使用）
+
+// ── 字体与字号（三级，不做第四级）──────────────────────────
+$fs-page:    22px; // 页面级
+$fs-section: 15px; // 区块级
+$fs-body:    13.5px; // 数据级 / 正文（中文下限）
+$fs-meta:    12px;
+$lh-body:    1.7;
+$font-display: 'Noto Sans SC', 'Source Han Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+$font-body:    'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+$font-mono:    ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+// ── 圆角（控件恒小于容器）──────────────────────────────────
+$r-ctl:   6px;  // 控件
+$r-box:   10px; // 卡片
+$r-panel: 14px; // 面板 / 容器
+
+// ── 布局（非颜色，保留）────────────────────────────────────
 $top-nav-height: 56px;
 $sidebar-width: 220px;
 $content-padding: 16px;
+
+// ── 界面类型（只切密度，不动颜色）──────────────────────────
+// 由各外壳组件在根节点设置 data-surface 触发，见 global.scss

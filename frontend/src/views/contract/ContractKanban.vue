@@ -71,12 +71,12 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .col-header { font-weight: 600; }
 .kanban-col { min-height: 260px; }
-.kanban-card { padding: 8px; margin: 4px 0; border: 1px solid #e8e8e8; border-radius: 4px; cursor: pointer; }
-.kanban-card:hover { border-color: #1f2430; }
+.kanban-card { padding: 8px; margin: 4px 0; border: 1px solid $n-100; border-radius: 4px; cursor: pointer; }
+.kanban-card:hover { border-color: $n-900; }
 .card-no { font-size: 12px; font-weight: 600; }
-.card-rent { font-size: 11px; color: #7F8C8D; margin-top: 2px; }
-.card-date { font-size: 10px; color: #b0b0b0; margin-top: 1px; }
+.card-rent { font-size: 11px; color: $n-600; margin-top: 2px; }
+.card-date { font-size: 10px; color: $n-400; margin-top: 1px; }
 </style>

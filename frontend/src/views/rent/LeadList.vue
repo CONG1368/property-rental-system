@@ -29,31 +29,20 @@
     </div>
 
     <!-- 线索表格 -->
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" size="small" stripe v-loading="loading">
-      <el-table-column prop="name" label="客户姓名" min-width="110" />
-      <el-table-column prop="phone" label="手机" width="130" />
-      <el-table-column label="意向业态" width="100"><template #default="{ row }"><el-tag :type="interestTagType(row.interestType)" size="small">{{ row.interestType }}</el-tag></template></el-table-column>
-      <el-table-column label="意向面积" width="100" align="right"><template #default="{ row }">{{ fmt(row.interestedArea) }}</template></el-table-column>
-      <el-table-column label="预算" width="110" align="right"><template #default="{ row }">{{ fmt(row.budget) }}</template></el-table-column>
-      <el-table-column label="来源" width="100"><template #default="{ row }"><el-tag :type="sourceTagType(row.source)" size="small">{{ row.source }}</el-tag></template></el-table-column>
-      <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column prop="nextFollowDate" label="下次跟进" width="110"><template #default="{ row }">{{ row.nextFollowDate || '-' }}</template></el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <el-button link size="small" type="primary" @click="showFollow(row)">跟进</el-button>
-          <el-button link size="small" type="warning" @click="showViewing(row)">看房</el-button>
-          <el-button link size="small" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确认删除该线索?" @confirm="handleDelete(row.id)">
-            <template #reference><el-button link size="small" type="danger">删除</el-button></template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无招租线索" description="录入意向客户后可跟进带看与成交" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无招租线索" empty-description="录入意向客户后可跟进带看与成交">
+      <template #c3="{ row }"><el-tag :type="interestTagType(row.interestType)" size="small">{{ row.interestType }}</el-tag></template>
+      <template #c4="{ row }">{{ fmt(row.interestedArea) }}</template>
+      <template #c5="{ row }">{{ fmt(row.budget) }}</template>
+      <template #c6="{ row }"><el-tag :type="sourceTagType(row.source)" size="small">{{ row.source }}</el-tag></template>
+      <template #c7="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }">{{ row.nextFollowDate || '-' }}</template>
+      <template #c9="{ row }"><el-button link size="small" type="primary" @click="showFollow(row)">跟进</el-button>
+              <el-button link size="small" type="warning" @click="showViewing(row)">看房</el-button>
+              <el-button link size="small" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确认删除该线索?" @confirm="handleDelete(row.id)">
+                <template #reference><el-button link size="small" type="danger">删除</el-button></template>
+              </el-popconfirm></template>
+    </DataTable>
 
     <!-- 新增/编辑线索 -->
     <el-dialog :title="editing ? '编辑线索' : '新增线索'" v-model="dialogVisible" width="560px">
@@ -100,6 +89,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '客户姓名', minWidth: 110 },
+  { prop: 'phone', label: '手机', width: 130 },
+  { label: '意向业态', width: 100, slot: 'c3' },
+  { label: '意向面积', width: 100, align: 'right', slot: 'c4' },
+  { label: '预算', width: 110, align: 'right', slot: 'c5' },
+  { label: '来源', width: 100, slot: 'c6' },
+  { label: '状态', width: 100, slot: 'c7' },
+  { prop: 'nextFollowDate', label: '下次跟进', width: 110, slot: 'c8' },
+  { label: '操作', width: 200, fixed: 'right', slot: 'c9' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -200,15 +204,15 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .stat-cards { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.stat-card { flex: 1; min-width: 140px; background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.primary { color: #409EFF; }
-.stat-num.warning { color: #E6A23C; }
-.stat-num.success { color: #67C23A; }
-.stat-num.info { color: #909399; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { flex: 1; min-width: 140px; background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.primary { color: $brand-600; }
+.stat-num.warning { color: $warn-600; }
+.stat-num.success { color: $ok-600; }
+.stat-num.info { color: $n-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }

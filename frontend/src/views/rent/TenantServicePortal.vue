@@ -36,17 +36,10 @@
 
       <!-- 消息记录 -->
       <el-tab-pane label="消息记录" name="msgs">
-        <el-table :data="msgs" stripe v-loading="loadingMsgs">
-          <el-table-column prop="channel" label="渠道" width="90"><template #default="{ row }"><el-tag size="small">{{ row.channel }}</el-tag></template></el-table-column>
-          <el-table-column prop="title" label="标题" min-width="160" />
-          <el-table-column prop="content" label="内容" min-width="220" show-overflow-tooltip />
-          <el-table-column label="已读" width="80"><template #default="{ row }"><el-icon v-if="row.isRead" color="#0a7652"><Select /></el-icon><span v-else style="color:#5f6675">未读</span></template></el-table-column>
-          <el-table-column prop="createdAt" label="时间" width="180" />
-                  <template #empty>
-            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-          </template>
-        </el-table>
-        <el-pagination v-model:current-page="msgPage" :total="msgTotal" :page-size="msgPageSize" @current-change="loadMsgs" layout="total, prev, pager, next" style="margin-top:12px; justify-content:flex-end" />
+        <DataTable :data="msgs" :loading="loadingMsgs" :columns="COLUMNS" row-key="id" v-model:page="msgPage" :total="msgTotal" :page-size="msgPageSize" @page-change="loadMsgs" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+          <template #c1="{ row }"><el-tag size="small">{{ row.channel }}</el-tag></template>
+          <template #c4="{ row }"><el-icon v-if="row.isRead" color="var(--ok-600)"><Select /></el-icon><span v-else style="color:var(--n-600)">未读</span></template>
+        </DataTable>
       </el-tab-pane>
 
       <!-- 代提交报修 -->
@@ -66,12 +59,8 @@
 
       <!-- 公告 -->
       <el-tab-pane label="公告" name="ann">
-        <el-table :data="anns" stripe>
-          <el-table-column prop="title" label="标题" min-width="180" />
-          <el-table-column prop="category" label="类别" width="90" />
-          <el-table-column prop="publishDate" label="发布日期" width="130" />
-          <el-table-column prop="content" label="内容" min-width="240" show-overflow-tooltip />
-        </el-table>
+        <DataTable :data="anns" :columns="COLUMNS_2" row-key="id">
+        </DataTable>
       </el-tab-pane>
     </el-tabs>
     <el-empty v-else description="请先选择租户" />
@@ -79,6 +68,24 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'title', label: '标题', minWidth: 180 },
+  { prop: 'category', label: '类别', width: 90 },
+  { prop: 'publishDate', label: '发布日期', width: 130 },
+  { prop: 'content', label: '内容', minWidth: 240, tooltip: true },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'channel', label: '渠道', width: 90, slot: 'c1' },
+  { prop: 'title', label: '标题', minWidth: 160 },
+  { prop: 'content', label: '内容', minWidth: 220, tooltip: true },
+  { label: '已读', width: 80, slot: 'c4' },
+  { prop: 'createdAt', label: '时间', width: 180 },
+];
+
 import { ref, watch, onMounted } from 'vue';
 import { Select } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';

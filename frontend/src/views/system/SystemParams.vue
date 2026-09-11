@@ -5,7 +5,7 @@
       <el-button type="primary" @click="openCreate">新增配置项</el-button>
       <el-button @click="fetchData" :loading="loading">刷新</el-button>
       <el-switch v-model="hideTech" active-text="隐藏内置技术键" inactive-text="显示全部" style="margin-left:12px" />
-      <span style="font-size:12px;color:#909399">本页仅面向开发/运维对接；业务配置请到各业务页（读卡器/水电表/打印/系统运维）操作</span>
+      <span style="font-size:12px;color:var(--n-600)">本页仅面向开发/运维对接；业务配置请到各业务页（读卡器/水电表/打印/系统运维）操作</span>
     </div>
 
     <el-row :gutter="16">
@@ -25,42 +25,16 @@
       </el-col>
 
       <el-col :span="18">
-        <TableSkeleton v-if="loading && !filteredList.length" :rows="8" :columns="7" />
-        <el-table v-show="!(loading && !filteredList.length)" :data="filteredList" stripe v-loading="loading">
-          <el-table-column prop="configKey" label="键名" width="220" />
-          <el-table-column label="键值" min-width="220">
-            <template #default="{ row }">
-              <span v-if="row.isSensitive && row.configValue" class="sensitive">••••••（敏感值）</span>
-              <span v-else-if="row.valueType === 'boolean'">{{ (row.configValue === '1' || row.configValue === 'true' || row.configValue === '是') ? '是' : '否' }}</span>
-              <span v-else>{{ row.configValue }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="configGroup" label="分组" width="110" />
-          <el-table-column prop="valueType" label="类型" width="90" />
-          <el-table-column prop="description" label="描述" min-width="140" />
-          <el-table-column label="内置" width="70">
-            <template #default="{ row }">
-              <el-tag :type="row.builtIn ? 'warning' : 'info'" size="small">{{ row.builtIn ? '是' : '否' }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button size="small" @click="openEdit(row)">编辑</el-button>
-              <el-popconfirm title="确定删除该配置项？" @confirm="handleDelete(row)">
-                <template #reference><el-button size="small" type="danger" :disabled="row.builtIn">删除</el-button></template>
-              </el-popconfirm>
-            </template>
-          </el-table-column>
-                  <template #empty>
-            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-          </template>
-        </el-table>
-
-        <el-pagination
-          v-model:current-page="page" :total="total" :page-size="pageSize"
-          layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end"
-          @current-change="fetchData"
-        />
+        <DataTable :data="filteredList" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+          <template #c2="{ row }"><span v-if="row.isSensitive && row.configValue" class="sensitive">••••••（敏感值）</span>
+                      <span v-else-if="row.valueType === 'boolean'">{{ (row.configValue === '1' || row.configValue === 'true' || row.configValue === '是') ? '是' : '否' }}</span>
+                      <span v-else>{{ row.configValue }}</span></template>
+          <template #c6="{ row }"><el-tag :type="row.builtIn ? 'warning' : 'info'" size="small">{{ row.builtIn ? '是' : '否' }}</el-tag></template>
+          <template #c7="{ row }"><el-button size="small" @click="openEdit(row)">编辑</el-button>
+                      <el-popconfirm title="确定删除该配置项？" @confirm="handleDelete(row)">
+                        <template #reference><el-button size="small" type="danger" :disabled="row.builtIn">删除</el-button></template>
+                      </el-popconfirm></template>
+        </DataTable>
       </el-col>
     </el-row>
 
@@ -95,6 +69,19 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'configKey', label: '键名', width: 220 },
+  { label: '键值', minWidth: 220, slot: 'c2' },
+  { prop: 'configGroup', label: '分组', width: 110 },
+  { prop: 'valueType', label: '类型', width: 90 },
+  { prop: 'description', label: '描述', minWidth: 140 },
+  { label: '内置', width: 70, slot: 'c6' },
+  { label: '操作', width: 150, fixed: 'right', slot: 'c7' },
+];
+
 import { ref, onMounted, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { confirmWithPassword } from '@/utils/confirm-password';
@@ -202,13 +189,13 @@ onMounted(fetchData);
 
 <style lang="scss" scoped>
 .toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.page-title { font-size:18px; font-weight:700; color:#1f2430; margin:0; }
+.page-title { font-size:18px; font-weight:700; color:$n-900; margin:0; }
 .group-item {
   padding:10px 12px; border-radius:6px; cursor:pointer; margin-bottom:6px;
   display:flex; justify-content:space-between; align-items:center;
-  font-size:14px; color:#333; transition: all .15s;
-  &:hover { background:#f2f6fc; }
-  &.active { background:#4f7cf7; color:#fff; }
+  font-size:14px; color:$n-900; transition: all .15s;
+  &:hover { background:$n-50; }
+  &.active { background:$brand-600; color:$n-0; }
 }
-.sensitive { font-family: monospace; color:#909399; letter-spacing:2px; }
+.sensitive { font-family: monospace; color:$n-600; letter-spacing:2px; }
 </style>

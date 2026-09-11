@@ -21,28 +21,19 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column label="合同号" width="130" show-overflow-tooltip><template #default="{ row }">{{ row.contract?.contractNo }}</template></el-table-column>
-      <el-table-column label="租客" width="110"><template #default="{ row }">{{ row.tenant?.name }}</template></el-table-column>
-      <el-table-column label="房源" width="140" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
-      <el-table-column prop="amount" label="押金金额" width="120" align="right"><template #default="{ row }">{{ fmt(row.amount) }}</template></el-table-column>
-      <el-table-column prop="refundedAmount" label="已退还" width="110" align="right"><template #default="{ row }">{{ fmt(row.refundedAmount) }}</template></el-table-column>
-      <el-table-column prop="deductionAmount" label="已扣除" width="110" align="right"><template #default="{ row }">{{ fmt(row.deductionAmount) }}</template></el-table-column>
-      <el-table-column label="可退余额" width="120" align="right"><template #default="{ row }"><b class="balance">{{ fmt(row.balance) }}</b></template></el-table-column>
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" link :disabled="Number(row.balance) <= 0" @click="showDispose(row, 'refund')">退还</el-button>
-          <el-button size="small" link :disabled="Number(row.balance) <= 0" @click="showDispose(row, 'deduct')">扣除</el-button>
-          <el-button size="small" link @click="onDetail(row)">详情</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无押金记录" description="合同签订并收取押金后，台账会在此显示" />
-      </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无押金记录" empty-description="合同签订并收取押金后，台账会在此显示">
+      <template #c1="{ row }">{{ row.contract?.contractNo }}</template>
+      <template #c2="{ row }">{{ row.tenant?.name }}</template>
+      <template #c3="{ row }">{{ row.property?.name }}</template>
+      <template #c4="{ row }">{{ fmt(row.amount) }}</template>
+      <template #c5="{ row }">{{ fmt(row.refundedAmount) }}</template>
+      <template #c6="{ row }">{{ fmt(row.deductionAmount) }}</template>
+      <template #c7="{ row }"><b class="balance">{{ fmt(row.balance) }}</b></template>
+      <template #c8="{ row }"><el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c9="{ row }"><el-button size="small" link :disabled="Number(row.balance) <= 0" @click="showDispose(row, 'refund')">退还</el-button>
+              <el-button size="small" link :disabled="Number(row.balance) <= 0" @click="showDispose(row, 'deduct')">扣除</el-button>
+              <el-button size="small" link @click="onDetail(row)">详情</el-button></template>
+    </DataTable>
 
     <!-- 新增押金 -->
     <el-dialog title="登记押金" v-model="createVisible" width="520px" @closed="resetCreate">
@@ -87,6 +78,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { label: '合同号', width: 130, tooltip: true, slot: 'c1' },
+  { label: '租客', width: 110, slot: 'c2' },
+  { label: '房源', width: 140, tooltip: true, slot: 'c3' },
+  { prop: 'amount', label: '押金金额', width: 120, align: 'right', slot: 'c4' },
+  { prop: 'refundedAmount', label: '已退还', width: 110, align: 'right', slot: 'c5' },
+  { prop: 'deductionAmount', label: '已扣除', width: 110, align: 'right', slot: 'c6' },
+  { label: '可退余额', width: 120, align: 'right', slot: 'c7' },
+  { prop: 'status', label: '状态', width: 90, slot: 'c8' },
+  { label: '操作', width: 160, fixed: 'right', slot: 'c9' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -171,13 +177,13 @@ onMounted(() => { fetchData(); loadContracts(); });
 <style lang="scss" scoped>
 .deposit-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.refund { color: #409EFF; }
-.stat-num.deduct { color: #E6A23C; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.refund { color: $brand-600; }
+.stat-num.deduct { color: $warn-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }
-.balance { color: #E6A23C; }
+.balance { color: $warn-600; }
 </style>

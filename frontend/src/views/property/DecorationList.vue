@@ -19,29 +19,17 @@
       </div>
     </div>
 
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
-      <el-table-column prop="applicant" label="申请单" width="110" show-overflow-tooltip />
-      <el-table-column prop="tenant" label="客户" width="120"><template #default="{ row }">{{ row.tenant?.name || '-' }}</template></el-table-column>
-      <el-table-column prop="type" label="类型" width="90"><template #default="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template></el-table-column>
-      <el-table-column prop="company" label="施工方" width="150" show-overflow-tooltip />
-      <el-table-column prop="applyDate" label="申请日期" width="110" />
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column label="操作" min-width="300" fixed="right">
-        <template #default="{ row }">
-          <el-button v-if="canApprove(row)" link size="small" type="warning" @click="showApprove(row)">审批</el-button>
-          <el-button v-if="canStart(row)" link size="small" type="primary" @click="quickAction(row, 'start')">开工</el-button>
-          <el-button v-if="canFinish(row)" link size="small" type="primary" @click="quickAction(row, 'finish')">完工</el-button>
-          <el-button v-if="canAccept(row)" link size="small" type="success" @click="quickAction(row, 'accept')">验收</el-button>
-          <el-button link size="small" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确定删除该申请?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-      </template>
-    </el-table>
-    <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c2="{ row }">{{ row.tenant?.name || '-' }}</template>
+      <template #c3="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template>
+      <template #c6="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }"><el-button v-if="canApprove(row)" link size="small" type="warning" @click="showApprove(row)">审批</el-button>
+              <el-button v-if="canStart(row)" link size="small" type="primary" @click="quickAction(row, 'start')">开工</el-button>
+              <el-button v-if="canFinish(row)" link size="small" type="primary" @click="quickAction(row, 'finish')">完工</el-button>
+              <el-button v-if="canAccept(row)" link size="small" type="success" @click="quickAction(row, 'accept')">验收</el-button>
+              <el-button link size="small" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确定删除该申请?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <!-- 新增/编辑弹窗 -->
     <el-dialog :title="editing ? '编辑装修申请' : '新增装修申请'" v-model="dialogVisible" width="640px" @closed="resetForm">
@@ -91,6 +79,19 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'applicant', label: '申请单', width: 110, tooltip: true },
+  { prop: 'tenant', label: '客户', width: 120, slot: 'c2' },
+  { prop: 'type', label: '类型', width: 90, slot: 'c3' },
+  { prop: 'company', label: '施工方', width: 150, tooltip: true },
+  { prop: 'applyDate', label: '申请日期', width: 110 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c6' },
+  { label: '操作', minWidth: 300, fixed: 'right', slot: 'c7' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/api/request'
@@ -262,11 +263,11 @@ onMounted(() => {
 <style lang="scss" scoped>
 .deco-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.warn { color: #E6A23C; }
-.stat-num.done { color: #67C23A; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.warn { color: $warn-600; }
+.stat-num.done { color: $ok-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .action-group { display: flex; gap: 8px; }
