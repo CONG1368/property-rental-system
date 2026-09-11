@@ -137,7 +137,7 @@ function onPage(p: number) { emit('update:page', p); emit('page-change', p); }
 defineExpose({ clearSelection, tableRef });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .data-table { position: relative; }
 .batch-bar { display: flex; gap: 10px; align-items: center; padding: 8px 16px; margin-bottom: 12px; background: $brand-100; border: 1px solid $brand-100; border-radius: $r-ctl; }
 .batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }

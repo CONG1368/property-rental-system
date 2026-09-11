@@ -1,5 +1,6 @@
 <template>
-  <el-tag :type="cfg.type" :size="size" effect="light" disable-transitions>{{ cfg.label }}</el-tag>
+  <span v-if="cfg.className" :class="cfg.className">{{ cfg.label }}</span>
+  <el-tag v-else :type="cfg.type" :size="size" effect="light" disable-transitions>{{ cfg.label }}</el-tag>
 </template>
 
 <script setup lang="ts">
@@ -18,6 +19,6 @@ const props = withDefaults(defineProps<{
 const cfg = computed<StatusTagItem>(() => {
   const key = props.value === null || props.value === undefined ? '' : String(props.value);
   const hit = props.map ? props.map[key] : undefined;
-  return { type: hit?.type || props.fallbackType, label: hit?.label || key || '-' };
+  return { type: hit?.type || props.fallbackType, label: hit?.label || key || '-', className: hit?.className };
 });
 </script>

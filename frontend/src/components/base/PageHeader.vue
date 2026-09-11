@@ -25,7 +25,7 @@ withDefaults(defineProps<{
 }>(), { subtitle: '', breadcrumb: () => [] });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .page-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: var(--pad-page, 16px); }
 .page-header-crumb { margin-bottom: 6px; font-size: $fs-meta; }
 .page-header-title-row { display: flex; align-items: baseline; gap: 10px; }

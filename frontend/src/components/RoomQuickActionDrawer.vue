@@ -140,7 +140,7 @@ async function submitStatus() {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .section { margin-top: 20px; border-top: 1px solid $n-200; padding-top: 12px; }
 .section h4 { margin: 0 0 8px 0; font-size: 14px; color: $n-900; }
 .section p { margin: 4px 0; font-size: 13px; color: $n-700; }

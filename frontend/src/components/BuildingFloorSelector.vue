@@ -53,7 +53,7 @@ function onChange() {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .building-floor-selector { margin-bottom: 12px; }
 .selector-row { display: flex; align-items: center; margin-bottom: 8px; gap: 8px; }
 .selector-label { font-size: 13px; color: $n-700; white-space: nowrap; font-weight: 500; }

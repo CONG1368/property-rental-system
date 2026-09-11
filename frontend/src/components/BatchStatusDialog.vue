@@ -68,6 +68,6 @@ async function submit() {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .batch-info { margin-bottom: 16px; font-size: 14px; color: $n-700; }
 </style>

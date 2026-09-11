@@ -652,11 +652,11 @@ off('room:status-changed', callback);
 
 | 页面 | 路由 | 说明 |
 |------|------|------|
-| `RoomStatusKanban.vue` | `/rent/room-kanban` | 房态看板主页面：楼栋/楼层筛选 + 网格卡片 + 快捷操作抽屉 + 批量状态对话框 |
+| `RoomStatusKanban.vue` | `/rent/room-kanban` | 房态看板主页面：楼栋/楼层筛选 + 卡片/表格视图切换（同一份数据）+ 快捷操作抽屉 + 批量状态对话框 |
 | `RoomDashboard.vue` | `/rent/room-kanban/dashboard` | 数据大屏：暗色主题，KPI 卡片 + ECharts 可视化（玫瑰饼图/柱图/仪表盘/热力图/趋势线/桑基图 + 告警跑马灯） |
 | `RoomBatchGenerate.vue` | `/rent/room-kanban/batch-gen` | 批量生成房间表单：配置楼栋名称、起止楼层、每层房间数、命名规则、默认面积 |
 
-**7 个组件**（`frontend/src/components/`）：`RoomCard`（9 状态色 + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，已改为 `DataTable` 实现；**当前仍未挂载**，若启用需接 `rooms`/`loading` 并监听 `room-click`/`status-edit`/`selection-change`）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
+**7 个组件**（`frontend/src/components/`）：`RoomCard`（净表面 + 房态阶 chip + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，`DataTable` 实现，**已接入看板的卡片/表格切换**，内置批量条「批量改状态」）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
 
 **数据流**：
 1. `RoomStatusKanban` 调用 `GET /properties/rooms/kanban` 获取完整数据（含楼栋分组、楼层分组、门锁、租客关联）
@@ -664,7 +664,7 @@ off('room:status-changed', callback);
 3. 通过 `useWebSocket()` 的 `on('room:status-changed')` 和 `on('room:batch-status-changed')` 监听变更，自动刷新看板数据
 4. `RoomDashboard` 使用 `vue-echarts` 渲染图表，单独调用 `GET /properties/rooms/stats` 和 `GET /properties/rooms/analytics`
 
-**状态颜色映射**：定义在 `RoomCard.vue` 的 9 个 `status-*` CSS class 中（空置/已锁定/已预订/已出租/退租中/待保洁/待验收/维修中/已冻结），颜色见组件源码。
+**状态颜色映射**：统一走房态阶 `.room-chip--*`（`global.scss`）+ 映射源 `components/modules/room/room-status.ts`，见「UI 主题体系 1.4」；`RoomCard` 只负责组装，不再自己定义颜色。
 
 ### 打印功能架构
 
@@ -755,6 +755,8 @@ off('room:status-changed', callback);
 **1. 设计令牌 v2 集中在 `frontend/src/styles/variables.scss`**（oklch）：中性阶 `$n-0…$n-900`（唯一色相 250）、品牌 `$brand-100/300/600/700`（唯一强调色）、语义 `$ok/warn/bad/info-100|600`、房态阶 `$st-vacant/locked/booked/rented`、非颜色令牌 `$sh-0/1/2`、`$glass`、`$scrim`、字号 `$fs-page/section/body/meta`、圆角 `$r-ctl/box/panel`。
 **1.1 JS 侧镜像 `styles/tokens.ts`**：由 `node scripts/gen-tokens-ts.cjs` 从 variables.scss 派生（oklch→sRGB），供 ECharts 等需要真实色值的 JS 场景使用。
 **1.2 规则：本文件之外不得出现任何颜色字面量**——由门禁 **R2** 以白名单方式强制（豁免 variables.scss / global.scss / tokens.ts / `components/print/**`）。
+**1.3 `<style>` 块必须写 `lang="scss"`（踩过的坑）**：令牌靠 vite 的 scss `additionalData` 注入，只有声明 `lang="scss"` 的块才走 SCSS。漏写时块按**纯 CSS** 编译——`$令牌` 原样进产物、被浏览器静默丢弃（**曾致 16 个文件 95 处声明失效**，`DataTable` / `PageHeader` / `MoneyText` / `RoomCard` 等都在内），且块内 `//` 注释会直接构建失败。**新增组件务必带上**，由门禁 **P6** 强制（0 违规）。
+**1.4 房态阶的落地**：`.room-chip--*`（`global.scss`）是唯一业务流程色阶的实现；9 种房态 → 色调的映射唯一来源是 `components/modules/room/room-status.ts`（`ROOM_STATUS_MAP` / `roomStatusClass()`），**房态词汇只允许出现在这里**。`StatusTag` 收到 `className` 时渲染 `<span>` 做令牌着色，否则仍走 EP 标签。
 
 **2. Element Plus 覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary: $brand-600`、`--el-fill-color-blank: $n-0`（取消半透明填充）、`--el-border-color: $n-400`（控件边界 ≥3:1）、`--el-border-radius-base: $r-box`；同时输出 `--n-*`/`--brand-*`/`--glass`/`--sh-*` 的 CSS 变量镜像，供内联样式与 JS 使用。
 
@@ -775,7 +777,7 @@ off('room:status-changed', callback);
 
 **7. 无障碍（WCAG 2.1 AA）**：v2 的 **600 档即文字安全档**（`$brand-600` 白字 7.22:1、`$n-600` 次要文字 5.23:1、语义 600 档 5.94–7.37:1），v1 的独立 `-text` 变体体系已被吸收，不再单列。控件边界用 `$n-400`（3.21:1，满足 SC 1.4.11）；`$n-200` 仅作分割线（装饰性豁免）。
 
-自检门禁：`node scripts/check-contrast.cjs`（41 条清单，41/41 + 2 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0 且统计 `frontend/src` 全量，新增页面/组件不得再写 `<el-table>`，豁免仅 `base/DataTable.vue` 与 `modules/finance/VoucherEntryRows.vue`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演，扫描范围仅 `views/`）。
+自检门禁：`node scripts/check-contrast.cjs`（46 条清单，46/46 + 2 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步；含 `$st-*` 房态四档与 5 条 chip 例外配对）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0 且统计 `frontend/src` 全量，新增页面/组件不得再写 `<el-table>`，豁免仅 `base/DataTable.vue` 与 `modules/finance/VoucherEntryRows.vue`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演，扫描范围仅 `views/`）。
 
 ### 依赖漏洞治理（当前状态与决策）
 

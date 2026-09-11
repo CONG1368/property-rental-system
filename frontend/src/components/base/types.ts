@@ -4,6 +4,8 @@
 export interface StatusTagItem {
   type?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
   label?: string;
+  /** 令牌驱动的自定义着色 class（如房态阶）；给了它就渲染 <span> 而非 el-tag */
+  className?: string;
 }
 
 export type TableColumnType = 'money' | 'status' | 'mono' | 'date' | 'index' | 'slot';

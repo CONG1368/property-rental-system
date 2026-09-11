@@ -101,6 +101,32 @@ a:hover { color: $brand-700; }
   box-shadow: none;
 }
 
+// ── 房态 chip：唯一「业务流程色阶」的落地（语义见 docs/UI设计准则.md 3.4）──
+// 空置 → 已锁定 → 已预订 → 已出租 = 蓝色强度递增，表达「填充度」（越深越已被占用）；
+// 例外：退租中 $warn、维修中 $bad、已冻结 $info；待保洁 / 待验收 = 中性底 + 斜纹（过渡态，非状态色）。
+.room-chip {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: $r-ctl;
+  font-size: $fs-meta;
+  line-height: 1.75;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.room-chip--vacant { background: $st-vacant; color: $n-900; }
+.room-chip--locked { background: $st-locked; color: $n-900; }
+.room-chip--booked { background: $st-booked; color: $n-900; }
+.room-chip--rented { background: $st-rented; color: $n-0; }
+.room-chip--ending { background: $warn-100; color: $warn-600; }
+.room-chip--maintenance { background: $bad-100; color: $bad-600; }
+.room-chip--frozen { background: $info-100; color: $info-600; }
+.room-chip--cleaning,
+.room-chip--inspecting {
+  color: $n-900;
+  background-color: $n-100;
+  background-image: repeating-linear-gradient(45deg, transparent 0 4px, $n-300 4px 8px);
+}
+
 // ── 弹层：允许毛玻璃（顶栏 / 侧栏 / 抽屉 / 弹层为玻璃唯一保留区）──
 .el-dialog, .el-drawer, .el-popper, .el-dropdown-menu {
   backdrop-filter: blur(14px);

@@ -31,7 +31,7 @@ const stages = computed(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .bill-lifecycle { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 0; }
 .lc-stage { position: relative; display: flex; align-items: center; gap: 6px; padding-right: 26px; }
 .lc-dot { width: 8px; height: 8px; border-radius: 50%; background: $n-300; flex-shrink: 0; }

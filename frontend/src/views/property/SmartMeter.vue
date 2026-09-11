@@ -302,7 +302,7 @@ onMounted(() => { refreshStatus(); loadOverview(); loadDevices(); setupListener(
 onUnmounted(() => { if (unSub) unSub(); });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .smart-meter { padding: 4px; }
 .page-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .head-actions { display: flex; gap: 8px; align-items: center; }

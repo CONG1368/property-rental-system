@@ -29,7 +29,7 @@
 defineProps<{ stats: Record<string, number> }>();
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .room-stats-panel { margin-bottom: 16px; }
 .kpi-cards { display: flex; gap: 16px; flex-wrap: wrap; }
 .kpi-card {

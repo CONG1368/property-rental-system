@@ -166,6 +166,13 @@ const CHECKLIST = [
   { scene: 'n-900 on 房态-已锁定', fg: need('n-900'), surface: 'stLocked', kind: 'normal' },
   { scene: 'n-900 on 房态-已预订', fg: need('n-900'), surface: 'stBooked', kind: 'normal' },
   { scene: '白字 on 房态-已出租', fg: WHITE, surface: 'stRented', kind: 'normal' },
+  // 房态例外色 chip：600 档文字 on 100 档底
+  { scene: 'warn-600 on warn-100（退租中）', fg: need('warn-600'), surface: 'warnFill100', kind: 'normal' },
+  { scene: 'bad-600 on bad-100（维修中）', fg: need('bad-600'), surface: 'badFill100', kind: 'normal' },
+  { scene: 'info-600 on info-100（已冻结）', fg: need('info-600'), surface: 'infoFill100', kind: 'normal' },
+  // 中性 + 斜纹 chip：文字会同时压在底色与斜纹上，两处都要过
+  { scene: 'n-900 on n-100（斜纹底）', fg: need('n-900'), surface: 'nFill100', kind: 'normal' },
+  { scene: 'n-900 on n-300（斜纹纹）', fg: need('n-900'), surface: 'nFill300', kind: 'normal' },
   // 深色顶栏
   { scene: '顶栏白字', fg: WHITE, surface: 'shell', kind: 'normal' },
   { scene: '顶栏弱化白字(.72)', fg: 'rgba(255,255,255,.72)', surface: 'shell', kind: 'normal' },
@@ -189,6 +196,10 @@ for (const [tok, key] of Object.entries(LIGHT_FILLS)) {
 const STATUS_FILLS = { 'st-vacant': 'stVacant', 'st-locked': 'stLocked', 'st-booked': 'stBooked', 'st-rented': 'stRented' };
 for (const [tok, key] of Object.entries(STATUS_FILLS)) {
   SURFACES[key] = { name: '房态 ' + T[tok], layers: [T[tok]] };
+}
+const NEUTRAL_FILLS = { 'n-100': 'nFill100', 'n-300': 'nFill300' };
+for (const [tok, key] of Object.entries(NEUTRAL_FILLS)) {
+  SURFACES[key] = { name: '中性 ' + T[tok], layers: [T[tok]] };
 }
 
 // ============================================================

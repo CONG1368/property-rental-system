@@ -1,9 +1,5 @@
 <template>
-  <div
-    class="room-card"
-    :class="[`status-${statusKey}`, { 'is-selected': selected }]"
-    @click="$emit('click', room)"
-  >
+  <div class="room-card" :class="{ 'is-selected': selected }" @click="$emit('click', room)">
     <div class="card-header">
       <span class="room-number">{{ room.roomNumber || room.name }}</span>
       <span class="lock-icon" v-if="room.doorLocks?.length" @click.stop="$emit('lock-click', room)">
@@ -15,7 +11,7 @@
       </span>
     </div>
     <div class="card-status">
-      <el-tag :type="statusTagType" size="small" effect="dark">{{ room.status }}</el-tag>
+      <span :class="roomStatusClass(room.status)">{{ room.status }}</span>
     </div>
     <div class="card-body">
       <div class="building" v-if="room.buildingName">{{ room.buildingName }}</div>
@@ -23,17 +19,21 @@
       <div v-if="room.contract" class="tenant-info">
         <div class="tenant-name">{{ room.contract.tenantName }}</div>
         <div class="contract-end" v-if="room.contract.contractEndDate">
-          到期 {{ room.contract.contractEndDate }}
+          到期 <DateText :value="room.contract.contractEndDate" />
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">import { tokens } from '@/styles/tokens';
-
+<script setup lang="ts">
+// 房态卡片：净表面（不着色整卡），状态由 .room-chip 令牌色阶承担；
+// 状态映射来自 modules/room（业务层），本组件不含颜色字面量。
 import { computed } from 'vue';
 import { Lock, Unlock, WarningFilled } from '@element-plus/icons-vue';
+import { tokens } from '@/styles/tokens';
+import DateText from '@/components/base/DateText.vue';
+import { roomStatusClass } from '@/components/modules/room/room-status';
 
 const props = defineProps<{
   room: any;
@@ -44,20 +44,6 @@ defineEmits<{
   click: [room: any];
   'lock-click': [room: any];
 }>();
-
-const statusMap: Record<string, string> = {
-  '空置': 'vacant', '已锁定': 'locked', '已预订': 'reserved', '已出租': 'rented',
-  '退租中': 'exiting', '待保洁': 'cleaning', '待验收': 'inspecting',
-  '维修中': 'maintenance', '已冻结': 'frozen',
-};
-
-const statusKey = computed(() => statusMap[props.room.status] || 'vacant');
-
-const statusTagMap: Record<string, string> = {
-  '空置': 'info', '已锁定': '', '已预订': 'warning', '已出租': 'success',
-  '退租中': 'warning', '待保洁': '', '待验收': '', '维修中': 'danger', '已冻结': 'info',
-};
-const statusTagType = computed(() => statusTagMap[props.room.status] || 'info');
 
 const lockStatus = computed(() => {
   if (!props.room.doorLocks?.length) return '';
@@ -74,28 +60,20 @@ const lockColor = computed(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+// 净表面：白底 + 1px 细边，无模糊无阴影（硬约束：内容卡片一律净表面）
 .room-card {
-  border-radius: 8px;
+  background: $n-0;
+  border: 1px solid $n-200;
+  border-radius: $r-box;
   padding: 10px 12px;
   cursor: pointer;
-  transition: all 0.2s;
-  border: 2px solid transparent;
+  transition: background-color .15s, border-color .15s;
   min-width: 130px;
   position: relative;
 }
-.room-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px $n-100; }
-.room-card.is-selected { border-color: $brand-600; box-shadow: 0 0 0 2px $brand-300; }
-
-.status-vacant { background: $ok-100; border-color: $ok-100; }
-.status-locked { background: $n-50; border-color: $n-200; }
-.status-reserved { background: $warn-100; border-color: $warn-100; }
-.status-rented { background: $brand-100; border-color: $brand-100; }
-.status-exiting { background: $warn-100; border-color: $warn-100; }
-.status-cleaning { background: $info-100; border-color: $info-100; }
-.status-inspecting { background: $ok-100; border-color: $ok-100; }
-.status-maintenance { background: $bad-100; border-color: $bad-100; }
-.status-frozen { background: $n-200; border-color: $n-300; }
+.room-card:hover { background: $n-50; }
+.room-card.is-selected { border-color: $brand-600; outline: 2px solid $brand-300; outline-offset: -2px; }
 
 .card-header {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;

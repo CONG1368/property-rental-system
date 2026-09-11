@@ -31,7 +31,7 @@ function lines(content: any): string[] {
 }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .clause-preview { display: flex; flex-direction: column; gap: 12px; }
 .clause-item { border: 1px solid $n-200; border-radius: $r-box; padding: 12px 14px; background: $n-0; }
 .clause-title { display: flex; align-items: baseline; gap: 8px; font-size: $fs-section; font-weight: 600; color: $n-900; margin-bottom: 6px; }

@@ -74,7 +74,7 @@ const chinese = computed(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .money { font-variant-numeric: tabular-nums; }
 .money.is-right { display: inline-block; width: 100%; text-align: right; }
 .money.is-neg { color: $bad-600; }

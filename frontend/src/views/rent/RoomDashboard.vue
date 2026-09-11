@@ -303,7 +303,7 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .dashboard-dark {
   min-height: 100vh;
   background: linear-gradient(135deg, $n-900 0%, $n-900 50%, $n-900 100%);

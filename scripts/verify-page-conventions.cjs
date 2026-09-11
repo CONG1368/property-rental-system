@@ -8,6 +8,7 @@
 // 棘轮规则（不得比基线更差；迁移有进展时把基线调低）：
 //   P4 自行声明 .toolbar / .search-group 样式的文件数 <= BASELINE
 //   P5 使用内联 <el-table> 的文件数 <= BASELINE
+//   P6 <style> 块引用 $令牌必须声明 lang="scss"（硬性 0 违规）
 // 棘轮统计范围 = frontend/src 全量（不只 views/），防止把内联表或工具栏样式挪进 components/ 重生；
 // 豁免清单见 RATCHET_EXEMPT_*，每条都必须写明理由。
 // 参考指标（只打印，不判定）：DataTable / FilterBar 采用率。
@@ -108,11 +109,28 @@ function checkRatchet() {
   console.log('参考: 扫描文件 ' + files.length + ' ｜ DataTable 采用 ' + dataTable + ' ｜ FilterBar 采用 ' + filterBar);
 }
 
+// —— P6 <style> 块用 $令牌必须声明 lang="scss" ——
+function checkScssLang() {
+  const v = [];
+  const files = walk(SRC, ['.vue']);
+  for (const f of files) {
+    const t = fs.readFileSync(f, 'utf-8');
+    const re = /<style([^>]*)>([\s\S]*?)<\/style>/g; let m;
+    while ((m = re.exec(t)) !== null) {
+      if (/lang\s*=\s*['"](scss|sass)['"]/.test(m[1])) continue;
+      const vars = m[2].match(/\$[a-zA-Z_][\w-]*/g);
+      if (vars) v.push(rel(f) + '  未声明 lang="scss" 却引用 ' + vars.length + ' 处 $变量（声明会被浏览器丢弃）');
+    }
+  }
+  ok('P6 <style> 用 $令牌必须写 lang="scss"（否则按纯 CSS 编译、变量被丢弃）', v, '扫描 ' + files.length + ' 个文件');
+}
+
 console.log('=== 页面约定门禁 ===');
 checkBaseNoBusinessWords();
 checkNoBlurInViews();
 checkBaseDependencyDirection();
 checkRatchet();
+checkScssLang();
 const total = pass + failures.length;
 console.log('');
 console.log('SUMMARY: ' + pass + '/' + total + ' checks passed');

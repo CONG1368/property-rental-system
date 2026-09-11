@@ -57,7 +57,9 @@
 ### 3.4 房态生命周期阶（唯一的业务流程色阶，全模块复用）
 
 `$st-vacant`（空置）/ `$st-locked`（已锁定）/ `$st-booked`（已预订）/ `$st-rented`（已出租）。
-配对：前三档配 `$n-900`（6.15–14.40:1）；`$st-rented` 配白字（4.92:1）。维修中 / 已冻结走语义色，待保洁 / 待验收走中性 + 斜纹。
+配对：前三档配 `$n-900`（6.15–14.40:1）；`$st-rented` 配白字（4.92:1）。维修中走 `$bad`、已冻结走 `$info`、退租中走 `$warn`，待保洁 / 待验收走中性 + 斜纹（过渡态，不占用状态色）。
+
+**落地（唯一实现）**：`styles/global.scss` 的 `.room-chip--{vacant,locked,booked,rented,ending,cleaning,inspecting,maintenance,frozen}`；房态 → 色调的映射唯一来源是 `components/modules/room/room-status.ts` 的 `ROOM_STATUS_MAP` / `roomStatusClass()`——**房态词汇只允许出现在这里**。`StatusTag` 收到 `className` 时渲染 `<span>` 做令牌着色，否则仍走 Element Plus 标签。
 
 ### 3.5 非颜色令牌
 
@@ -128,6 +130,7 @@ components/
 4. 玻璃 / `backdrop-filter` 用在内容区卡片上（**仅顶栏、侧栏、抽屉、弹层**；全站模糊区 ≤4）
 5. 重写 `EmptyState` / `TableSkeleton` / `components/print/`
 6. 列表页重复声明 `.toolbar` / `.search-group` 样式与内联 `<el-table>`（**已全部清零**：87 个视图 / 95 张表统一走 `DataTable`；门禁 P5 基线 = 0 且扫描范围是 **`frontend/src` 全量**（不只 `views/`），写回内联表即失败。唯二豁免：`base/DataTable.vue`（封装层自身）、`modules/finance/VoucherEntryRows.vue`（可编辑录入网格，`DataTable` 是只读展示件））
+7. `<style>` 里用 `$令牌` 却不写 `lang="scss"`——块会按**纯 CSS** 编译：变量原样进产物、被浏览器静默丢弃（**曾致 16 个文件 95 处声明失效**，`DataTable`/`PageHeader`/`MoneyText`/`RoomCard` 等都在内），且块内 `//` 注释会直接构建失败；由门禁 **P6** 强制
 
 **必须**：
 1. **不新增颜色的默认答案是不加**；需要新颜色先证明不能由现有令牌派生
@@ -152,8 +155,8 @@ components/
 | 门禁 | 命令 | 阈值 |
 |---|---|---|
 | 静态铁律（含 R2 颜色字面量）| `node scripts/check-static-rules.cjs` | 6/6 |
-| 对比度 | `node scripts/check-contrast.cjs` | 41/41（+2 装饰性豁免）|
-| 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 5/5（扫描 `frontend/src` 全量；内联 `<el-table>` = 0、自写工具栏样式 ≤ 40）|
+| 对比度 | `node scripts/check-contrast.cjs` | 46/46（+2 装饰性豁免）|
+| 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 6/6（扫描 `frontend/src` 全量；内联 `<el-table>` = 0、自写工具栏样式 ≤ 40、`$令牌` 必须 `lang="scss"`）|
 | 三档密度无破损 | `node scripts/verify-table-density.cjs` | 14/14 |
 | 全链路 | `npm run test:regression` | 全绿 |
 

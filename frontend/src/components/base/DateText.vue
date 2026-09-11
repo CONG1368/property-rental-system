@@ -18,7 +18,16 @@ const props = withDefaults(defineProps<{
 const dt = computed<Date | null>(() => {
   const v = props.value;
   if (v === null || v === undefined || v === '') return null;
-  const d = v instanceof Date ? v : new Date(String(v).replace(' ', 'T'));
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v;
+  if (typeof v === 'number') { const n = new Date(v); return Number.isNaN(n.getTime()) ? null : n; }
+  const s = String(v).trim();
+  // 纯日期 / 账期串按「本地时间」解析：new Date('2026-09-11') 会按 UTC 解析，
+  // 在负时区（UTC-x）整体退一天——DATEONLY 字段（如 contract.endDate）正是这种串。
+  const dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (dm) return new Date(Number(dm[1]), Number(dm[2]) - 1, Number(dm[3]));
+  const mm = /^(\d{4})-(\d{2})$/.exec(s);
+  if (mm) return new Date(Number(mm[1]), Number(mm[2]) - 1, 1);
+  const d = new Date(s.replace(' ', 'T'));
   return Number.isNaN(d.getTime()) ? null : d;
 });
 const p2 = (n: number) => String(n).padStart(2, '0');

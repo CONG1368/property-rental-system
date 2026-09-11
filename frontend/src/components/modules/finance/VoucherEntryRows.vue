@@ -65,7 +65,7 @@ function addRow() { emitRows([...rows.value, { accountId: null, summary: '', deb
 function removeRow(i: number) { const next = [...rows.value]; next.splice(i, 1); emitRows(next); }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .voucher-entry-rows { display: flex; flex-direction: column; gap: 10px; }
 .ver-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ver-sum { font-size: $fs-meta; color: $n-600; }
