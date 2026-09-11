@@ -281,6 +281,66 @@ function run() {
   console.log('');
   console.log('SUMMARY: ' + passed + '/' + (results.length - exempted.length) + ' passed' + (exempted.length ? '（另有 ' + exempted.length + ' 条装饰性豁免）' : ''));
   console.log('');
+  // ---- --md：把清单写成 docs/对比度检查报告.md（自动生成，勿手改）----
+  if (process.argv.includes('--md')) {
+    const md = [];
+    md.push('# 对比度检查报告');
+    md.push('');
+    md.push('> **本文件由 `node scripts/check-contrast.cjs --md` 自动生成，请勿手改。**');
+    md.push('> 唯一事实来源是 `frontend/src/styles/variables.scss`（脚本解析 oklch → sRGB 后实测），');
+    md.push('> 因此不存在「文档与实现漂移」的可能；改完令牌重跑即可。');
+    md.push('');
+    md.push('## 一、标准与阈值');
+    md.push('');
+    md.push('WCAG 2.1 AA：正文（含链接）≥ **4.5:1**；大字 ≥ **3:1**；UI 组件与图形边界（SC 1.4.11）≥ **3:1**。');
+    md.push('');
+    md.push('算法：sRGB 线性化 → 相对亮度 `L = 0.2126R + 0.7152G + 0.0722B` → 对比度 `(L亮 + 0.05) / (L暗 + 0.05)`。');
+    md.push('玻璃面与模态遮罩按**多层合成**后再计算（合成顺序：页面底 → 遮罩 → 玻璃）。');
+    md.push('');
+    md.push('## 二、结论');
+    md.push('');
+    md.push('| 指标 | 数值 |');
+    md.push('|---|---|');
+    md.push('| 检查项总数 | ' + results.length + ' |');
+    md.push('| 通过 | ' + passed + ' |');
+    md.push('| 装饰性豁免 | ' + exempted.length + ' |');
+    md.push('| 不达标 | ' + failed.length + ' |');
+    md.push('');
+    if (failed.length) {
+      md.push('**不达标项：**');
+      md.push('');
+      for (const r of failed) md.push('- `' + r.scene + '`：' + r.fgFlat + ' on ' + r.bgFlat + ' = ' + r.ratio.toFixed(2) + ':1（需 ' + r.threshold.toFixed(1) + ':1）');
+    } else {
+      md.push('**全部通过**（' + passed + '/' + (results.length - exempted.length) + '，另有 ' + exempted.length + ' 条装饰性豁免）。');
+    }
+    md.push('');
+    md.push('## 三、完整清单');
+    md.push('');
+    md.push('| # | 检查场景 | 类型 | 前景（合成后） | 背景（合成后） | 对比度 | 门槛 | 判定 |');
+    md.push('|---|---|---|---|---|---|---|---|');
+    results.forEach((r, i) => {
+      md.push('| ' + (i + 1) + ' | ' + r.scene + ' | ' + KIND_LABEL[r.kind] + ' | `' + r.fgFlat + '` | `' + r.bgFlat + '` | **' + r.ratio.toFixed(2) + ':1** | ' + r.threshold.toFixed(1) + ' | ' + (r.pass ? '通过' : (r.exempt ? '豁免' : '**不达标**')) + ' |');
+    });
+    md.push('');
+    if (exempted.length) {
+      md.push('## 四、装饰性豁免');
+      md.push('');
+      md.push('以下项未达 3:1，但属**装饰性**分隔或轮廓、不承载信息（功能性边界由 `$n-400` 承担）：');
+      md.push('');
+      for (const r of exempted) md.push('- `' + r.scene + '`：' + r.ratio.toFixed(2) + ':1 — ' + r.exemptReason);
+      md.push('');
+    }
+    md.push('## 五、覆盖范围');
+    md.push('');
+    md.push('中性阶（页面底 / 卡片净表面 / 侧栏玻璃）、品牌（主按钮、链接、**顶栏品牌底白字**）、');
+    md.push('语义状态（成功 / 警告 / 危险 / 信息，含**暗底 300 档**）、房态生命周期阶（四档填充 + chip 例外配对）、');
+    md.push('**玻璃浮层**（页面底 → 遮罩 → 玻璃三层合成）、**暗色面阶**（房态大屏专用），以及 UI 件边界（控件描边、主按钮填充）。');
+    md.push('');
+    md.push('重新生成：`node scripts/check-contrast.cjs --md`。不带参数运行即 CI 门禁：有不达标项则退出码 1。');
+    md.push('');
+    fs.writeFileSync(path.join(__dirname, '..', 'docs', '对比度检查报告.md'), md.join('\n'));
+    console.log('已生成 docs/对比度检查报告.md（' + results.length + ' 条）');
+  }
   return failed.length === 0 ? 0 : 1;
 }
 

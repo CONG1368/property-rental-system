@@ -863,5 +863,5 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-page-conventions.cjs` | 页面约定门禁（组件采用率 + 禁止复制玻璃/工具栏样式）；棘轮统计 **`frontend/src` 全量**（不只 views/，防止挪进 components/ 重生），基线 toolbarViews=40、**inlineTableView=0**；豁免仅 `base/DataTable.vue`（封装层自身）与 `modules/finance/VoucherEntryRows.vue`（可编辑录入网格） |
 | `migrate-tables-to-datatable.cjs` | 内联 `<el-table>` → `DataTable` 批量迁移（`--dry` 预演 / `--only=X` 单页；一页多表多轮处理；动态列 `v-for`/`:label`/`:prop` 自动跳过需手工迁移） |
 | `gen-tokens-ts.cjs` | 从 variables.scss 生成 JS 令牌镜像（oklch→sRGB） |
-| `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（46 条清单，可作 CI 门禁） |
+| `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（62 条清单 + 3 装饰性豁免，可作 CI 门禁）；`--md` 重新生成 `docs/对比度检查报告.md`（自动生成，勿手改） |
 | `verify-ux-states.cjs` | 交互态验收（骨架/空态/头像图标化，10 用例）；需先启动 dev |
