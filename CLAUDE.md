@@ -540,6 +540,10 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 
 已覆盖 5 套打印模板 + 各详情/报表页的多行字段。
 
+**80mm 热敏小票必须按「二值设备」写模板（踩过的坑）**：热敏机每个点只有黑/白，浏览器给的是带抗锯齿的 8 位灰度位图，驱动必须再二值化一次 → 模板里任何浅色都被拆成稀疏网点：小字糊版，彩色金额被打成空心点阵甚至整片消失（实测 `#E6A23C` 亮度 170/255，阈值法直接整片变白）。`ReceiptPrint.ts` 因此定下四条硬规则：① 只用纯黑 `#000`，层级靠字号 + 字重表达；② 正文 13px + `font-weight:700`，203dpi 下笔画 ≥2 个点；③ 内容宽 68mm（小于 80mm 机型的 72mm 可打印区）+ `@page { margin: 0 }`（不写 size，纸张交给驱动，避免强制 297mm 长页走纸）；PDF 纸张由 `print-service.ts` 的 `withPaperSize()` 注入——Chromium 的 `preferCSSPageSize` **只认「宽 高」两个长度值**，`size:80mm auto` 被静默忽略而退回 Letter（215.9×279.4mm，实测），单值 `size:80mm` 则是正方形，两条 `@page` 规则（size / margin）会正常合并；**合同模板过去只写 `@page{margin}` 没写 size，导出 PDF 一直是 Letter 而非 A4，已一并修正**；④ 分隔线用 1px 实线（虚线二值化后碎成一行断点）。复现手法：按 `deviceScaleFactor = 203/96` 渲染截图后再做阈值/Floyd–Steinberg 抖动，即得热敏机实际输出，不必真机试错；对比见 `docs/小票打印-二值化前后对比.png`。
+
+**打印模板有两种形态**：`ContractPrint`/`BriefingPrint`/`ReceiptPrint` 返回**完整文档**（自带 `<!DOCTYPE>` + `@page`），`BillPrint`/`TenantInfoPrint`/`ContractBatchPrint` 返回**纯片段**。`electron/main.ts` 的 `print-html` 以 `/<!DOCTYPE|<html[\s>]/` 判定，完整文档原样写盘——再包一层会让 `@page` 失效，且 16px 的 `body` padding 会把 80mm 小票顶到 80.8mm 而被裁边；`print-service.ts` 的截图回退路径用 `normalizePrintable()` 把它拆成「样式 + body 内容」。新增模板二选一并保持一致。
+
 ### 门锁管理架构
 
 **数据模型（4 个）**：`DoorLock`（门锁设备，`category` 字段区分 `智能门锁`/`传统门锁`，双品类字段共存于同一张表）、`DoorLockPassword`（智能锁密码，含有效期/次数限制）、`DoorLockKey`（传统锁钥匙，借出/归还/挂失/作废流转）、`DoorLockLog`（统一操作日志，智能锁自动记录+传统锁手动登记）。

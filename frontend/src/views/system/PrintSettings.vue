@@ -116,26 +116,9 @@
           </div>
 
           <div class="preview-section" style="margin-top:16px">
-            <h4 style="margin:0 0 8px;color:var(--n-700)">收据预览</h4>
-            <div class="preview-box receipt-preview" style="width:220px;margin:0 auto;font-size:10px;line-height:1.6;border:1px dashed var(--n-300);padding:12px">
-              <div style="text-align:center">
-                <div style="font-size:13px;font-weight:bold">{{ form.companyName || '物业租赁管理公司' }}</div>
-                <div style="font-size:11px;color:var(--n-900)">收款凭证</div>
-              </div>
-              <div style="margin:8px 0;padding:4px 0;border-top:1px dashed var(--n-600);border-bottom:1px dashed var(--n-600);font-size:9px">
-                <div>收据号：REC-001</div><div>日期：2026-05-16</div>
-              </div>
-              <div style="text-align:center;margin:8px 0">
-                <div style="font-size:9px;color:var(--n-600)">收款金额</div>
-                <div style="font-size:18px;font-weight:bold;color:var(--warn-600)">¥2,500.00</div>
-              </div>
-              <div style="text-align:center;margin-top:12px">
-                <div v-if="form.companySeal" style="width:50px;height:50px;margin:0 auto">
-                  <img :src="form.companySeal" style="max-width:50px;max-height:50px" />
-                </div>
-                <div v-else style="font-size:9px;color:var(--n-600)">收款人：_______</div>
-              </div>
-            </div>
+            <h4 style="margin:0 0 8px;color:var(--n-700)">收据预览（80mm 热敏小票）</h4>
+            <iframe class="receipt-preview" :srcdoc="receiptPreview" title="收据预览"></iframe>
+            <p class="preview-tip">热敏机是黑白二值设备，此处即实际版式：全部纯黑、无灰阶，金额不使用彩色。</p>
           </div>
         </el-card>
       </el-col>
@@ -144,10 +127,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
 import { confirmWithPassword } from '@/utils/confirm-password';
+import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 
 const saving = ref(false);
 
@@ -159,6 +143,21 @@ const form = reactive({
   companyIdNumber: '',
   companyPhone: '',
 });
+
+// 直接用真实模板渲染预览：iframe 隔离样式，看到的就是打印出来的版式
+const receiptPreview = computed(() => buildReceiptHTML({
+  receiptNo: 'REC-2026-0001',
+  tenantName: '张伟明',
+  propertyName: '阳光花园 A-1203',
+  amount: 2500,
+  paymentChannel: '微信支付',
+  paidAt: '2026-05-16 10:30',
+  period: '2026-05',
+  transactionNo: 'TXN2500',
+  companyName: form.companyName || '物业租赁管理公司',
+  companyLogo: form.companyLogo,
+  companySeal: form.companySeal,
+}));
 
 onMounted(async () => {
   try {
@@ -216,6 +215,10 @@ async function handleSave() {
     background: $n-0; border: 1px solid $n-100; border-radius: 6px;
     padding: 16px;
   }
-  .receipt-preview { box-shadow: 0 1px 4px $n-100; }
+  .receipt-preview {
+    display: block; width: 302px; height: 460px; margin: 0 auto;
+    border: 1px dashed $n-300; background: $n-0; box-shadow: 0 1px 4px $n-100;
+  }
+  .preview-tip { margin: 8px 0 0; text-align: center; font-size: 12px; color: $n-600; }
 }
 </style>

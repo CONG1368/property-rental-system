@@ -319,7 +319,11 @@ ipcMain.handle('print-html', async (_event, html: string, title: string) => {
     // 写入临时 HTML 文件（避免 data: URL 的长度限制和编码问题）
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'property-print-'));
     const tmpFile = path.join(tmpDir, `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`);
-    const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+    // 打印模板可能自带完整文档（合同 A4、简报、收据 80mm，含自己的 @page 与 body 边距）。
+    // 此时必须原样使用：再包一层会让 @page 失效，且 16px 的 body padding 会把
+    // 80mm 小票的内容宽度顶到 80.8mm，超出热敏机 72mm 可打印区而被裁边/缩放。
+    const isFullDoc = /<!DOCTYPE|<html[\s>]/i.test(html);
+    const fullHtml = isFullDoc ? html : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
 <style>
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; color:#333; margin:0; padding:16px; }

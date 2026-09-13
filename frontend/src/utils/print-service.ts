@@ -29,13 +29,40 @@ export async function exportTextPDF(title: string, htmlContent: string): Promise
   }
 }
 
+/**
+ * 给 HTML 补上 @page 纸张尺寸（只加 size、不碰 margin，各模板自己的页边距仍然生效）。
+ *
+ * 为什么必须补：Chromium 的 preferCSSPageSize **只认「宽 高」两个长度值**——
+ *   @page { size: 80mm auto }  → 整条规则被静默忽略，退回 Letter 纸（实测 215.9×279.4mm）
+ *   @page { size: 80mm }       → 被当成 80mm×80mm 的正方形
+ *   @page { size: 80mm 297mm } → 80mm×297mm（正确）
+ * 合同模板过去只写了 @page{margin:...} 没写 size，导出 PDF 实际是 Letter 尺寸。
+ * 实测 @page{margin:...} 与 @page{size:...} 两条规则会正常合并，互不覆盖。
+ *
+ * 物理打印不走这里：纸张交给打印驱动，与改动前行为一致，避免强行指定尺寸导致走纸异常。
+ */
+const PAGE_SIZE_CSS: Record<PaperSize, string> = {
+  'A4': 'A4',
+  'A4-landscape': 'A4 landscape',
+  '80mm': '80mm 297mm',
+};
+
+function withPaperSize(html: string, paperSize: PaperSize): string {
+  const size = PAGE_SIZE_CSS[paperSize] || 'A4';
+  const rule = `<style>@page{size:${size}}</style>`;
+  // 完整文档（合同/简报/收据）：插到 </head> 前，模板自己的 @page{margin} 仍然生效
+  if (/<\/head>/i.test(html)) return html.replace(/<\/head>/i, rule + '</head>');
+  // 片段模板（账单/租客信息/批量合同）：补上 doctype，否则 loadFile 会按 quirks 模式解析
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">${rule}</head><body>${html}</body></html>`;
+}
+
 export async function printDocument(options: PrintOptions): Promise<void> {
   if (options.mode === 'native') {
     return printNative(options.htmlContent, options.title);
   }
   // PDF导出统一走 printToPDF 文字引擎，Electron 内原生文字PDF
   if (isElectron()) {
-    return exportTextPDF(options.title, options.htmlContent);
+    return exportTextPDF(options.title, withPaperSize(options.htmlContent, options.paperSize));
   }
   // 非Electron回退
   return printPDF(options);
@@ -59,6 +86,18 @@ const PAPER_SIZES: Record<string, { pageW: number; pageH: number; orientation: '
   '80mm': { pageW: 80, pageH: 297, orientation: 'portrait' },
 };
 
+/**
+ * 打印模板有两种形态：完整文档（合同/简报/收据，自带 <!DOCTYPE>/<style>/@page）
+ * 与纯片段（账单/租客信息/批量合同）。截图回退路径只认片段，这里把完整文档
+ * 拆成「样式 + body 内容」，避免把 <html>/<head> 塞进 div 导致样式丢失。
+ */
+function normalizePrintable(html: string): string {
+  if (!/<!DOCTYPE|<html[\s>]/i.test(html)) return html;
+  const styles = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).join('');
+  const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  return styles + (body ? body[1] : html.replace(/<\/?(!DOCTYPE|html|head|body)[^>]*>/gi, ''));
+}
+
 async function printPDF(options: PrintOptions): Promise<void> {
   const { title, paperSize, htmlContent } = options;
   const size = PAPER_SIZES[paperSize] || PAPER_SIZES['A4'];
@@ -68,10 +107,11 @@ async function printPDF(options: PrintOptions): Promise<void> {
   const usableH = size.pageH - margin * 2;
   const width = paperSize === '80mm' ? '302px' : '760px';
 
-  const styleMatch = htmlContent.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+  const printable = normalizePrintable(htmlContent);
+  const styleMatch = printable.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
   const styleTag = styleMatch ? '<style>' + styleMatch[1] + '</style>' : '';
 
-  const blocksHTML = extractBlocksHTML(htmlContent);
+  const blocksHTML = extractBlocksHTML(printable);
 
   const doc = new jsPDF({ orientation: size.orientation, unit: 'mm', format: paperSize === '80mm' ? [80, 297] : 'a4' });
   let currentY = margin;

@@ -9,6 +9,8 @@
 //   P4 自行声明 .toolbar / .search-group 样式的文件数 <= BASELINE
 //   P5 使用内联 <el-table> 的文件数 <= BASELINE
 //   P6 <style> 块引用 $令牌必须声明 lang="scss"（硬性 0 违规）
+//   P7 80mm 热敏小票模板（ReceiptPrint.ts）只允许纯黑/纯白（硬性 0 违规）
+//      —— 热敏机是 1 位二值设备，浅色/彩色会被驱动网点化，小字直接糊版
 // 棘轮统计范围 = frontend/src 全量（不只 views/），防止把内联表或工具栏样式挪进 components/ 重生；
 // 豁免清单见 RATCHET_EXEMPT_*，每条都必须写明理由。
 // 参考指标（只打印，不判定）：DataTable / FilterBar 采用率。
@@ -125,12 +127,31 @@ function checkScssLang() {
   ok('P6 <style> 用 $令牌必须写 lang="scss"（否则按纯 CSS 编译、变量被丢弃）', v, '扫描 ' + files.length + ' 个文件');
 }
 
+// —— P7 热敏小票模板只允许纯黑/纯白 ——
+function checkThermalReceiptColors() {
+  const target = path.join(SRC, 'components/print/ReceiptPrint.ts');
+  const v = [];
+  if (!fs.existsSync(target)) { ok('P7 80mm 热敏模板只有纯黑/纯白（浅色二值化后糊版）', [], '未找到模板'); return; }
+  const ALLOW = new Set(['#000', '#000000', '#fff', '#ffffff']);
+  fs.readFileSync(target, 'utf-8').split(/\r?\n/).forEach((line, i) => {
+    const t = line.trim();
+    if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return;  // 注释里的反例不算
+    const hits = line.match(/#[0-9a-fA-F]{3,8}\b|\brgba?\([^)]*\)|\bhsla?\([^)]*\)/g) || [];
+    for (const h of hits) {
+      if (ALLOW.has(h.toLowerCase())) continue;
+      v.push(rel(target) + ':' + (i + 1) + '  ' + h + ' —— 热敏机黑白二值，浅色会被网点化而糊版；层级请用字号+字重表达');
+    }
+  });
+  ok('P7 80mm 热敏模板只有纯黑/纯白（浅色二值化后糊版）', v, '扫描 ReceiptPrint.ts');
+}
+
 console.log('=== 页面约定门禁 ===');
 checkBaseNoBusinessWords();
 checkNoBlurInViews();
 checkBaseDependencyDirection();
 checkRatchet();
 checkScssLang();
+checkThermalReceiptColors();
 const total = pass + failures.length;
 console.log('');
 console.log('SUMMARY: ' + pass + '/' + total + ' checks passed');
