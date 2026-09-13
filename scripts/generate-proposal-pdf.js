@@ -1,10 +1,12 @@
 // 产品方案 Markdown → PDF 转换器（增强版）
 // 匹配 PPTX 深蓝+金色商务风格，支持章节页、KPI卡片、功能卡片等特殊元素
 import { chromium } from 'playwright';
-import { readFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 
-const mdFile = './docs/物业租赁综合管理系统-产品方案-v1.0.2.md';
-const pdfFile = './docs/物业租赁综合管理系统-产品方案-v1.0.2.pdf';
+// 版本号唯一来源：根 package.json（禁止在脚本里写死；源文件与页眉都由它拼接）
+const APP_VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version;
+const mdFile = `./docs/物业租赁综合管理系统-产品方案-v${APP_VERSION}.md`;
+const pdfFile = `./docs/物业租赁综合管理系统-产品方案-v${APP_VERSION}.pdf`;
 
 // 品牌色
 const C = {
@@ -97,15 +99,21 @@ function mdToHtml(md) {
   // 行内代码
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-  // 表格
-  html = html.replace(/^\|(.+)\|$/gm, (line) => {
-    const cells = line.split('|').filter((c, i, arr) => i > 0 && i < arr.length - 1);
-    if (/^[-:\s|]+$/.test(line)) return '';
-    const tag = line.includes('---') ? '' : 'td';
-    return '<tr>' + cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('') + '</tr>';
+  // 表格：把整块连续的 | 行一次性包成一个 <table>。
+  // 旧实现先用正则插 <table>、再用正则插 </table>，对 3 行以上的表格会插出多个 <table>，
+  // 剩下的裸 <tr> 会被浏览器解析时直接丢弃 → 表格塌成一段连在一起的文字（数据库设计表就是这样丢的）。
+  html = html.replace(/(?:^[ \t]*\|.*\|[ \t]*\r?\n?)+/gm, (block) => {
+    const rows = block.split(/\r?\n/).filter((l) => l.trim().startsWith('|'));
+    const body = rows
+      .filter((l) => !/^\|[\s:|-]+\|$/.test(l.trim()))
+      .map((l, i) => {
+        const cells = l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim());
+        const tag = i === 0 ? 'th' : 'td'; // 首行当表头（深蓝底白字，th 样式原本就写在 CSS 里但旧实现从未产出过）
+        return '<tr>' + cells.map((c) => `<${tag}>${c}</${tag}>`).join('') + '</tr>';
+      })
+      .join('');
+    return `<table>${body}</table>`;
   });
-  html = html.replace(/(<tr>[\s\S]*?<\/tr>)(\s*<tr>)/g, '<table>$1$2');
-  html = html.replace(/(<tr>[\s\S]*?<\/tr>)(?!\s*<tr>)/g, '$1</table>');
 
   // 无序列表
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
@@ -492,11 +500,14 @@ async function main() {
       padding: 7px 10px;
       text-align: left;
     }
+    /* 首列（维度/类别/角色/层级等）不折行：否则自动列宽会把中文挤成「租 赁 与 合 同」竖排 */
+    th:first-child, td:first-child { white-space: nowrap; }
     th {
       background: ${C.primary};
       color: ${C.white};
       font-weight: 600;
       font-size: 9pt;
+      white-space: nowrap; /* 表头不折行，避免窄列把「模型数」拆成两行 */
     }
     tr:nth-child(even) { background: ${C.lightBg}; }
 
@@ -566,6 +577,13 @@ ${bodyHtml}
 </body>
 </html>`;
 
+  // --html: 额外落地中间 HTML，便于排查 Markdown/表格渲染问题
+  if (process.argv.includes('--html')) {
+    const htmlPath = './docs/.proposal-preview.html';
+    writeFileSync(htmlPath, fullHtml, 'utf-8');
+    console.log('[PDF Gen] HTML written: ' + htmlPath);
+  }
+
   console.log('[PDF Gen] 启动浏览器...');
   const browser = await chromium.launch();
   const page = await browser.newPage();
@@ -580,7 +598,7 @@ ${bodyHtml}
     margin: { top: '2cm', bottom: '2cm', left: '2.2cm', right: '2.2cm' },
     printBackground: true,
     displayHeaderFooter: true,
-    headerTemplate: '<span style="font-size:8pt;color:#999;margin-left:2cm;">物业租赁综合管理系统 — 产品方案 v1.0.2</span>',
+    headerTemplate: `<span style="font-size:8pt;color:#999;margin-left:2cm;">物业租赁综合管理系统 — 产品方案 v${APP_VERSION}</span>`,
     footerTemplate: '<span style="font-size:8pt;color:#999;margin:0 auto;">第 <span class="pageNumber"></span> 页 / 共 <span class="totalPages"></span> 页</span>',
   });
 
