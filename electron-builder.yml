@@ -46,10 +46,9 @@ nsis:
   uninstallDisplayName: 物业租赁综合管理系统
 win:
   target:
+    # 只出 NSIS 安装包。曾同时配 zip 目标 —— electron-builder 会把整包（约 590MB）
+    # 对每个目标各完整压一遍，打包时间直接翻倍；zip 分发包已确认不需要，故移除。
     - target: nsis
-      arch:
-        - x64
-    - target: zip
       arch:
         - x64
   sign: null

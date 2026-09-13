@@ -165,7 +165,6 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 | 文件 | 说明 |
 |------|------|
 | `property-rental-system-setup-1.0.5.exe` | NSIS 安装包（自动更新用） |
-| `物业租赁综合管理系统-1.0.5-x64.zip` | zip 分发包 |
 | `latest.yml` | electron-updater 更新清单（url 指向 setup 名） |
 | `win-unpacked/` | 解包目录（调试用） |
 
@@ -176,7 +175,7 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 - **安装包命名一致性**：NSIS 目标 `artifactName` 为 `${name}-setup-${version}.exe`（纯 ASCII），保证磁盘安装包名与 `latest.yml` 的 url 一致（否则 electron-updater 自动更新找不到安装包）。
 - 打包前需**停掉 dev 进程**（dev 会锁定 `backend/node_modules` 与 `runtime/node/node.exe`）。
 - **压缩级别用 `compression: normal`（默认值）**：`maximum` 会让 7za 单线程以最高档压缩整包，实测耗时 30+ 分钟（zip 28 分钟 + NSIS 4 分钟），产物内容与 `normal` 完全相同、仅体积略小，不值得。
-- **zip 目标会重复压缩**：`win.target` 里的 nsis 与 zip 各自完整压一遍，若不需要 zip 分发包就删掉该目标，打包时间直接减半。
+- **只出 NSIS 安装包（不再出 zip）**：`win.target` 曾同时配 nsis + zip —— electron-builder 会把整包对每个目标各完整压一遍，打包时间直接翻倍。zip 分发包已确认不需要，配置里已移除该目标；`release/` 产物为 setup exe + blockmap + latest.yml + win-unpacked/。
 
 ---
 

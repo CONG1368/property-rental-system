@@ -64,9 +64,9 @@ node scripts/generate-manual-pdf.js
 
 **默认登录凭据：** `admin / admin123`（数据库首次启动自动创建）
 
-**版本号**：仅根目录 `package.json` 中的 `version` 字段决定打包版本号。发版前先修改此字段，然后执行 `npm run build` 全量构建。构建产物输出到 `release/` 目录（NSIS exe + zip + blockmap）。
+**版本号**：仅根目录 `package.json` 中的 `version` 字段决定打包版本号。发版前先修改此字段，然后执行 `npm run build` 全量构建。构建产物输出到 `release/` 目录（NSIS 安装包 setup exe + blockmap + latest.yml）。
 
-**打包压缩级别必须是 `normal`（踩过的坑）**：`electron-builder.yml` 的 `compression` 一旦设为 `maximum`，7za 会以最高档 + 单线程压整个 `win-unpacked`（约 590MB），实测 zip 目标耗时 28 分钟、NSIS 目标再花 4 分钟（合计 30+ 分钟），期间 CPU 满载却没有任何进度输出，极易被误判为卡死。`maximum` 与 `normal` 的**产物内容完全相同**，只是体积略小，性价比极低——发版一律用 `normal`（耗时降到几分钟）。另两个提速点：① `win.target` 同时配了 nsis + zip，两个目标各自完整压一遍，不需要 zip 分发包时删掉它（打包时间直接减半）；② 打包前必须停掉 dev（dev 锁 `backend/node_modules` 与 `runtime/node/node.exe`）。
+**打包压缩级别必须是 `normal`（踩过的坑）**：`electron-builder.yml` 的 `compression` 一旦设为 `maximum`，7za 会以最高档 + 单线程压整个 `win-unpacked`（约 590MB），实测 zip 目标耗时 28 分钟、NSIS 目标再花 4 分钟（合计 30+ 分钟），期间 CPU 满载却没有任何进度输出，极易被误判为卡死。`maximum` 与 `normal` 的**产物内容完全相同**，只是体积略小，性价比极低——发版一律用 `normal`（耗时降到几分钟）。`win.target` 曾同时配 nsis + zip，electron-builder 会把整包对每个目标各完整压一遍（打包时间翻倍），已按需求移除 zip 目标、只出 NSIS 安装包；另外打包前必须停掉 dev（dev 锁 `backend/node_modules` 与 `runtime/node/node.exe`）。
 
 **前端 dev 与 build 不要并行（踩过的坑）**：dev server 运行中若在同目录跑 `npm run build:frontend`，Dart Sass 会在源文件旁写 `.xxx.scss.<pid>.<uuid>.tmpdir/` 临时目录，而 Vite 的 FSWatcher 又去 watch 它 → `EBUSY: resource busy or locked` → watcher 抛错未捕获，**dev 进程直接退出（exit 1）**。改动 `variables.scss` 时最容易触发。要构建就先停 dev。
 
