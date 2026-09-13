@@ -168,8 +168,8 @@ components/
 |---|---|---|
 | 静态铁律（含 R2 颜色字面量）| `node scripts/check-static-rules.cjs` | 6/6 |
 | 对比度 | `node scripts/check-contrast.cjs` | 62/62（+3 装饰性豁免）；`--md` 参数可重新生成 `docs/对比度检查报告.md`（该报告为自动生成，勿手改）|
-| 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 6/6（扫描 `frontend/src` 全量；内联 `<el-table>` = 0、自写工具栏样式 = 0、`$令牌` 必须 `lang="scss"`）|
+| 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 7/7（P1–P7；扫描 `frontend/src` 全量；内联 `<el-table>` = 0、自写工具栏样式 = 0、`$令牌` 必须 `lang="scss"`、80mm 热敏模板仅纯黑纯白）|
 | 三档密度无破损 | `node scripts/verify-table-density.cjs` | 14/14 |
-| 全链路 | `npm run test:regression` | 全绿 |
+| 全链路 | `npm run test:regression` | 25/25（静态门禁 + 双端类型/单测 + 端到端脚本串联） |
 
 令牌改动后跑 `node scripts/gen-tokens-ts.cjs` 重新生成 JS 镜像；存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演；存量内联表格迁移用 `node scripts/migrate-tables-to-datatable.cjs --dry` 预演（支持一页多表，遇 `v-for` / 绑定 `:label`/`:prop` 的动态列会跳过，需手工迁移并改用 `column.property`）。

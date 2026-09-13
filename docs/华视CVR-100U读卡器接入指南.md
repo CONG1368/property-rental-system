@@ -1,7 +1,7 @@
 # 华视 CVR-100U 读卡器接入指南
 
 > 适用型号：**华视 CVR-100U**（USB 二代证阅读器）。目标：让物业租赁综合管理系统真实读取身份证信息。
-> 本指南随产品 v1.0.4 更新：SDK 已升级为华视最新开发包（支持居民身份证、外国人永居证、港澳台居住证、新版外国人等证件，含指纹），并改为结构化 API 取数，不再依赖 wz.txt 文件。
+> 本指南随产品 v1.0.5 发布（读卡接入自 v1.0.4 起未变更）：SDK 已升级为华视最新开发包（支持居民身份证、外国人永居证、港澳台居住证、新版外国人等证件，含指纹），并改为结构化 API 取数，不再依赖 wz.txt 文件。
 > 修订（2026-09-11）：修复 **SDK 缓冲区结尾 NUL** 导致真实读卡报 `SQLITE_ERROR: unrecognized token` 的问题（详见第六节），并新增**读卡失败诊断日志**。
 
 ## 一、关键事实（已实测验证）
@@ -124,6 +124,6 @@ SDK 与桥已随安装包分发在 `runtime/idcard/`（electron-builder extraRes
 | 未找到 card_bridge.py / Termb.dll | SDK 目录没放齐 / 高级设置里 SDK 目录配错 |
 | 读不出相片 | license.dat 未随包分发或未授权，检查 runtime/idcard/license.dat |
 | 读卡结果乱码 | 桥已内置 GBK/UTF-8 解码；仍乱码请把现象发来 |
-| 读卡报 `SQLITE_ERROR: unrecognized token` | 旧包 bug：SDK 缓冲区结尾 NUL 被内联进 SQL 导致语句截断。请升级到含 2026-09-11 修订的 v1.0.4（桥与服务层均已剔除 NUL）；细节查 `logs/id-card-error.log` |
+| 读卡报 `SQLITE_ERROR: unrecognized token` | 旧包 bug：SDK 缓冲区结尾 NUL 被内联进 SQL 导致语句截断。请升级到含 2026-09-11 修订的 v1.0.4 或更高版本（当前 v1.0.5）（桥与服务层均已剔除 NUL）；细节查 `logs/id-card-error.log` |
 
 > 实际验证：开发机未接读卡器时读卡，桥能正确返回 `CVR_InitComm` 失败（返回 0）的友好提示；接上读卡器并装好驱动后即可读到真实证件。

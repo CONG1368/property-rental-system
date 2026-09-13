@@ -60,6 +60,9 @@ npm run build:electron         # 先完成前后端构建，再运行此命令
 # 重拍说明书截图 → 再生成说明书 PDF（均需先启动 dev）
 node scripts/capture-manual-screenshots.js
 node scripts/generate-manual-pdf.js
+
+# 产品方案 Markdown → PDF（版本号取自 package.json；--html 额外落中间产物，便于排查渲染）
+node scripts/generate-proposal-pdf.js
 ```
 
 **默认登录凭据：** `admin / admin123`（数据库首次启动自动创建）
@@ -68,13 +71,15 @@ node scripts/generate-manual-pdf.js
 
 **打包压缩级别必须是 `normal`（踩过的坑）**：`electron-builder.yml` 的 `compression` 一旦设为 `maximum`，7za 会以最高档 + 单线程压整个 `win-unpacked`（约 590MB），实测 zip 目标耗时 28 分钟、NSIS 目标再花 4 分钟（合计 30+ 分钟），期间 CPU 满载却没有任何进度输出，极易被误判为卡死。`maximum` 与 `normal` 的**产物内容完全相同**，只是体积略小，性价比极低——发版一律用 `normal`（耗时降到几分钟）。`win.target` 曾同时配 nsis + zip，electron-builder 会把整包对每个目标各完整压一遍（打包时间翻倍），已按需求移除 zip 目标、只出 NSIS 安装包；另外打包前必须停掉 dev（dev 锁 `backend/node_modules` 与 `runtime/node/node.exe`）。
 
+**文档生成器：版本号禁止硬编码 + 表格转换坑（踩过的坑）**：`scripts/generate-manual-pdf.js` 与 `scripts/generate-proposal-pdf.js` 的**源文件名、输出名、页眉版本号一律从根 `package.json` 的 version 拼接**——产品方案生成器曾把 `v1.0.2` 写死在文件名与页眉里，改版本时漏改就会产出旧版本号的文档。产品方案的 Markdown→HTML 表格转换曾用两次正则分别插 `<table>`/`</table>`：**3 行以上的表格会插出多个 `<table>`，剩下的裸 `<tr>` 会被浏览器解析器直接丢弃**，整张表塌成一段连在一起的文字（「数据库设计」表就这么丢的，肉眼很难发现），已改为整块一次性包裹并让首行输出 `<th>`；表格首列与表头加 `white-space: nowrap`，否则自动列宽会把中文挤成「租 赁 与 合 同」竖排。**重生成任何文档 PDF 后，都要用 `pdf-parse` 抽一次文本核对**（页数 + 关键短语/数字），别只看脚本打印的「生成成功」。
+
 **前端 dev 与 build 不要并行（踩过的坑）**：dev server 运行中若在同目录跑 `npm run build:frontend`，Dart Sass 会在源文件旁写 `.xxx.scss.<pid>.<uuid>.tmpdir/` 临时目录，而 Vite 的 FSWatcher 又去 watch 它 → `EBUSY: resource busy or locked` → watcher 抛错未捕获，**dev 进程直接退出（exit 1）**。改动 `variables.scss` 时最容易触发。要构建就先停 dev。
 
 ## 技术栈
 
 | 层 | 技术 | 关键版本 |
 |---|------|---------|
-| 前端框架 | Vue 3 Composition API (`<script setup lang="ts">`) | 3.4 |
+| 前端框架 | Vue 3 Composition API (`<script setup lang="ts">`) | 3.5 |
 | UI 库 | Element Plus + @element-plus/icons-vue | 2.5 |
 | 图表 | ECharts 6 + vue-echarts 8 | - |
 | PDF 导出 | Electron printToPDF（文字PDF，主路径）+ html2canvas/jspdf（截图回退） | 打印/导出 |
@@ -83,12 +88,12 @@ node scripts/generate-manual-pdf.js
 | 状态管理 | Pinia | 2.1 |
 | 路由 | Vue Router 4 (hash 模式) | 4.3 |
 | HTTP 客户端 | Axios (拦截器自动附加 Bearer token + 401 自动刷新) | - |
-| 后端框架 | Express | 4.18 |
+| 后端框架 | Express | 4.22 |
 | ORM | Sequelize 6 (SQLite 默认 / MySQL 可选) | 6.37 |
 | 认证 | JWT (access 4h + refresh 7d) | - |
-| 定时任务 | node-cron (账单生成/催缴/折旧/合同到期) | - |
+| 定时任务 | node-cron (账单生成/催缴升级/合同到期/月度折旧/物业自动化/月度简报/门锁清理，共 7 个) | - |
 | 实时通信 | WebSocket (ws) — 路径 `/ws` | - |
-| 打包 | electron-builder (NSIS 安装包, x64) | - |
+| 打包 | electron-builder (NSIS 安装包, x64, compression: normal) | - |
 
 ## 项目结构
 
@@ -98,7 +103,7 @@ node scripts/generate-manual-pdf.js
 │       ├── api/               # Axios 请求模块（每个业务域一个文件）
 │       ├── components/
 │       │   ├── layout/        # AppLayout.vue — 主布局（侧边栏+顶栏）
-│       │   └── print/         # 打印 HTML 模板（5套：合同/租客/账单/收据/批量）
+│       │   └── print/         # 打印 HTML 模板（6套：合同/租客/账单/收据/批量汇总/月度简报）
 │       ├── router/            # 路由定义（hash 模式，token 导航守卫）
 │       ├── composables/       # Vue3 组合式函数（useWebSocket / useIdCardReader）
 │       ├── utils/             # 工具模块（打印服务/头像/凭证存储）
@@ -109,10 +114,10 @@ node scripts/generate-manual-pdf.js
 │       ├── index.ts           # 入口：连接DB→迁移→同步表→种子数据→启动HTTP+WS
 │       ├── app.ts             # Express 应用（helmet/cors/morgan/json/路由/错误处理）
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
-│       ├── models/            # Sequelize 模型（65 个模型 + index/BaseModel）
-│       ├── routes/            # Express 路由（66 个模块 + index，统一挂载 /api 前缀）
+│       ├── models/            # Sequelize 模型（69 个 + index/BaseModel）
+│       ├── routes/            # Express 路由（67 个模块 + index，统一挂载 /api 前缀）
 │       ├── middleware/        # auth / rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
-│       ├── services/          # 业务服务层（38 个）
+│       ├── services/          # 业务服务层（41 个）
 │       ├── jobs/scheduler.ts  # 7 个 cron 定时任务（任务注册表）
 │       └── websocket/         # WebSocket 广播
 ├── electron/                  # Electron 主进程 + preload
@@ -405,8 +410,8 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 
 | 维度 | 状态 |
 |------|------|
-| 后端路由模块 | 全部实现（66 个路由模块） |
-| 后端服务 | 全部完整（38 个业务服务） |
+| 后端路由模块 | 全部实现（67 个路由模块） |
+| 后端服务 | 全部完整（41 个业务服务） |
 | 前端页面 | 全部功能完整（87 个页面） |
 | 前端 TypeScript | 0 错误 |
 | 后端 TypeScript | 0 错误 |
@@ -541,7 +546,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 - **段落文本**（条款 content、备注、消防违规处罚等）：用 `wrapTextAsParagraphs(text, extraStyle)` 拆分+段落化
 - **表格单元格**：`td()` 内置 `normLines(value).join('<br>')`；**屏幕端**用 `white-space:pre-wrap`
 
-已覆盖 5 套打印模板 + 各详情/报表页的多行字段。
+已覆盖 6 套打印模板 + 各详情/报表页的多行字段。
 
 **80mm 热敏小票必须按「二值设备」写模板（踩过的坑）**：热敏机每个点只有黑/白，浏览器给的是带抗锯齿的 8 位灰度位图，驱动必须再二值化一次 → 模板里任何浅色都被拆成稀疏网点：小字糊版，彩色金额被打成空心点阵甚至整片消失（实测 `#E6A23C` 亮度 170/255，阈值法直接整片变白）。`ReceiptPrint.ts` 因此定下四条硬规则：① 只用纯黑 `#000`，层级靠字号 + 字重表达；② 正文 13px + `font-weight:700`，203dpi 下笔画 ≥2 个点；③ 内容宽 **60mm**（**不许调宽**，见下文裁字坑）+ `@page { margin: 0 }`（不写 size，纸张交给驱动，避免强制 297mm 长页走纸）；原生打印还必须显式传 `margins: { marginType: 'none' }`；PDF 纸张由 `print-service.ts` 的 `withPaperSize()` 注入——Chromium 的 `preferCSSPageSize` **只认「宽 高」两个长度值**，`size:80mm auto` 被静默忽略而退回 Letter（215.9×279.4mm，实测），单值 `size:80mm` 则是正方形，两条 `@page` 规则（size / margin）会正常合并；**合同模板过去只写 `@page{margin}` 没写 size，导出 PDF 一直是 Letter 而非 A4，已一并修正**；④ 分隔线用 1px 实线（虚线二值化后碎成一行断点）。复现手法：按 `deviceScaleFactor = 203/96` 渲染截图后再做阈值/Floyd–Steinberg 抖动，即得热敏机实际输出，不必真机试错；对比见 `docs/小票打印-二值化前后对比.png`。
 
@@ -681,7 +686,7 @@ off('room:status-changed', callback);
 
 （打印服务三种模式见上文「PDF 导出引擎」，此处只记模板与入口）
 
-**打印模板**：`frontend/src/components/print/` 下 5 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+签章位+Logo）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）。
+**打印模板**：`frontend/src/components/print/` 下 6 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+签章位+Logo）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）、`BriefingPrint`（月度经营简报）。
 
 **打印入口**：合同详情页（头部打印下拉：直接打印 / 导出PDF）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
 
