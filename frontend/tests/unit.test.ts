@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { toChineseAmount, formatDate } from '@/utils/print-service';
 import { buildBillHTML } from '@/components/print/BillPrint';
+import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 import { readSheetAsObjects, buildWorkbookBlob } from '@/utils/excel';
 
 describe('金额大写（打印/收据的法律要件）', () => {
@@ -67,6 +68,40 @@ describe('账单打印模板', () => {
     expect(html.length).toBeGreaterThan(200);
     expect(html).toContain('<table');
     expect(html).toContain('2026-09');   // 账期出现在票面
+  });
+});
+
+describe('收款凭证打印模板（80mm 热敏小票）', () => {
+  const data: any = {
+    receiptNo: 'REC-2026-0001',
+    tenantName: '张伟明',
+    propertyName: '阳光花园 A-1203',
+    amount: 2500,
+    paymentChannel: '微信支付',
+    paidAt: '2026-09-13 10:30',
+    period: '2026-09',
+    transactionNo: 'TXN2500',
+    companyLogo: '',
+    companySeal: '',
+  };
+
+  it('票面抬头不打印甲方公司名，只保留标题「收款凭证」', () => {
+    const html = buildReceiptHTML({ ...data, companyName: '某某物业管理有限公司' } as any);
+    expect(html).not.toContain('某某物业管理有限公司');
+    expect(html).not.toContain('物业租赁管理公司');   // 旧的兜底甲方名也不能再出现
+    expect(html).toContain('收款凭证');
+  });
+
+  it('全文不加粗（热敏机上粗体笔画互相挤压会糊版）', () => {
+    const html = buildReceiptHTML(data);
+    expect(html).not.toMatch(/font-weight\s*:\s*(bold|[6-9]\d\d)/i);
+    expect(html).toContain('font-weight: 400');
+  });
+
+  it('金额大写与 60mm 内容宽（防右侧裁字）保持不变', () => {
+    const html = buildReceiptHTML(data);
+    expect(html).toContain(toChineseAmount(2500));
+    expect(html).toContain('width: 60mm');
   });
 });
 

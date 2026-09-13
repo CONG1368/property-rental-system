@@ -118,7 +118,7 @@
           <div class="preview-section" style="margin-top:16px">
             <h4 style="margin:0 0 8px;color:var(--n-700)">收据预览（80mm 热敏小票）</h4>
             <iframe class="receipt-preview" :srcdoc="receiptPreview" title="收据预览"></iframe>
-            <p class="preview-tip">热敏机是黑白二值设备，此处即实际版式：全部纯黑、无灰阶，金额不使用彩色。</p>
+            <p class="preview-tip">热敏机是黑白二值设备，此处即实际版式：全部纯黑、无灰阶、不加粗，金额不使用彩色；抬头只保留 Logo 与「收款凭证」，不打印甲方公司名。</p>
           </div>
         </el-card>
       </el-col>
@@ -154,7 +154,7 @@ const receiptPreview = computed(() => buildReceiptHTML({
   paidAt: '2026-05-16 10:30',
   period: '2026-05',
   transactionNo: 'TXN2500',
-  companyName: form.companyName || '物业租赁管理公司',
+  // 收款凭证票面不打印甲方公司名，故不传 companyName（见 ReceiptPrint.ts 文件头第 6 条）
   companyLogo: form.companyLogo,
   companySeal: form.companySeal,
 }));
