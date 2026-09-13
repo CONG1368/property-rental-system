@@ -2,7 +2,7 @@
 
 ---
 
-# Property Rental Management System
+# Comprehensive Property Rental Management System
 
 A full-stack desktop application for property rental management, covering property management, tenant management, rent collection & dunning, full contract lifecycle, property operations, fire safety management, financial accounting, and report analysis.
 
