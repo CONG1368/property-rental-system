@@ -241,6 +241,14 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 ### 问题 7：读卡报 `SQLITE_ERROR: unrecognized token`
 **解决：** 华视 SDK 缓冲区结尾的 NUL 被内联进 SQL 导致语句截断。v1.0.4（2026-09-11 修订）起桥（`runtime/idcard/card_bridge.py`）与服务层（`sanitizeIdNumber()`）均已剔除。若仍出现，查 `resources/backend/logs/id-card-error.log`（完整 SQL + 堆栈）与 `%APPDATA%\property-rental-system\logs\startup-*.log` 的 `[读卡失败]` 段。
 
+### 问题 8：启动时弹「服务启动失败」，但登录后能正常使用
+**原因：** 同时运行了两个实例，后启动者拉起第二个后端抢占 3001 端口，`listen EADDRINUSE` 后以 exit 1 退出，主进程据此弹出「服务启动失败」；先启动的后端仍在服务，于是出现「报错却能正常登录」的矛盾现象。
+**解决：** v1.0.5（2026-09-13 修订）起 `main.ts` 已加 `app.requestSingleInstanceLock()`（重复启动只激活已有窗口），`spawnBackend()` 会先探 `/api/health` 复用健康后端，`before-quit` 调 `stopBackend()` 避免残留进程占端口；弹窗诊断同时输出启动日志与 stderr。排查确认：`%APPDATA%\property-rental-system\logs\startup-*.log` 里出现**两段启动头**而只有一段 `Server running`，即为双实例。
+
+### 问题 9：80mm 小票右侧缺字（内容被裁）
+**原因：** 内容宽度相对纸面被整体右推约 6mm（Chromium 页面盒原点与纸边不重合，或驱动的默认页边距覆盖了模板的 `@page{margin:0}`），原 68mm 宽的版式正好顶到纸边，尾字符被切。
+**解决：** v1.0.5（2026-09-13 修订）起 `ReceiptPrint.ts` 内容宽改为 **60mm**、收据号/日期/交易号整行折行，并在 `print-html` 中对 80mm 小票显式传 `margins:{marginType:'none'}`（A4 仍走 default）。打印机侧请在对话框选 **80mm 纸 + 无边距 + 缩放 100%**。复现与量测方法见 `CLAUDE.md` 的「80mm 热敏小票」章节。
+
 ---
 
 ## 十一、联系与支持

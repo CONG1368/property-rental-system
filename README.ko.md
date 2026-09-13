@@ -56,6 +56,8 @@ npm run build          # 전체 빌드 (프론트엔드 → 백엔드 → Electr
 npm run build:electron # Electron 설치 프로그램만 패키징
 ```
 
+> 패키징 전에 dev를 중지하세요(`backend/node_modules`, `runtime/node/node.exe` 잠김 → EPERM). `electron-builder.yml`은 `compression: normal` + NSIS 단일 대상이며 실측 약 6분 소요. 산출물은 `release/`(`property-rental-system-setup-<version>.exe` + blockmap + `latest.yml`)이며 zip 배포본은 생성하지 않습니다.
+
 ### 데이터베이스 전환
 
 기본값은 SQLite(설정 불필요). MySQL로 전환하려면 `backend/.env` 파일을 편집:

@@ -55,6 +55,8 @@ npm run build          # Full build (frontend → backend → Electron)
 npm run build:electron # Package Electron installer only
 ```
 
+> Stop the dev server before packaging (otherwise `backend/node_modules` and `runtime/node/node.exe` are locked and the build fails with EPERM). `electron-builder.yml` uses `compression: normal` with the NSIS target only; a full package takes about 6 minutes. Artifacts land in `release/` (`property-rental-system-setup-<version>.exe` + blockmap + `latest.yml`); no zip distribution is produced any more.
+
 ### Database Switching
 
 SQLite is used by default (zero configuration). Edit `backend/.env` to switch to MySQL:

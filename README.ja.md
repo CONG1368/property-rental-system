@@ -56,6 +56,8 @@ npm run build          # 全体ビルド（フロントエンド → バック�
 npm run build:electron # Electron インストーラのみパッケージ
 ```
 
+> パッケージ前に dev を停止してください（`backend/node_modules` と `runtime/node/node.exe` がロックされ EPERM になります）。`electron-builder.yml` は `compression: normal`／NSIS のみで、所要は実測約 6 分。成果物は `release/`（`property-rental-system-setup-<version>.exe` + blockmap + `latest.yml`）で、zip 配布物は生成しません。
+
 ### データベース切替
 
 デフォルトは SQLite（ゼロ設定）。MySQL に切り替えるには `backend/.env` を編集：

@@ -55,6 +55,8 @@ npm run build          # 全局构建（前端 → 后端 → Electron）
 npm run build:electron # 仅打包 Electron 安装包
 ```
 
+> 打包前请先停掉 dev（否则 `backend/node_modules`、`runtime/node/node.exe` 被占用会报 EPERM）。`electron-builder.yml` 用 `compression: normal` 且只出 NSIS 安装包，整包实测约 6 分钟；产物在 `release/`（`property-rental-system-setup-<version>.exe` + blockmap + `latest.yml`），**不再产出 zip 分发包**。
+
 ### 数据库切换
 
 默认使用 SQLite（零配置），编辑 `backend/.env` 切换为 MySQL：
