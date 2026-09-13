@@ -314,7 +314,7 @@ ipcMain.handle('export-pdf', async (_event, html: string, title: string) => {
 });
 
 // HTML 原生打印（临时文件渲染 → 弹出系统打印对话框）
-ipcMain.handle('print-html', async (_event, html: string, title: string) => {
+ipcMain.handle('print-html', async (_event, html: string, title: string, options?: { marginType?: 'default' | 'none' | 'printableArea' | 'custom' }) => {
   return new Promise((resolve) => {
     // 写入临时 HTML 文件（避免 data: URL 的长度限制和编码问题）
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'property-print-'));
@@ -340,6 +340,9 @@ ipcMain.handle('print-html', async (_event, html: string, title: string) => {
       printWin.webContents.print({
         silent: false,
         printBackground: true,
+        // 80mm 小票必须显式无边距：部分驱动的「默认页边距」会盖掉模板里的 @page{margin:0}，
+        // 把内容整体右推约 6mm，68mm 宽的小票右侧因此被裁字（实机复现，见 ReceiptPrint.ts）。
+        margins: { marginType: options?.marginType || 'default' },
       }, (success, failureReason) => {
         printWin.close();
         // 清理临时文件

@@ -58,7 +58,7 @@ function withPaperSize(html: string, paperSize: PaperSize): string {
 
 export async function printDocument(options: PrintOptions): Promise<void> {
   if (options.mode === 'native') {
-    return printNative(options.htmlContent, options.title);
+    return printNative(options.htmlContent, options.title, options.paperSize);
   }
   // PDF导出统一走 printToPDF 文字引擎，Electron 内原生文字PDF
   if (isElectron()) {
@@ -209,14 +209,18 @@ function extractBlocksHTML(html: string): string[] {
   return blocks.length > 0 ? blocks : [html];
 }
 
-async function printNative(htmlContent: string, title: string): Promise<void> {
+async function printNative(htmlContent: string, title: string, paperSize: PaperSize = 'A4'): Promise<void> {
   const api = (window as any).electronAPI;
   if (!api || !api.printHTML) {
     return printPDF({ title, paperSize: 'A4', htmlContent, mode: 'pdf' });
   }
 
   try {
-    const result = await api.printHTML(htmlContent, title);
+    // 80mm 小票：显式无边距打印，避免驱动的默认页边距把内容右推导致右侧裁字。
+    // A4 文档仍用 default，让 @page 页边距/正文 16px 内边距照常生效。
+    const result = await api.printHTML(htmlContent, title, {
+      marginType: paperSize === '80mm' ? 'none' : 'default',
+    });
     if (!result.success) {
       throw new Error(result.failureReason || '打印失败');
     }

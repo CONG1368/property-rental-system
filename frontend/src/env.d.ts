@@ -18,7 +18,7 @@ interface Window {
     getBackendUrl: () => Promise<string>;
     openFileDialog: (options: any) => Promise<any>;
     saveFileDialog: (options: any) => Promise<any>;
-    printHTML?: (html: string, title: string) => Promise<{ success: boolean; failureReason?: string }>;
+    printHTML?: (html: string, title: string, options?: { marginType?: 'default' | 'none' | 'printableArea' | 'custom' }) => Promise<{ success: boolean; failureReason?: string }>;
     exportPDF?: (html: string, title: string) => Promise<{ success: boolean; filePath?: string | null; error?: string }>;
     saveFile?: (options: any) => Promise<any>;
     onMenuNavigate: (callback: (path: string) => void) => void;

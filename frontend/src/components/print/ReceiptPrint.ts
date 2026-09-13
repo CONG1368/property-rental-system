@@ -31,7 +31,10 @@ function esc(v: unknown): string {
  * 橙色金额被打成空心点阵甚至整片消失。本模板的写法都围绕这一条：
  *   1. 只用纯黑 #000。层级靠字号 + 字重表达，不用灰度、不用彩色；
  *   2. 正文 13px 且加粗，笔画在 203dpi 下 ≥2 个点，二值化后不断笔；
- *   3. 内容宽 68mm，小于 80mm 机型的 72mm 可打印区，避免驱动缩放或裁边；
+ *   3. 内容宽 60mm。**不要调宽**：用户 80mm 实机在 68mm 时右侧被裁字（收据号/日期/
+ *      交易号尾字符被切掉）——Chromium 的页面盒原点与纸边不重合，或驱动的「默认页边距」
+ *      覆盖了 @page{margin:0}，会把内容整体右推约 6mm；68mm 正好顶到纸边，60mm 才留出余量。
+ *      配套：原生打印路径显式传 margins:{marginType:'none'}（见 electron/main.ts）；
  *   4. 模板只声明 @page margin:0，纸张尺寸交给打印驱动——实测用户的 80mm 驱动纸张
  *      本来就是对的，强行指定反而可能让它按 297mm 长页走纸；导出 PDF 的纸张尺寸
  *      由 print-service 的 withPaperSize() 注入（见那里的注释）；
@@ -61,7 +64,7 @@ export function buildReceiptHTML(data: ReceiptPrintData): string {
     print-color-adjust: exact;
   }
   .rcpt {
-    width: 68mm; margin: 0 auto; padding: 3mm 0 6mm;
+    width: 60mm; margin: 0 auto; padding: 3mm 0 6mm;
     font-size: 13px; font-weight: 700; line-height: 1.45;
   }
   .rcpt .c { text-align: center; }
@@ -70,6 +73,8 @@ export function buildReceiptHTML(data: ReceiptPrintData): string {
   .rcpt td { padding: 1px 0; vertical-align: top; word-break: break-all; }
   .rcpt td.k { width: 4.8em; white-space: nowrap; padding-right: 6px; }
   .rcpt td.v { text-align: right; }
+  /* 长单号独占整行并允许折行：放进右对齐的窄列会折出「-09-」这种孤零零的尾巴 */
+  .rcpt td.no { white-space: normal; word-break: break-all; }
   .rcpt .t1 { font-size: 15px; letter-spacing: 1px; margin: 3px 0; }
   .rcpt .t2 { font-size: 17px; letter-spacing: 4px; margin: 3px 0; }
   .rcpt .lbl { font-size: 12px; margin: 0; }
@@ -89,9 +94,9 @@ export function buildReceiptHTML(data: ReceiptPrintData): string {
   </div>
   <div class="hr"></div>
   <table>
-    <tr><td class="k">收据号：</td><td class="v">${esc(data.receiptNo || '-')}</td></tr>
-    <tr><td class="k">日期：</td><td class="v">${esc(formatDate(data.paidAt || new Date(), 'YYYY-MM-DD HH:mm'))}</td></tr>
-    <tr><td class="k">交易号：</td><td class="v">${esc(data.transactionNo || '-')}</td></tr>
+    <tr><td class="no" colspan="2">收据号：${esc(data.receiptNo || '-')}</td></tr>
+    <tr><td class="no" colspan="2">日期：${esc(formatDate(data.paidAt || new Date(), 'YYYY-MM-DD HH:mm'))}</td></tr>
+    <tr><td class="no" colspan="2">交易号：${esc(data.transactionNo || '-')}</td></tr>
   </table>
   <div class="hr"></div>
   <table>
