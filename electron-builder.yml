@@ -55,4 +55,7 @@ win:
   sign: null
   signAndEditExecutable: false
 asar: true
-compression: maximum
+# 压缩级别：normal（electron-builder 默认值）。
+# 曾用 maximum —— 7za 单线程以最高档压整个 win-unpacked(约 590MB)，实测耗时 30+ 分钟
+# （zip 28 分钟 + NSIS 4 分钟）。两者产物内容完全一致，maximum 仅体积略小，不值得。
+compression: normal

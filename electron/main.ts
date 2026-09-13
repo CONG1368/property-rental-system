@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { spawnBackend } from './spawn-backend';
+import { spawnBackend, stopBackend } from './spawn-backend';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 const execFileP = promisify(execFile);
@@ -442,23 +442,45 @@ ipcMain.handle('get-meter-token-status', async () => {
 
 ipcMain.handle('stop-meter-sync', async () => { stopSmartMeterSync(); return { status: 'stopped' }; });
 
-app.whenReady().then(async () => {
-  buildMenu();
-  try {
-    await spawnBackend();
-  } catch (err: any) {
-    console.error('Failed to start backend:', err);
-    // 硬错误弹窗提示（文件缺失、进程崩溃），超时错误不弹窗（登录页会显示等待状态）
-    if (err.message?.includes('not found') || err.message?.includes('exited with code')) {
-      dialog.showErrorBox(
-        '服务启动失败',
-        `后端服务未能正常启动。\n\n${err.message}\n\n请尝试重新安装应用程序。`
-      );
-    }
-  }
-  createWindow();
-});
-
-app.on('window-all-closed', () => {
+// ===== 单实例锁（踩过的坑）=====
+// 不加锁时重复启动会产生两个 Electron 实例，各自拉起一个后端去抢 3001 端口：
+// 后启动的那个以 EADDRINUSE 退出（exit 1）→ 弹出「服务启动失败」，而先启动的后端仍在服务，
+// 所以用户看到「能正常登录但却报启动失败」这条自相矛盾的错误。
+// 加锁后第二个实例只把已有窗口激活，绝不再拉起第二个后端。
+if (!app.requestSingleInstanceLock()) {
   app.quit();
-});
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(async () => {
+    buildMenu();
+    try {
+      await spawnBackend();
+    } catch (err: any) {
+      console.error('Failed to start backend:', err);
+      // 硬错误弹窗提示（文件缺失、进程崩溃），超时错误不弹窗（登录页会显示等待状态）
+      if (err.message?.includes('not found') || err.message?.includes('exited with code')) {
+        dialog.showErrorBox(
+          '服务启动失败',
+          `后端服务未能正常启动。\n\n${err.message}\n\n请尝试重新安装应用程序。`
+        );
+      }
+    }
+    createWindow();
+  });
+
+  app.on('window-all-closed', () => {
+    app.quit();
+  });
+
+  // 退出时结束后端子进程——否则残留进程会一直占着 3001 端口，下次启动必报端口占用
+  app.on('before-quit', () => {
+    stopBackend();
+  });
+}

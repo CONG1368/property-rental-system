@@ -66,6 +66,8 @@ node scripts/generate-manual-pdf.js
 
 **版本号**：仅根目录 `package.json` 中的 `version` 字段决定打包版本号。发版前先修改此字段，然后执行 `npm run build` 全量构建。构建产物输出到 `release/` 目录（NSIS exe + zip + blockmap）。
 
+**打包压缩级别必须是 `normal`（踩过的坑）**：`electron-builder.yml` 的 `compression` 一旦设为 `maximum`，7za 会以最高档 + 单线程压整个 `win-unpacked`（约 590MB），实测 zip 目标耗时 28 分钟、NSIS 目标再花 4 分钟（合计 30+ 分钟），期间 CPU 满载却没有任何进度输出，极易被误判为卡死。`maximum` 与 `normal` 的**产物内容完全相同**，只是体积略小，性价比极低——发版一律用 `normal`（耗时降到几分钟）。另两个提速点：① `win.target` 同时配了 nsis + zip，两个目标各自完整压一遍，不需要 zip 分发包时删掉它（打包时间直接减半）；② 打包前必须停掉 dev（dev 锁 `backend/node_modules` 与 `runtime/node/node.exe`）。
+
 **前端 dev 与 build 不要并行（踩过的坑）**：dev server 运行中若在同目录跑 `npm run build:frontend`，Dart Sass 会在源文件旁写 `.xxx.scss.<pid>.<uuid>.tmpdir/` 临时目录，而 Vite 的 FSWatcher 又去 watch 它 → `EBUSY: resource busy or locked` → watcher 抛错未捕获，**dev 进程直接退出（exit 1）**。改动 `variables.scss` 时最容易触发。要构建就先停 dev。
 
 ## 技术栈
@@ -291,6 +293,7 @@ function decodeFilename(name: string): string {
 4. 开发模式窗口加载 `http://localhost:5173`，生产模式加载 `file://` 协议
 5. 生产模式禁止开发者工具（拦截 `devtools-opened` 事件）
 6. **两个真实生产坑（发版必记）**：① 版本号不能运行时读 package.json（在 app.asar 里读不到）——改为构建期 `scripts/gen-build-version.cjs` 注入 `BUILD_VERSION`；② 终端一关，主进程 `console.log` 后端 stdout 抛 **EPIPE 崩主进程**——stdout/stderr 写入包 try/catch，且 `main.ts` 对 `process.stdout/stderr` 加全局 `stream.on('error')`
+7. **单实例锁 + 后端日志必须同步落盘（踩过的坑）**：`main.ts` 的启动流程整体包在 `app.requestSingleInstanceLock()` 的 else 分支里——不加锁时重复启动（连点图标 / 安装器自启 + 手动点）会产生两个实例，各自拉起一个后端抢 3001 端口，**后启动者 `listen EADDRINUSE` 退出（exit 1）→ 弹「服务启动失败」，而先启动的后端仍在服务，于是出现「能正常登录却报启动失败」的自相矛盾弹窗**（实测复现：第二个进程的启动日志停在 `[DB] Admin user ready`，且该日志与第一个进程同秒写出、混在同一个 `startup-*.log` 里）。配套保险：① `spawnBackend()` 先探 `/api/health`，已有健康后端直接复用不重复拉起；② 子进程 `close` 时再探一次，占用者健康则 resolve 而非 reject；③ `before-quit` 调 `stopBackend()`，避免残留进程继续占端口；④ 弹窗诊断必须**同时**带启动日志与 stderr——原来的 `logContent || stderrBuffer` 只要日志非空就把真正的死因丢掉。后端 `index.ts` 的启动日志改为 `fs.openSync` + `fs.writeSync` **同步写**：`WriteStream` 异步缓冲，致命路径上 `process.exit(1)` 紧跟 `logStream.end()` 会把 `[ERR]/[FATAL]` 行整段丢掉，这正是那条弹窗「日志里看不出问题」的原因。
 
 ### RBAC 权限体系（双层防护 + 可配置化 + 二次确认）
 

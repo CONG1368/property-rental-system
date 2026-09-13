@@ -41,7 +41,26 @@ function waitForHealth(maxAttempts = 30, intervalMs = 500): Promise<void> {
   });
 }
 
-export function spawnBackend(): Promise<void> {
+/** 一次性探测：3001 端口上是否已有健康后端在跑（另一个实例 / 上一次残留的进程） */
+function probeExistingBackend(timeoutMs = 800): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v: boolean) => { if (!settled) { settled = true; resolve(v); } };
+    const req = http.get('http://localhost:3001/api/health', (res) => {
+      res.resume();
+      done(res.statusCode === 200);
+    });
+    req.on('error', () => done(false));
+    req.setTimeout(timeoutMs, () => { req.destroy(); done(false); });
+  });
+}
+
+export async function spawnBackend(): Promise<void> {
+  // 前置检查：端口上已有健康后端 → 直接复用，绝不重复拉起（重复拉起必然 EADDRINUSE 退出）
+  if (await probeExistingBackend()) {
+    console.log('[Backend] 3001 端口已有健康后端在运行，复用现有实例');
+    return;
+  }
   return new Promise((resolve, reject) => {
     const isPackaged = app.isPackaged;
 
@@ -141,9 +160,16 @@ export function spawnBackend(): Promise<void> {
       if (!resolved) { clearTimeout(healthPollFallback); resolved = true; reject(err); }
     });
 
-    backendProcess.on('close', (code) => {
+    backendProcess.on('close', async (code) => {
       if (!resolved) {
         clearTimeout(healthPollFallback);
+        // 端口被占用但已有健康后端在服务（例如另一个实例或残留进程）→ 视为就绪，不报错
+        if (await probeExistingBackend()) {
+          console.log(`[Backend] 子进程退出（code=${code}），但 3001 已有健康后端在服务，复用现有实例`);
+          resolved = true;
+          resolve();
+          return;
+        }
         resolved = true;
         // 尝试读取后端启动日志文件
         let logContent = '';
@@ -161,10 +187,12 @@ export function spawnBackend(): Promise<void> {
           }
         } catch {}
 
-        // 如果日志中没有错误信息，附加 stderr 最后部分
-        const diagnostics = logContent || (stderrBuffer ? stderrBuffer.slice(-2000) : '');
-        const baseMsg = `Backend exited with code ${code}`;
-        reject(new Error(diagnostics ? `${baseMsg}\n\n诊断日志:\n${diagnostics}` : baseMsg));
+        // 日志与 stderr 必须都带上：启动日志里只有正常流程（致命错误写在缓冲的 WriteStream 里，
+        // process.exit(1) 会把它整段丢掉），真正的死因（如 EADDRINUSE）只在 stderr 中。
+        const parts = [`Backend exited with code ${code}`];
+        if (logContent) parts.push(`诊断日志:\n${logContent}`);
+        if (stderrBuffer.trim()) parts.push(`错误输出:\n${stderrBuffer.trim().slice(-2000)}`);
+        reject(new Error(parts.join('\n\n')));
       }
     });
 

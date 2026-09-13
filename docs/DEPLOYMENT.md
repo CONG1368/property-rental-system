@@ -175,7 +175,8 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 - **运行时资源**：`electron-builder.yml` 的 `extraResources` 按需从磁盘复制 `runtime/node`（Node）、`runtime/python-x86`（32 位 Python 桥）、`runtime/idcard`（华视 SDK + 桥 + license.dat）、`runtime/idcard-driver`（华视内核驱动）。`runtime/*` **不进 Git**（gitignore），仅随包分发。
 - **安装包命名一致性**：NSIS 目标 `artifactName` 为 `${name}-setup-${version}.exe`（纯 ASCII），保证磁盘安装包名与 `latest.yml` 的 url 一致（否则 electron-updater 自动更新找不到安装包）。
 - 打包前需**停掉 dev 进程**（dev 会锁定 `backend/node_modules` 与 `runtime/node/node.exe`）。
-- `compression: maximum` 时 NSIS 压缩较慢（约 10-20 分钟）。
+- **压缩级别用 `compression: normal`（默认值）**：`maximum` 会让 7za 单线程以最高档压缩整包，实测耗时 30+ 分钟（zip 28 分钟 + NSIS 4 分钟），产物内容与 `normal` 完全相同、仅体积略小，不值得。
+- **zip 目标会重复压缩**：`win.target` 里的 nsis 与 zip 各自完整压一遍，若不需要 zip 分发包就删掉该目标，打包时间直接减半。
 
 ---
 
