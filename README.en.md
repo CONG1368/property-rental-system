@@ -110,11 +110,11 @@ DB_NAME=property_rental
 | Property Management | Property registration, status tracking, area/layout/fee standards, bulk import |
 | Tenant Management | Tenant info, contract association, credit scoring |
 | Rent Collection | Bill generation, manual creation, payment records, fee breakdown (rent / water / electricity / property / other) |
-| Smart Dunning | Four-level dunning escalation (before due / 1-7 days overdue / 8-30 days / 30+ days), dunning task tracking, overdue marking |
+| Smart Dunning | Four-level dunning escalation (3 days before due / 7 / 30 / 60 days overdue; channels: in-app message, in-app message, SMS, written notice), dunning task tracking, overdue marking |
 | Room Status Kanban | Building/floor filtering + card/table view toggle + quick-action drawer + batch status change; dark data dashboard (6 chart types); batch room generation |
 | Door Lock Management | Smart locks (remote unlock / password management / battery monitoring), traditional locks (key borrow-return / loss-report / void workflow), audit logs |
 | ID Card Reader | Huashi CVR-100U real integration (built-in WHQL driver with one-click install), ID number validation & masking, card-reading audit |
-| Printing | 6 template sets (contract / tenant info / bill / receipt / batch summary / monthly briefing), native system printing + text-based PDF export; 80mm thermal receipts in binary layout |
+| Printing | 6 template sets (contract / tenant info / bill / receipt / batch summary / monthly briefing), native system printing + text-based PDF export; 80mm thermal receipts use binary layout (pure black, no bold, no landlord company name in the header) |
 | Collection Dashboard | Collection rate, overdue rate, payment channel distribution, rent trend |
 | Collection Calendar | Monthly collection calendar view, batch status overview |
 

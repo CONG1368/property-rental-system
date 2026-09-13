@@ -168,7 +168,7 @@ components/
 |---|---|---|
 | 静态铁律（含 R2 颜色字面量）| `node scripts/check-static-rules.cjs` | 6/6 |
 | 对比度 | `node scripts/check-contrast.cjs` | 62/62（+3 装饰性豁免）；`--md` 参数可重新生成 `docs/对比度检查报告.md`（该报告为自动生成，勿手改）|
-| 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 7/7（P1–P7；扫描 `frontend/src` 全量；内联 `<el-table>` = 0、自写工具栏样式 = 0、`$令牌` 必须 `lang="scss"`、80mm 热敏模板仅纯黑纯白）|
+| 页面约定（组件采用率）| `node scripts/verify-page-conventions.cjs` | 7/7（P1–P7；扫描 `frontend/src` 全量；内联 `<el-table>` = 0、自写工具栏样式 = 0、`$令牌` 必须 `lang="scss"`、80mm 热敏模板仅纯黑纯白且正文不加粗）|
 | 三档密度无破损 | `node scripts/verify-table-density.cjs` | 14/14 |
 | 全链路 | `npm run test:regression` | 25/25（静态门禁 + 双端类型/单测 + 端到端脚本串联） |
 
