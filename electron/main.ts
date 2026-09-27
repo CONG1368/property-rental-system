@@ -2,7 +2,10 @@ import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { spawnBackend } from './spawn-backend';
+import { spawnBackend, stopBackend } from './spawn-backend';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const execFileP = promisify(execFile);
 
 // ===== 全局 EPIPE 防护 =====
 // 应用常随终端/父进程管道一起启动时，父进程退出/管道关闭会让 console 写入抛 EPIPE，
@@ -188,6 +191,83 @@ ipcMain.handle('read-id-card', async (_event, provider: string, port: string) =>
   return { success: false, error: '请连接实体读卡器设备或使用后端 Mock 模式测试' };
 });
 
+// ===== 华视读卡器内核驱动：检测 + 一键安装（Win10 x64 用官方 WHQL 签名 64 位驱动） =====
+// 驱动包随应用分发在 runtime/idcard-driver/（electron-builder extraResources）：
+//   USBDrvCo.inf + USBDrv.sys(64位) + sdt_s_drv_x64.cat(WHQL签名) + samcoins.dll + USBDrv3.0-x64.msi(备用)
+// 内核驱动不能“复制即用”，须经 pnputil 加入系统驱动仓库并由管理员(UAC)授权绑定设备。
+function idcardDriverDir(): string {
+  const execDir = path.dirname(process.execPath);
+  // 打包后 extraResources 复制到 <安装目录>/resources/runtime/idcard-driver（注意有 resources 段）。
+  // 旧代码漏了 resources，导致打包安装版在主进程里永远找不到内置驱动而显示“未内置驱动包”。
+  const cands = [
+    path.join(execDir, 'resources', 'runtime', 'idcard-driver'), // 打包：<resources>/runtime/idcard-driver
+    path.join(execDir, 'runtime', 'idcard-driver'),              // 兜底：驱动直放安装根
+    path.join(process.cwd(), 'runtime', 'idcard-driver'),        // dev：仓库根
+    path.join(process.cwd(), '..', 'runtime', 'idcard-driver'),
+  ];
+  for (const c of cands) { if (fs.existsSync(c)) return c; }
+  return cands[0];
+}
+
+function psSingleQuote(p: string): string { return "'" + String(p).replace(/'/g, "''") + "'"; }
+
+// 检测：①驱动包是否已进系统驱动仓库（pnputil /enum-drivers）②设备是否枚举到（VID_0400 SDT 设备）
+async function probeIdcardDriver(): Promise<{ installed: boolean; devicePresent: boolean; detail: string }> {
+  let pkg = false; let dev = false; let detail = '';
+  try {
+    const { stdout } = await execFileP('pnputil', ['/enum-drivers'], { windowsHide: true, maxBuffer: 16 * 1024 * 1024 });
+    pkg = /SDT|USBDrv|VID_0400/i.test(stdout || '');
+    detail += '驱动包:' + (pkg ? '已安装' : '未安装');
+  } catch { detail += '驱动包:枚举失败'; }
+  try {
+    const { stdout } = await execFileP('powershell', ['-NoProfile', '-Command',
+      "Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -match 'VID_0400' -or $_.FriendlyName -match 'SDT' } | Select-Object -First 1 -ExpandProperty FriendlyName"],
+      { windowsHide: true, maxBuffer: 1024 * 1024 });
+    dev = /SDT|VID_0400/i.test(stdout || '');
+    detail += (detail ? '；' : '') + '设备:' + (dev ? '已枚举' : '未枚举（未插设备或无驱动）');
+  } catch { detail += (detail ? '；' : '') + '设备:枚举失败'; }
+  return { installed: pkg && dev, devicePresent: dev, detail };
+}
+
+ipcMain.handle('get-id-card-driver-status', async () => {
+  const dir = idcardDriverDir();
+  const inf = path.join(dir, 'USBDrvCo.inf');
+  const bundled = fs.existsSync(inf) && fs.existsSync(path.join(dir, 'USBDrv.sys')) && fs.existsSync(path.join(dir, 'sdt_s_drv_x64.cat'));
+  try {
+    const st = bundled ? await probeIdcardDriver() : { installed: false, devicePresent: false, detail: '未找到内置驱动包' };
+    return { bundled, driverDir: dir, infPath: inf, ...st };
+  } catch (e: any) {
+    return { bundled, driverDir: dir, infPath: inf, installed: false, devicePresent: false, detail: String(e?.message || e) };
+  }
+});
+
+ipcMain.handle('install-id-card-driver', async () => {
+  const dir = idcardDriverDir();
+  const inf = path.join(dir, 'USBDrvCo.inf');
+  if (!fs.existsSync(inf)) return { ok: false, message: '未找到内置驱动包 USBDrvCo.inf（' + inf + '）' };
+  // 组装 pnputil 参数（inf 路径可能含空格，需带引号）；提权运行触发 UAC 授权，取消会抛“操作被用户取消”
+  const argStr = '/add-driver "' + inf + '" /install';
+  const psCmd =
+    '$argStr = ' + psSingleQuote(argStr) + '; ' +
+    'Start-Sleep -Milliseconds 200; ' +
+    "$p = Start-Process -FilePath 'pnputil.exe' -ArgumentList $argStr -Verb RunAs -Wait -PassThru; " +
+    'Write-Output ("exitcode=" + $p.ExitCode)'
+  try {
+    const { stdout } = await execFileP('powershell', ['-NoProfile', '-Command', psCmd], { windowsHide: true, maxBuffer: 8 * 1024 * 1024, timeout: 120000 });
+    const m = /exitcode=([0-9]+)/.exec(stdout || '');
+    const code = m ? Number(m[1]) : null;
+    // 安装后重新探测一次，返回是否已就绪
+    let status = { installed: false, devicePresent: false, detail: '' };
+    try { status = await probeIdcardDriver(); } catch { /* ignore */ }
+    return { ok: code === 0, exitCode: code, message: stdout || '', ready: status.installed, detail: status.detail };
+  } catch (e: any) {
+    const msg = String(e?.message || e);
+    // UAC 取消/拒绝：Start-Process 抛“The operation was canceled by the user”
+    if (/canceled|取消|denied|拒绝/i.test(msg)) return { ok: false, message: '已取消安装（未通过管理员授权）。请在弹窗中点“是”完成驱动安装。' };
+    return { ok: false, message: msg };
+  }
+});
+
 // 文件打开对话框
 ipcMain.handle('open-file-dialog', async (_event, options: any) => {
   const result = await dialog.showOpenDialog(mainWindow!, options);
@@ -234,12 +314,16 @@ ipcMain.handle('export-pdf', async (_event, html: string, title: string) => {
 });
 
 // HTML 原生打印（临时文件渲染 → 弹出系统打印对话框）
-ipcMain.handle('print-html', async (_event, html: string, title: string) => {
+ipcMain.handle('print-html', async (_event, html: string, title: string, options?: { marginType?: 'default' | 'none' | 'printableArea' | 'custom' }) => {
   return new Promise((resolve) => {
     // 写入临时 HTML 文件（避免 data: URL 的长度限制和编码问题）
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'property-print-'));
     const tmpFile = path.join(tmpDir, `${title.replace(/[\\/:*?"<>|]/g, '_')}.html`);
-    const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+    // 打印模板可能自带完整文档（合同 A4、简报、收据 80mm，含自己的 @page 与 body 边距）。
+    // 此时必须原样使用：再包一层会让 @page 失效，且 16px 的 body padding 会把
+    // 80mm 小票的内容宽度顶到 80.8mm，超出热敏机 72mm 可打印区而被裁边/缩放。
+    const isFullDoc = /<!DOCTYPE|<html[\s>]/i.test(html);
+    const fullHtml = isFullDoc ? html : `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
 <style>
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
   body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; color:#333; margin:0; padding:16px; }
@@ -256,6 +340,9 @@ ipcMain.handle('print-html', async (_event, html: string, title: string) => {
       printWin.webContents.print({
         silent: false,
         printBackground: true,
+        // 80mm 小票必须显式无边距：部分驱动的「默认页边距」会盖掉模板里的 @page{margin:0}，
+        // 把内容整体右推约 6mm，68mm 宽的小票右侧因此被裁字（实机复现，见 ReceiptPrint.ts）。
+        margins: { marginType: options?.marginType || 'default' },
       }, (success, failureReason) => {
         printWin.close();
         // 清理临时文件
@@ -270,23 +357,133 @@ ipcMain.handle('print-html', async (_event, html: string, title: string) => {
   });
 });
 
-app.whenReady().then(async () => {
-  buildMenu();
+
+// ===== 智能水电表：平台登录窗口 token 捕获 + 会话窗口内自动同步 =====
+const METER_PLATFORM_URL = 'https://bzp.iyunmu.com/index';
+const METER_API_BASE = 'https://bzp.iyunmu.com/prepaidBack';
+const smartMeterState = {
+  token: '', cookie: '', exp: 0, sysToken: '', window: null as BrowserWindow | null,
+  timer: null as any, syncTimer: null as any, syncEveryMs: 10 * 60 * 1000,
+};
+
+function decodeJwtExp(t: string): number {
   try {
-    await spawnBackend();
-  } catch (err: any) {
-    console.error('Failed to start backend:', err);
-    // 硬错误弹窗提示（文件缺失、进程崩溃），超时错误不弹窗（登录页会显示等待状态）
-    if (err.message?.includes('not found') || err.message?.includes('exited with code')) {
-      dialog.showErrorBox(
-        '服务启动失败',
-        `后端服务未能正常启动。\n\n${err.message}\n\n请尝试重新安装应用程序。`
-      );
+    const p = t.split('.')[1]; if (!p) return 0;
+    let b = p.replace(/-/g, '+').replace(/_/g, '/'); while (b.length % 4) b += '=';
+    const payload = JSON.parse(Buffer.from(b, 'base64').toString('utf8'));
+    return Number(payload?.exp) || 0;
+  } catch { return 0; }
+}
+
+async function syncSmartMeterOnce() {
+  if (!smartMeterState.token) return { ok: false, error: 'no-token' };
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    // 同步接口挂在系统 authMiddleware 下，必须携带系统登录态（Access Token），否则后端返回 401「未登录或Token已过期」
+    if (smartMeterState.sysToken) headers['Authorization'] = 'Bearer ' + smartMeterState.sysToken;
+    const r = await fetch('http://localhost:3001/api/smart-meter/sync', {
+      method: 'POST', headers,
+      body: JSON.stringify({ token: smartMeterState.token, cookie: smartMeterState.cookie }),
+    });
+    const j = await r.json();
+    if (r.status === 401 || j?.code === 401) { stopSmartMeterSync(); mainWindow?.webContents.send('smart-meter', { event: 'token-invalid', message: j?.message }); }
+    else mainWindow?.webContents.send('smart-meter', { event: 'synced', data: j?.data, message: j?.message });
+    return j;
+  } catch (e: any) { return { ok: false, error: String(e?.message || e) }; }
+}
+
+function startSmartMeterSyncWindow() {
+  stopSmartMeterSync();
+  if (smartMeterState.timer) return;
+  smartMeterState.syncTimer = setInterval(() => { syncSmartMeterOnce(); }, smartMeterState.syncEveryMs);
+  // 登录后立即同步一次
+  syncSmartMeterOnce();
+}
+
+function stopSmartMeterSync() {
+  if (smartMeterState.syncTimer) { clearInterval(smartMeterState.syncTimer); smartMeterState.syncTimer = null; }
+}
+
+ipcMain.handle('open-platform-login', async (_event, sysToken?: string) => {
+  // 渲染进程把系统登录态（Access Token）传进来，同步 POST 需要它通过后端 authMiddleware
+  if (sysToken) smartMeterState.sysToken = sysToken;
+  if (smartMeterState.window && !smartMeterState.window.isDestroyed()) { smartMeterState.window.focus(); return { status: 'already-open' }; }
+  // 平台登录窗口使用「内存会话」分区（无 persist: 前缀=不落盘）：平台登录页自带的
+  // 「记住密码」/cookie/localStorage 只存在内存，关闭应用即清空，绝不写入磁盘。
+  // token 由同一会话的 webRequest 捕获并保存在主进程内存（smartMeterState），
+  // 后端同步直接用该 token 调平台，不依赖此会话，因此内存分区不影响同步。
+  const win = new BrowserWindow({ width: 1180, height: 760, title: '智能水电表 - 平台登录', webPreferences: { nodeIntegration: false, contextIsolation: true, partition: 'smart-meter-platform' } });
+  smartMeterState.window = win;
+  // 观察发往平台 API 的请求，捕获 Authorization Bearer token
+  win.webContents.session.webRequest.onBeforeSendHeaders({ urls: [METER_API_BASE + '/*'] }, (details, cb) => {
+    const auth = details.requestHeaders['Authorization'] || details.requestHeaders['authorization'];
+    const cookie = details.requestHeaders['Cookie'] || details.requestHeaders['cookie'] || '';
+    // 同时捕获会话 cookie（sessionid/csrftoken）——平台认证依赖 cookie，缺它必然 400「系统更新,请清缓存」
+    if (cookie && smartMeterState.cookie !== cookie) {
+      smartMeterState.cookie = cookie;
     }
-  }
-  createWindow();
+    if (auth && auth.startsWith('Bearer ')) {
+      const t = auth.slice(7);
+      if (t && smartMeterState.token !== t) {
+        smartMeterState.token = t;
+        smartMeterState.exp = decodeJwtExp(t);
+        startSmartMeterSyncWindow();
+        mainWindow?.webContents.send('smart-meter', { event: 'token-captured', exp: smartMeterState.exp, cookieCaptured: !!smartMeterState.cookie });
+      }
+    }
+    cb({ requestHeaders: details.requestHeaders });
+  });
+  await win.loadURL(METER_PLATFORM_URL);
+  win.on('closed', () => { smartMeterState.window = null; });
+  return { status: 'open' };
 });
 
-app.on('window-all-closed', () => {
-  app.quit();
+ipcMain.handle('get-meter-token-status', async () => {
+  const nowSec = Math.floor(Date.now() / 1000);
+  return { captured: !!smartMeterState.token, cookieCaptured: !!smartMeterState.cookie, tokenExpSec: smartMeterState.exp, expired: !!(smartMeterState.exp && smartMeterState.exp <= nowSec) };
 });
+
+ipcMain.handle('stop-meter-sync', async () => { stopSmartMeterSync(); return { status: 'stopped' }; });
+
+// ===== 单实例锁（踩过的坑）=====
+// 不加锁时重复启动会产生两个 Electron 实例，各自拉起一个后端去抢 3001 端口：
+// 后启动的那个以 EADDRINUSE 退出（exit 1）→ 弹出「服务启动失败」，而先启动的后端仍在服务，
+// 所以用户看到「能正常登录但却报启动失败」这条自相矛盾的错误。
+// 加锁后第二个实例只把已有窗口激活，绝不再拉起第二个后端。
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(async () => {
+    buildMenu();
+    try {
+      await spawnBackend();
+    } catch (err: any) {
+      console.error('Failed to start backend:', err);
+      // 硬错误弹窗提示（文件缺失、进程崩溃），超时错误不弹窗（登录页会显示等待状态）
+      if (err.message?.includes('not found') || err.message?.includes('exited with code')) {
+        dialog.showErrorBox(
+          '服务启动失败',
+          `后端服务未能正常启动。\n\n${err.message}\n\n请尝试重新安装应用程序。`
+        );
+      }
+    }
+    createWindow();
+  });
+
+  app.on('window-all-closed', () => {
+    app.quit();
+  });
+
+  // 退出时结束后端子进程——否则残留进程会一直占着 3001 端口，下次启动必报端口占用
+  app.on('before-quit', () => {
+    stopBackend();
+  });
+}

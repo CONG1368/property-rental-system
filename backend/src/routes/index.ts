@@ -33,6 +33,7 @@ import facilityRoutes from './facilities.js';
 import workOrderRoutes from './workOrders.js';
 import vendorRoutes from './vendors.js';
 import meterRoutes from './meters.js';
+import smartMeterRoutes from './smartMeter.js';
 import bankReconciliationRoutes from './bankReconciliation.js';
 import costAllocationRoutes from './costAllocation.js';
 import invoiceRoutes from './invoices.js';
@@ -121,6 +122,7 @@ router.use('/facilities', authMiddleware, requireRole('管理员', '收租主管
 router.use('/work-orders', authMiddleware, requireRole('管理员', '收租主管', '收租员', '物业经理', '维修工', '总经理'), workOrderRoutes);
 router.use('/vendors', authMiddleware, requireRole('管理员', '收租主管', '收租员', '物业经理', '总经理'), vendorRoutes);
 router.use('/meters', authMiddleware, requireRole('管理员', '收租主管', '收租员', '物业经理', '维修工', '总经理'), meterRoutes);
+router.use('/smart-meter', authMiddleware, requireRole('管理员', '收租主管', '收租员', '物业经理', '总经理'), smartMeterRoutes);
 
 // 业财一体化 — 银行对账/成本分摊（财务角色组）
 router.use('/bank-reconciliation', authMiddleware, requireRole('管理员', '财务主管', '会计', '出纳', '总经理'), bankReconciliationRoutes);

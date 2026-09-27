@@ -3,18 +3,14 @@
     <h2 class="page-title">批量导入房源</h2>
     <el-card>
       <el-upload drag :auto-upload="false" :on-change="handleFileChange" :limit="1" accept=".xlsx">
-        <el-icon :size="48" color="#2b57c9"><Upload /></el-icon>
+        <el-icon :size="48" color="var(--brand-600)"><Upload /></el-icon>
         <div class="upload-text">将Excel文件拖到此处，或点击上传</div>
         <template #tip><div class="upload-tip">仅支持 .xlsx 格式，第一行为表头（老版 .xls 请先另存为 .xlsx）</div></template>
       </el-upload>
       <div v-if="previewData.length" style="margin-top:16px">
         <h4>预览数据 ({{ previewData.length }} 条)</h4>
-        <el-table :data="previewData.slice(0, 10)" stripe max-height="300">
-          <el-table-column prop="name" label="名称" width="120" />
-          <el-table-column prop="type" label="类型" width="80" />
-          <el-table-column prop="area" label="面积" width="80" />
-          <el-table-column prop="address" label="地址" />
-        </el-table>
+        <DataTable :data="previewData.slice(0, 10)" :columns="COLUMNS" row-key="id">
+        </DataTable>
         <el-button type="primary" style="margin-top:16px" @click="handleImport" :loading="importing">确认导入</el-button>
       </div>
     </el-card>
@@ -22,6 +18,16 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '名称', width: 120 },
+  { prop: 'type', label: '类型', width: 80 },
+  { prop: 'area', label: '面积', width: 80 },
+  { prop: 'address', label: '地址' },
+];
+
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
@@ -62,7 +68,7 @@ async function handleImport() {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
-.upload-text { margin-top: 12px; font-size: 14px; color: #34495E; }
-.upload-tip { font-size: 11px; color: #7F8C8D; margin-top: 8px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
+.upload-text { margin-top: 12px; font-size: 14px; color: $n-900; }
+.upload-tip { font-size: 11px; color: $n-600; margin-top: 8px; }
 </style>

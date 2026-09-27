@@ -23,6 +23,7 @@ const staticTests = [
   'check-static-rules.cjs', // 6 条铁律：emoji/主题色/版本号/生产URL/multer/财务中间件
   'check-contrast.cjs',     // WCAG 2.1 AA 对比度
   'check-deps-audit.cjs',   // 生产依赖漏洞（需 registry，离线自动跳过）
+  'verify-page-conventions.cjs', // 第 6 周：组件采用率棘轮 + base/ 无业务词汇 + 视图无毛玻璃
 ];
 
 // C 段：需要 dev 服务的 Node 脚本（按依赖顺序串行）
@@ -37,6 +38,7 @@ const nodeTests = [
   'verify-system-settings.js',
   'verify-uncovered-api.js',
   'verify-ux-states.cjs',
+  'verify-table-density.cjs',
   'permission-regression.js',
   'e2e-permission-matrix.js',
   'e2e-confirm-password.js',

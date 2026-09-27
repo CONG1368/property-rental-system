@@ -57,7 +57,13 @@ async function handleRead() {
     const result = await reader.readCard(deviceId!);
     if (result.success && result.data) {
       emit('success', result.data);
-      if (result.warnings && result.warnings.length > 0) {
+      if (result.mock) {
+        // 演示/模拟模式：明确告知未读取真实证件
+        ElMessage.warning('当前为演示/模拟读卡（未接入真实读卡器 SDK），返回的是内置演示数据');
+        if (result.warnings && result.warnings.length > 0) {
+          lastWarning.value = result.warnings.join('；');
+        }
+      } else if (result.warnings && result.warnings.length > 0) {
         lastWarning.value = result.warnings.join('；');
       } else {
         ElMessage.success('身份证读取成功');

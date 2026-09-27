@@ -36,6 +36,7 @@ const SHOTS = [
   ['work-orders', '#/property/work-orders', 2000],
   ['facilities', '#/property/facilities', 2000],
   ['meters', '#/property/meters', 2000],
+  ['smart-meter', '#/property/smart-meter', 2500],
   ['parking', '#/property/parking', 2000],
   ['announcements', '#/property/announcements', 2000],
   ['tenant-portal', '#/property/tenant-portal', 2500],

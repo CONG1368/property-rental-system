@@ -5,6 +5,10 @@
       <div class="toolbar-left">
         <el-button @click="$router.push('/rent/properties')" :icon="ArrowLeft">返回房源列表</el-button>
         <el-button type="success" @click="$router.push('/rent/room-kanban/dashboard')" :icon="DataAnalysis">数据大屏</el-button>
+        <el-radio-group v-model="viewMode" size="small">
+          <el-radio-button value="grid">卡片</el-radio-button>
+          <el-radio-button value="table">表格</el-radio-button>
+        </el-radio-group>
         <el-tag v-if="!wsConnected" type="danger" size="small">
           <el-icon style="vertical-align:middle"><WarningFilled /></el-icon> 实时连接已断开
         </el-tag>
@@ -33,8 +37,9 @@
       @change="onFilterChange"
     />
 
-    <!-- 网格视图 -->
-    <div v-if="filteredFloors.length === 0" class="empty-hint">暂无房间数据，请先<a @click="$router.push('/rent/room-kanban/batch-gen')" style="color:#409EFF;cursor:pointer">批量生成房间</a></div>
+    <!-- 卡片视图（房态网格）-->
+    <template v-if="viewMode === 'grid'">
+    <div v-if="filteredFloors.length === 0" class="empty-hint">暂无房间数据，请先<a @click="$router.push('/rent/room-kanban/batch-gen')" style="color:var(--brand-600);cursor:pointer">批量生成房间</a></div>
     <div v-for="floor in filteredFloors" :key="`${floor.buildingName || ''}-${floor.floorOrder}`" class="floor-group">
       <div class="floor-header">
         <span class="floor-label">{{ (floor as any).buildingName || '' }} {{ (floor as any).label || (floor as any).floorOrder + 'F' }}</span>
@@ -48,8 +53,22 @@
       />
     </div>
 
-    <!-- 批量操作栏 -->
-    <div class="batch-bar" v-if="selectedIds.length > 0">
+    </template>
+
+    <!-- 表格视图：与卡片视图同一份 filteredFloors 摊平，状态走房态阶 -->
+    <RoomTableView
+      v-if="viewMode === 'table'"
+      ref="roomTableRef"
+      :rooms="tableRooms"
+      :loading="loading"
+      @room-click="onRoomClick"
+      @status-edit="onRoomClick"
+      @selection-change="onSelectionChange"
+      @batch-status="batchDialogVisible = true"
+    />
+
+    <!-- 批量操作栏（卡片视图用；表格视图由 DataTable 内置批量条承担）-->
+    <div class="batch-bar" v-if="viewMode === 'grid' && selectedIds.length > 0">
       <span>已选 {{ selectedIds.length }} 间</span>
       <el-button size="small" type="primary" @click="batchDialogVisible = true">批量改状态</el-button>
       <el-button size="small" @click="clearSelection">取消选择</el-button>
@@ -73,15 +92,16 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+<script setup lang="ts">import { tokens } from '@/styles/tokens';
+
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { getRoomKanban, getRoomStats, exportRoomReport, exportRoomReportPDF } from '@/api/properties';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { printDocument } from '@/utils/print-service';
 import { ElMessage } from 'element-plus';
 import { ArrowLeft, Printer, Download, DataAnalysis, Refresh, WarningFilled, CircleCheckFilled } from '@element-plus/icons-vue';
-import RoomCard from '@/components/RoomCard.vue';
 import RoomGrid from '@/components/RoomGrid.vue';
+import RoomTableView from '@/components/RoomTableView.vue';
 import RoomStatsPanel from '@/components/RoomStatsPanel.vue';
 import BuildingFloorSelector from '@/components/BuildingFloorSelector.vue';
 import RoomQuickActionDrawer from '@/components/RoomQuickActionDrawer.vue';
@@ -97,6 +117,11 @@ const selectedFloor = ref<number | null>(null);
 const wsConnected = ref(true);
 const loading = ref(false);
 const propertyTypeFilter = ref<string | undefined>(undefined);
+
+// 视图切换：卡片（房态网格）/ 表格（同一份数据，状态走房态阶令牌）
+const viewMode = ref<'grid' | 'table'>('grid');
+const roomTableRef = ref();
+const tableRooms = computed(() => filteredFloors.value.flatMap((f: any) => f.rooms || []));
 
 // 快捷操作
 const drawerVisible = ref(false);
@@ -161,9 +186,17 @@ function onLockClick(room: any) {
   drawerVisible.value = true;
 }
 
+function onSelectionChange(ids: number[]) {
+  selectedIds.value = ids;
+}
+
 function clearSelection() {
   selectedIds.value = [];
+  roomTableRef.value?.clearSelection();
 }
+
+// 切换视图时清空选择：表格内部选择与页面 selectedIds 是两套状态，避免不一致
+watch(viewMode, () => clearSelection());
 
 async function handleExportExcel() {
   try {
@@ -194,13 +227,13 @@ function buildRoomReportHTML(data: any): string {
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>房态报表</title>
 <style>
-  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; font-size: 12px; color: #333; padding: 16px; }
+  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; font-size: 12px; color: ${tokens.n900}; padding: 16px; }
   h1 { text-align: center; font-size: 20px; margin-bottom: 4px; }
-  .subtitle { text-align: center; font-size: 11px; color: #909399; margin-bottom: 16px; }
+  .subtitle { text-align: center; font-size: 11px; color: ${tokens.n600}; margin-bottom: 16px; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  th, td { border: 1px solid #dcdfe6; padding: 6px 8px; text-align: center; }
-  th { background: #4472C4; color: #fff; font-weight: bold; }
-  .section-title { font-size: 14px; font-weight: bold; margin: 12px 0 8px; padding: 6px 0; border-bottom: 2px solid #4472C4; }
+  th, td { border: 1px solid ${tokens.n200}; padding: 6px 8px; text-align: center; }
+  th { background: ${tokens.brand600}; color: ${tokens.n0}; font-weight: bold; }
+  .section-title { font-size: 14px; font-weight: bold; margin: 12px 0 8px; padding: 6px 0; border-bottom: 2px solid ${tokens.brand600}; }
 </style></head><body>
 <h1>房态报表</h1>
 <p class="subtitle">导出时间：${now}　共 ${total || 0} 间</p>
@@ -246,7 +279,7 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .room-kanban { padding: 4px; }
 .kanban-toolbar {
   display: flex; justify-content: space-between; align-items: center;
@@ -257,16 +290,16 @@ onUnmounted(() => {
 .floor-group { margin-bottom: 20px; }
 .floor-header {
   display: flex; align-items: center; gap: 12px;
-  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #ebeef5;
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid $n-200;
 }
-.floor-label { font-size: 16px; font-weight: 600; color: #303133; }
-.floor-count { font-size: 12px; color: #909399; }
+.floor-label { font-size: 16px; font-weight: 600; color: $n-900; }
+.floor-count { font-size: 12px; color: $n-600; }
 
 .batch-bar {
   position: fixed; bottom: 0; left: 0; right: 0;
-  background: #fff; border-top: 2px solid #409EFF;
+  background: $n-0; border-top: 2px solid $brand-600;
   padding: 12px 24px; display: flex; align-items: center; gap: 12px;
-  z-index: 100; box-shadow: 0 -2px 12px rgba(0,0,0,0.1);
+  z-index: 100; box-shadow: 0 -2px 12px $n-100;
 }
-.empty-hint { text-align: center; padding: 80px 0; color: #909399; font-size: 14px; }
+.empty-hint { text-align: center; padding: 80px 0; color: $n-600; font-size: 14px; }
 </style>

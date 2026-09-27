@@ -1,8 +1,46 @@
 import IdCardReader from '../models/IdCardReader.js';
 import IdCardReadLog from '../models/IdCardReadLog.js';
 import Tenant from '../models/Tenant.js';
-import { getIdCardProvider, IdCardData } from './id-card-provider.js';
-export { getIdCardProvider };
+import SystemConfig from '../models/SystemConfig.js';
+import { createProvider, IdCardData, IdCardProviderMode } from './id-card-provider.js';
+
+// 确保读卡器配置项存在（内置，供系统参数中心展示/切换）—— 华视 CVR-100U 真实接入所需
+const ID_CARD_CONFIGS: { key: string; value: string; desc: string }[] = [
+  { key: 'id_card_provider', value: 'mock', desc: '身份证读卡器 Provider：mock=演示/模拟（返回内置演示数据），real=真实读卡器（华视 CVR-100U，走 32 位桥子进程）' },
+  { key: 'id_card_dll_dir', value: '', desc: '华视 CVR-100U SDK 目录（放置 Termb.dll / sdtapi.dll / license.dat / card_bridge.py）；留空默认 <应用目录>/runtime/idcard' },
+  { key: 'id_card_port', value: '1001', desc: '读卡器通讯口：1~16=COM串口；1001~1016=USB口。华视 CVR-100U 为 USB，默认 1001' },
+  { key: 'id_card_python_x86', value: '', desc: '32 位 Python 解释器路径（读卡桥用；留空默认 <应用目录>/runtime/python-x86/python.exe）' },
+  { key: 'id_card_photo', value: '1', desc: '是否读取身份证相片，1=读 0=不读' },
+];
+export async function ensureIdCardConfig(): Promise<void> {
+  for (const c of ID_CARD_CONFIGS) {
+    const row = await SystemConfig.findOne({ where: { configKey: c.key } });
+    if (!row) {
+      await SystemConfig.create({
+        configKey: c.key,
+        configValue: c.value,
+        description: c.desc,
+        configGroup: '系统',
+        valueType: 'string',
+        isSensitive: false,
+        builtIn: true,
+      } as any);
+    }
+  }
+}
+
+// 读卡 Provider 模式：system_configs.id_card_provider = 'mock'(默认) | 'real'
+export async function getIdCardProviderMode(): Promise<IdCardProviderMode> {
+  try {
+    const row = await SystemConfig.findOne({ where: { configKey: 'id_card_provider' } });
+    return ((row?.configValue as string) || 'mock') === 'real' ? 'real' : 'mock';
+  } catch { return 'mock'; }
+}
+
+export function getIdCardProvider() {
+  // 兼容旧调用：返回默认 mock provider（业务读取请走 readCard()，它会按模式选择）
+  return createProvider('mock');
+}
 import { broadcast } from '../websocket/index.js';
 import { Op } from 'sequelize';
 
@@ -24,9 +62,16 @@ export function validateIdNumber(idNumber: string): { valid: boolean; message: s
   return { valid: true, message: '校验通过' };
 }
 
+// 清理身份证号：剔除 NUL 等控制字符。
+// 华视 SDK 的 GetPeopleIDCode 缓冲区结尾常带 \0，而 Sequelize 的 sqlite 方言会把 WHERE 值内联进
+// SQL 字符串；SQLite tokenizer 会在 NUL 处提前截断语句（丢失收尾引号）→ 报 unrecognized token。
+export function sanitizeIdNumber(idNumber: unknown): string {
+  return String(idNumber ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim();
+}
+
 // 检查身份证号是否重复
 export async function checkDuplicateIdNumber(idNumber: string, excludeTenantId?: number): Promise<{ duplicate: boolean; tenant?: any }> {
-  const where: any = { idNumber };
+  const where: any = { idNumber: sanitizeIdNumber(idNumber) };
   if (excludeTenantId) where.id = { [Op.ne]: excludeTenantId };
   const existing = await Tenant.findOne({ where });
   if (existing) {
@@ -66,6 +111,7 @@ export function maskIdNumber(idNumber: string): string {
 export async function readCard(readerId: number, operatorId: number): Promise<{
   success: boolean;
   data?: IdCardData;
+  mock?: boolean;
   warnings?: string[];
   error?: string;
 }> {
@@ -73,27 +119,35 @@ export async function readCard(readerId: number, operatorId: number): Promise<{
     const reader = await IdCardReader.findByPk(readerId);
     if (!reader) return { success: false, error: '设备不存在' };
 
-    const provider = getIdCardProvider();
+    const mode = await getIdCardProviderMode();
+    const provider = createProvider(mode);
     const cardData = await provider.readCard((reader as any).port || readerId.toString());
+    // 剔除读卡返回身份证号里可能存在的 NUL/控制字符（华视 SDK 缓冲区结尾常带 \0）
+    cardData.idNumber = sanitizeIdNumber(cardData.idNumber);
 
     // 校验
     const warnings: string[] = [];
-    const validation = validateIdNumber(cardData.idNumber);
-    if (!validation.valid) warnings.push(validation.message);
+    if (mode === 'mock') {
+      // 演示/模拟：只提示这是模拟数据，不对假身份证做真实校验（否则会误报校验位/过期）
+      warnings.push('当前为演示/模拟读卡（未接入真实读卡器 SDK），返回的是内置演示数据');
+    } else {
+      const validation = validateIdNumber(cardData.idNumber);
+      if (!validation.valid) warnings.push(validation.message);
 
-    const duplicate = await checkDuplicateIdNumber(cardData.idNumber);
-    if (duplicate.duplicate) {
-      warnings.push(`该身份证号已关联租客「${duplicate.tenant?.name}」`);
-    }
+      const duplicate = await checkDuplicateIdNumber(cardData.idNumber);
+      if (duplicate.duplicate) {
+        warnings.push(`该身份证号已关联租客「${duplicate.tenant?.name}」`);
+      }
 
-    const ageCheck = checkAge(cardData.birthDate);
-    if (ageCheck.underage) warnings.push(`年龄 ${ageCheck.age} 岁，未满18周岁`);
+      const ageCheck = checkAge(cardData.birthDate);
+      if (ageCheck.underage) warnings.push(`年龄 ${ageCheck.age} 岁，未满18周岁`);
 
-    const expiryCheck = checkExpiry(cardData.validTo);
-    if (expiryCheck.expired) {
-      warnings.push('身份证已过期');
-    } else if (expiryCheck.daysLeft <= 90) {
-      warnings.push(`身份证即将过期（剩余${expiryCheck.daysLeft}天）`);
+      const expiryCheck = checkExpiry(cardData.validTo);
+      if (expiryCheck.expired) {
+        warnings.push('身份证已过期');
+      } else if (expiryCheck.daysLeft <= 90) {
+        warnings.push(`身份证即将过期（剩余${expiryCheck.daysLeft}天）`);
+      }
     }
 
     // 更新设备最后读卡时间
@@ -115,15 +169,24 @@ export async function readCard(readerId: number, operatorId: number): Promise<{
       timestamp: Date.now(),
     });
 
-    return { success: true, data: cardData, warnings: warnings.length > 0 ? warnings : undefined };
+    return { success: true, data: cardData, mock: mode === 'mock', warnings: warnings.length > 0 ? warnings : undefined };
   } catch (err: any) {
-    // 写失败日志
+    // 诊断：完整错误 + SQL + 堆栈写入独立日志，便于定位底层查询（用户可见 message 保持干净）
+    const sql = err?.sql || err?.parent?.sql || '';
+    try {
+      const fs = await import('node:fs');
+      const dir = 'logs';
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.appendFileSync(dir + '/id-card-error.log', JSON.stringify({ time: new Date().toISOString(), readerId, operatorId, message: err?.message, sql, parent: err?.parent?.message, stack: err?.stack }) + '\n');
+    } catch { /* 诊断写入失败不影响主流程 */ }
+    console.error('[读卡失败]', err?.message, '[SQL]', sql, '[STACK]', err?.stack);
+
     await IdCardReadLog.create({
       readerId,
       operatorId,
       method: '读卡器',
       result: '失败',
-      errorMessage: err.message || '读卡失败',
+      errorMessage: (err.message || '读卡失败') + (sql ? ' [SQL: ' + sql + ']' : ''),
     } as any);
 
     broadcast('id-card:read-failure', {

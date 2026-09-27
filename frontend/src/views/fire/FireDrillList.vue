@@ -6,21 +6,10 @@
         <el-col :span="4"><el-select v-model="filters.propertyId" placeholder="房源" clearable @change="fetchData" style="width:100%"><el-option v-for="p in properties" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-col>
         <el-col :span="4"><el-button type="primary" @click="showDialog(null)">记录演练</el-button></el-col>
       </el-row>
-      <el-table :data="list" size="small" stripe>
-        <el-table-column prop="property" label="房源" width="120"><template #default="{row}">{{ row.property?.name || '-' }}</template></el-table-column>
-        <el-table-column prop="drillDate" label="演练日期" width="110" />
-        <el-table-column prop="type" label="类型" width="100" />
-        <el-table-column prop="organizer" label="组织方" width="120" />
-        <el-table-column prop="participantCount" label="人数" width="60" />
-        <el-table-column prop="duration" label="用时(分)" width="80" />
-        <el-table-column prop="score" label="评分" width="70" />
-        <el-table-column prop="summary" label="总结" min-width="160" show-overflow-tooltip />
-        <el-table-column label="操作" width="100"><template #default="{row}"><el-button link size="small" @click="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template></el-table-column>
-              <template #empty>
-          <EmptyState title="暂无演练记录" description="组织消防演练后录入参与人数与评分" />
-        </template>
-      </el-table>
-      <el-pagination v-if="total>0" style="margin-top:12px" v-model:current-page="page" :page-size="20" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
+      <DataTable :data="list" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="20" @page-change="fetchData" empty-title="暂无演练记录" empty-description="组织消防演练后录入参与人数与评分">
+        <template #c1="{ row }">{{ row.property?.name || '-' }}</template>
+        <template #c9="{ row }"><el-button link size="small" @click="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+      </DataTable>
     </el-card>
 
     <el-dialog :title="editing ? '编辑演练记录' : '记录演练'" v-model="dialogVisible" width="500px">
@@ -38,6 +27,21 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'property', label: '房源', width: 120, slot: 'c1' },
+  { prop: 'drillDate', label: '演练日期', width: 110 },
+  { prop: 'type', label: '类型', width: 100 },
+  { prop: 'organizer', label: '组织方', width: 120 },
+  { prop: 'participantCount', label: '人数', width: 60 },
+  { prop: 'duration', label: '用时(分)', width: 80 },
+  { prop: 'score', label: '评分', width: 70 },
+  { prop: 'summary', label: '总结', minWidth: 160, tooltip: true },
+  { label: '操作', width: 100, slot: 'c9' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -71,5 +75,5 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 </style>

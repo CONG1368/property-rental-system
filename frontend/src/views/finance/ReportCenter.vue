@@ -6,7 +6,7 @@
     </div>
 
     <el-card shadow="never" class="chat-card">
-      <template #header><b><el-icon :size="15" style="vertical-align:-2px;margin-right:4px"><MagicStick /></el-icon>智能问数</b><span style="color:#909399;font-size:12px;margin-left:8px">输入经营问题，自动出数据</span></template>
+      <template #header><b><el-icon :size="15" style="vertical-align:-2px;margin-right:4px"><MagicStick /></el-icon>智能问数</b><span style="color:var(--n-600);font-size:12px;margin-left:8px">输入经营问题，自动出数据</span></template>
       <div class="chat-bar">
         <el-input v-model="chatQuestion" placeholder="例如：本月收缴率？当前空置率？本年租金收益？" @keyup.enter="askQuestion" style="max-width:520px" />
         <el-button type="primary" :loading="chatLoading" @click="askQuestion">问一下</el-button>
@@ -17,7 +17,7 @@
     <el-row :gutter="16">
       <el-col :span="8" v-for="r in reports" :key="r.title">
         <el-card shadow="hover" class="report-card" @click="openReport(r)">
-          <div class="report-icon"><el-icon :size="32" color="#2b57c9"><Document /></el-icon></div>
+          <div class="report-icon"><el-icon :size="32" color="var(--brand-600)"><Document /></el-icon></div>
           <div class="report-title">{{ r.title }} <el-tag v-if="isRecommended(r)" type="warning" size="small" effect="dark" style="margin-left:4px">推荐</el-tag></div>
           <div class="report-desc">{{ r.desc }}</div>
         </el-card>
@@ -27,7 +27,7 @@
     <el-dialog :title="currentReport?.title" v-model="reportVisible" width="960px" top="3vh">
       <!-- 报表工具栏 -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <span style="font-size:13px;color:#606266">周期:</span>
+        <span style="font-size:13px;color:var(--n-700)">周期:</span>
         <el-radio-group v-model="reportPeriodType" size="small" @change="onPeriodTypeChange">
           <el-radio-button value="month">月度</el-radio-button>
           <el-radio-button value="quarter">季度</el-radio-button>
@@ -80,66 +80,50 @@
       <!-- 资产负债表 -->
       <template v-if="reportType === 'balance'">
         <h4>资产</h4>
-        <el-table :data="reportState.assets || []" stripe size="small" style="margin-bottom:16px" show-summary :summary-method="sumAssets">
-          <el-table-column prop="code" label="科目编码" width="120" />
-          <el-table-column prop="name" label="科目名称" />
-          <el-table-column prop="balance" label="余额" width="150"><template #default="{ row }">¥{{ (row.balance || 0).toFixed(2) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="reportState.assets || []" :columns="COLUMNS" row-key="id" style="margin-bottom:16px">
+          <template #c3="{ row }">¥{{ (row.balance || 0).toFixed(2) }}</template>
+        </DataTable>
         <h4>负债</h4>
-        <el-table :data="reportState.liabilities || []" stripe size="small" style="margin-bottom:16px" show-summary :summary-method="sumLiabilities">
-          <el-table-column prop="code" label="科目编码" width="120" />
-          <el-table-column prop="name" label="科目名称" />
-          <el-table-column prop="balance" label="余额" width="150"><template #default="{ row }">¥{{ (row.balance || 0).toFixed(2) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="reportState.liabilities || []" :columns="COLUMNS_2" row-key="id" style="margin-bottom:16px">
+          <template #c3="{ row }">¥{{ (row.balance || 0).toFixed(2) }}</template>
+        </DataTable>
         <h4>所有者权益</h4>
-        <el-table :data="reportState.equity || []" stripe size="small" show-summary :summary-method="sumEquity">
-          <el-table-column prop="code" label="科目编码" width="120" />
-          <el-table-column prop="name" label="科目名称" />
-          <el-table-column prop="balance" label="余额" width="150"><template #default="{ row }">¥{{ (row.balance || 0).toFixed(2) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="reportState.equity || []" :columns="COLUMNS_3" row-key="id">
+          <template #c3="{ row }">¥{{ (row.balance || 0).toFixed(2) }}</template>
+        </DataTable>
       </template>
 
       <!-- 利润表 -->
       <template v-else-if="reportType === 'income'">
         <h4>收入</h4>
-        <el-table :data="reportState.revenue || []" stripe size="small" style="margin-bottom:16px" show-summary :summary-method="sumRevenue">
-          <el-table-column prop="code" label="科目编码" width="120" />
-          <el-table-column prop="name" label="科目名称" />
-          <el-table-column prop="amount" label="金额" width="150"><template #default="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="reportState.revenue || []" :columns="COLUMNS_4" row-key="id" style="margin-bottom:16px">
+          <template #c3="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template>
+        </DataTable>
         <h4>成本费用</h4>
-        <el-table :data="reportState.costs || []" stripe size="small" style="margin-bottom:16px" show-summary :summary-method="sumCosts">
-          <el-table-column prop="code" label="科目编码" width="120" />
-          <el-table-column prop="name" label="科目名称" />
-          <el-table-column prop="amount" label="金额" width="150"><template #default="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="reportState.costs || []" :columns="COLUMNS_5" row-key="id" style="margin-bottom:16px">
+          <template #c3="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template>
+        </DataTable>
         <el-descriptions :column="3" border size="small">
           <el-descriptions-item label="总收入">¥{{ (reportState.totalRevenue || 0).toFixed(2) }}</el-descriptions-item>
           <el-descriptions-item label="总成本">¥{{ (reportState.totalCost || 0).toFixed(2) }}</el-descriptions-item>
-          <el-descriptions-item label="净利润" :label-style="{ fontWeight: 700, color: '#0a7652' }">¥{{ (reportState.netProfit || 0).toFixed(2) }}</el-descriptions-item>
+          <el-descriptions-item label="净利润" :label-style="{ fontWeight: 700, color: 'var(--ok-600)' }">¥{{ (reportState.netProfit || 0).toFixed(2) }}</el-descriptions-item>
         </el-descriptions>
       </template>
 
       <!-- 现金流量表 -->
       <template v-else-if="reportType === 'cashflow'">
         <h4>经营活动</h4>
-        <el-table :data="reportState.operating || []" stripe size="small" style="margin-bottom:16px">
-          <el-table-column prop="code" label="编码" width="100" />
-          <el-table-column prop="name" label="项目" />
-          <el-table-column prop="amount" label="金额" width="150"><template #default="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="reportState.operating || []" :columns="COLUMNS_6" row-key="id" style="margin-bottom:16px">
+          <template #c3="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template>
+        </DataTable>
         <h4>投资活动</h4>
-        <el-table :data="reportState.investing || []" stripe size="small" style="margin-bottom:16px">
-          <el-table-column prop="code" label="编码" width="100" />
-          <el-table-column prop="name" label="项目" />
-          <el-table-column prop="amount" label="金额" width="150"><template #default="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="reportState.investing || []" :columns="COLUMNS_7" row-key="id" style="margin-bottom:16px">
+          <template #c3="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template>
+        </DataTable>
         <h4>筹资活动</h4>
-        <el-table :data="reportState.financing || []" stripe size="small" style="margin-bottom:16px">
-          <el-table-column prop="code" label="编码" width="100" />
-          <el-table-column prop="name" label="项目" />
-          <el-table-column prop="amount" label="金额" width="150"><template #default="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template></el-table-column>
-        </el-table>
+        <DataTable :data="reportState.financing || []" :columns="COLUMNS_8" row-key="id" style="margin-bottom:16px">
+          <template #c3="{ row }">¥{{ (row.amount || 0).toFixed(2) }}</template>
+        </DataTable>
         <el-descriptions :column="1" border size="small">
           <el-descriptions-item label="现金净增加额" :label-style="{ fontWeight: 700 }">¥{{ (reportState.netCashFlow || 0).toFixed(2) }}</el-descriptions-item>
         </el-descriptions>
@@ -153,19 +137,15 @@
         <v-chart v-if="currentReport?.chart === 'cost'" :option="costChart" autoresize style="height:260px;margin-bottom:12px" />
         <v-chart v-if="currentReport?.chart === 'budget'" :option="budgetChart" autoresize style="height:260px;margin-bottom:12px" />
         <v-chart v-if="currentReport?.chart === 'cashflow'" :option="cashflowChart" autoresize style="height:260px;margin-bottom:12px" />
-        <el-table :data="reportState.rows || []" stripe size="small" empty-text="暂无数据">
-          <el-table-column v-for="col in (reportState.columns || [])" :key="col" :prop="col" :label="col" show-overflow-tooltip>
-            <template #default="{ row }">
-              <template v-if="typeof row[col] === 'number'">
-                <span v-if="col.includes('率') || col.includes('比')">{{ row[col] }}%</span>
-                <span v-else-if="col === '逾期天数'">{{ row[col] }}天</span>
-                <span v-else-if="col === '户数'">{{ row[col] }}</span>
-                <span v-else>¥{{ row[col].toFixed(2) }}</span>
-              </template>
-              <span v-else style="white-space:pre-wrap">{{ row[col] }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
+        <DataTable :data="reportState.rows || []" :columns="REPORT_COLUMNS" row-key="id">
+          <template #cell="{ row, column }"><template v-if="typeof row[column.property] === 'number'">
+                        <span v-if="column.property.includes('率') || column.property.includes('比')">{{ row[column.property] }}%</span>
+                        <span v-else-if="column.property === '逾期天数'">{{ row[column.property] }}天</span>
+                        <span v-else-if="column.property === '户数'">{{ row[column.property] }}</span>
+                        <span v-else>¥{{ row[column.property].toFixed(2) }}</span>
+                      </template>
+                      <span v-else style="white-space:pre-wrap">{{ row[column.property] }}</span></template>
+        </DataTable>
       </template>
 
       <template #footer>
@@ -193,6 +173,62 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const REPORT_COLUMNS = computed<TableColumn[]>(() =>
+  (reportState.columns || []).map((c: string): TableColumn => ({ prop: c, label: c, tooltip: true, slot: 'cell' })),
+);
+
+const COLUMNS_8: TableColumn[] = [
+  { prop: 'code', label: '编码', width: 100 },
+  { prop: 'name', label: '项目' },
+  { prop: 'amount', label: '金额', width: 150, slot: 'c3' },
+];
+
+const COLUMNS_7: TableColumn[] = [
+  { prop: 'code', label: '编码', width: 100 },
+  { prop: 'name', label: '项目' },
+  { prop: 'amount', label: '金额', width: 150, slot: 'c3' },
+];
+
+const COLUMNS_6: TableColumn[] = [
+  { prop: 'code', label: '编码', width: 100 },
+  { prop: 'name', label: '项目' },
+  { prop: 'amount', label: '金额', width: 150, slot: 'c3' },
+];
+
+const COLUMNS_5: TableColumn[] = [
+  { prop: 'code', label: '科目编码', width: 120 },
+  { prop: 'name', label: '科目名称' },
+  { prop: 'amount', label: '金额', width: 150, slot: 'c3' },
+];
+
+const COLUMNS_4: TableColumn[] = [
+  { prop: 'code', label: '科目编码', width: 120 },
+  { prop: 'name', label: '科目名称' },
+  { prop: 'amount', label: '金额', width: 150, slot: 'c3' },
+];
+
+const COLUMNS_3: TableColumn[] = [
+  { prop: 'code', label: '科目编码', width: 120 },
+  { prop: 'name', label: '科目名称' },
+  { prop: 'balance', label: '余额', width: 150, slot: 'c3' },
+];
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'code', label: '科目编码', width: 120 },
+  { prop: 'name', label: '科目名称' },
+  { prop: 'balance', label: '余额', width: 150, slot: 'c3' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'code', label: '科目编码', width: 120 },
+  { prop: 'name', label: '科目名称' },
+  { prop: 'balance', label: '余额', width: 150, slot: 'c3' },
+];
+import { tokens } from '@/styles/tokens';
+
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import VChart from 'vue-echarts';
@@ -294,7 +330,7 @@ const costChart = computed(() => {
     tooltip: { trigger: 'axis' }, grid: { left: 60, right: 20, top: 30, bottom: 40 },
     xAxis: { type: 'category', data: rows.map((r: any) => r['类型']), axisLabel: { rotate: 30 } },
     yAxis: { type: 'value' },
-    series: [{ name: '金额', type: 'bar', data: rows.map((r: any) => r['金额']), itemStyle: { color: '#E6A23C' } }],
+    series: [{ name: '金额', type: 'bar', data: rows.map((r: any) => r['金额']), itemStyle: { color: tokens.warn600 } }],
   };
 });
 const budgetChart = computed(() => {
@@ -304,8 +340,8 @@ const budgetChart = computed(() => {
     xAxis: { type: 'category', data: rows.map((r: any) => r['科目']), axisLabel: { rotate: 30 } },
     yAxis: { type: 'value' },
     series: [
-      { name: '预算', type: 'bar', data: rows.map((r: any) => r['预算']), itemStyle: { color: '#409EFF' } },
-      { name: '实际', type: 'bar', data: rows.map((r: any) => r['实际']), itemStyle: { color: '#F56C6C' } },
+      { name: '预算', type: 'bar', data: rows.map((r: any) => r['预算']), itemStyle: { color: tokens.brand600 } },
+      { name: '实际', type: 'bar', data: rows.map((r: any) => r['实际']), itemStyle: { color: tokens.bad600 } },
     ],
   };
 });
@@ -520,13 +556,13 @@ async function handleExportPDF() {
 <style>
   @page { size: A4 landscape; margin: 8mm; }
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; font-size: 12px; color: #333; background: #fff; padding: 16px; }
-  h2 { color: #1f2430; }
+  body { font-family: "Microsoft YaHei","SimHei","PingFang SC",sans-serif; font-size: 12px; color: ${tokens.n900}; background: ${tokens.n0}; padding: 16px; }
+  h2 { color: ${tokens.n900}; }
   table { border-collapse: collapse; width: 100%; }
-  th { background: #f5f7fa; border: 1px solid #dcdfe6; padding: 6px 8px; text-align: left; font-weight: 600; }
-  td { border: 1px solid #dcdfe6; padding: 5px 8px; }
-  h4 { color: #1f2430; }
-  .total-row td { font-weight: bold; background: #ecf5ff; }
+  th { background: ${tokens.n50}; border: 1px solid ${tokens.n200}; padding: 6px 8px; text-align: left; font-weight: 600; }
+  td { border: 1px solid ${tokens.n200}; padding: 5px 8px; }
+  h4 { color: ${tokens.n900}; }
+  .total-row td { font-weight: bold; background: ${tokens.brand100}; }
 </style></head><body>${bodyHTML}</body></html>`;
 
     await exportTextPDF(`${title}_${now}`, html);
@@ -542,8 +578,8 @@ async function handleExportPDF() {
 // 构建报表 HTML（浏览器原生渲染中文）
 function buildReportHTML(title: string, rangeLabel: string, now: string): string {
   let html = `<div style="text-align:center;margin-bottom:10px">
-    <h2 style="margin:0 0 4px;font-size:18px;color:#1f2430">${title}</h2>
-    <div style="font-size:11px;color:#666">${rangeLabel}　导出日期：${now}</div>
+    <h2 style="margin:0 0 4px;font-size:18px;color:${tokens.n900}">${title}</h2>
+    <div style="font-size:11px;color:${tokens.n700}">${rangeLabel}　导出日期：${now}</div>
   </div>`;
 
   if (reportType.value === 'balance') {
@@ -553,16 +589,16 @@ function buildReportHTML(title: string, rangeLabel: string, now: string): string
   } else if (reportType.value === 'income') {
     html += buildTableHTML('收入', reportState.revenue || [], ['code', 'name', 'amount'], ['科目编码', '科目名称', '金额'], true);
     html += buildTableHTML('成本费用', reportState.costs || [], ['code', 'name', 'amount'], ['科目编码', '科目名称', '金额'], true);
-    html += `<div style="font-size:13px;margin-top:6px;padding:8px;background:#f5f7fa;border-radius:4px">
+    html += `<div style="font-size:13px;margin-top:6px;padding:8px;background:${tokens.n50};border-radius:4px">
       <strong>总收入：</strong>¥${(reportState.totalRevenue || 0).toFixed(2)}
       <strong>总成本：</strong>¥${(reportState.totalCost || 0).toFixed(2)}
-      <strong style="color:#10b981">净利润：¥${(reportState.netProfit || 0).toFixed(2)}</strong>
+      <strong style="color:${tokens.ok600}">净利润：¥${(reportState.netProfit || 0).toFixed(2)}</strong>
     </div>`;
   } else if (reportType.value === 'cashflow') {
     html += buildTableHTML('经营活动', reportState.operating || [], ['code', 'name', 'amount'], ['编码', '项目', '金额'], false);
     html += buildTableHTML('投资活动', reportState.investing || [], ['code', 'name', 'amount'], ['编码', '项目', '金额'], false);
     html += buildTableHTML('筹资活动', reportState.financing || [], ['code', 'name', 'amount'], ['编码', '项目', '金额'], false);
-    html += `<div style="font-size:13px;margin-top:6px;padding:8px;background:#f5f7fa;border-radius:4px">
+    html += `<div style="font-size:13px;margin-top:6px;padding:8px;background:${tokens.n50};border-radius:4px">
       <strong>现金净增加额：</strong>¥${(reportState.netCashFlow || 0).toFixed(2)}
     </div>`;
   } else {
@@ -587,38 +623,38 @@ function formatCellValue(v: any, col: string): string {
 }
 
 function buildTableHTML(sectionTitle: string, data: any[], keys: string[], headers: string[], isCurrency: boolean): string {
-  if (!data.length) return `<h4 style="margin:10px 0 4px;color:#1f2430">${sectionTitle}</h4><p style="color:#999;font-size:11px">暂无数据</p>`;
+  if (!data.length) return `<h4 style="margin:10px 0 4px;color:${tokens.n900}">${sectionTitle}</h4><p style="color:${tokens.n600};font-size:11px">暂无数据</p>`;
   const sum = data.reduce((s, r) => s + (Number(r[keys[keys.length - 1]]) || 0), 0);
-  return `<h4 style="margin:12px 0 4px;color:#1f2430">${sectionTitle}</h4>
+  return `<h4 style="margin:12px 0 4px;color:${tokens.n900}">${sectionTitle}</h4>
     <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
-      <tr style="background:#4f7cf7;color:#fff">
-        ${headers.map(h => `<th style="padding:6px 10px;text-align:${h === headers[headers.length - 1] && isCurrency ? 'right' : 'left'};border:1px solid #ddd">${h}</th>`).join('')}
+      <tr style="background:${tokens.brand600};color:${tokens.n0}">
+        ${headers.map(h => `<th style="padding:6px 10px;text-align:${h === headers[headers.length - 1] && isCurrency ? 'right' : 'left'};border:1px solid ' + tokens.n200 + '">${h}</th>`).join('')}
       </tr>
       ${data.map(r => `<tr>
         ${keys.map((k, i) => {
           const v = r[k] || 0;
           const val = (i === keys.length - 1 && isCurrency) ? (Number(v)).toFixed(2) : String(v);
           const align = (i === keys.length - 1 && isCurrency) ? 'right' : 'left';
-          return `<td style="padding:5px 10px;text-align:${align};border:1px solid #eee">${val}</td>`;
+          return `<td style="padding:5px 10px;text-align:${align};border:1px solid ${tokens.n100}">${val}</td>`;
         }).join('')}
       </tr>`).join('')}
-      <tr style="background:#f0f4f8;font-weight:700">
-        <td style="padding:6px 10px;border:1px solid #ddd" colspan="${keys.length - 1}">合计</td>
-        <td style="padding:6px 10px;text-align:right;border:1px solid #ddd">¥${sum.toFixed(2)}</td>
+      <tr style="background:${tokens.n50};font-weight:700">
+        <td style="padding:6px 10px;border:1px solid ${tokens.n200}" colspan="${keys.length - 1}">合计</td>
+        <td style="padding:6px 10px;text-align:right;border:1px solid ${tokens.n200}">¥${sum.toFixed(2)}</td>
       </tr>
     </table>`;
 }
 
 function buildCustomTableHTML(cols: string[], rows: any[]): string {
   return `<table style="width:100%;border-collapse:collapse;font-size:11px">
-    <tr style="background:#4f7cf7;color:#fff">
-      ${cols.map(c => `<th style="padding:6px 10px;text-align:left;border:1px solid #ddd">${c}</th>`).join('')}
+    <tr style="background:${tokens.brand600};color:${tokens.n0}">
+      ${cols.map(c => `<th style="padding:6px 10px;text-align:left;border:1px solid ' + tokens.n200 + '">${c}</th>`).join('')}
     </tr>
     ${rows.map(r => `<tr>
       ${cols.map(c => {
         const v = r[c];
         const val = formatCellValue(v, c);
-        return `<td style="padding:5px 10px;text-align:left;border:1px solid #eee">${val}</td>`;
+        return `<td style="padding:5px 10px;text-align:left;border:1px solid ${tokens.n100}">${val}</td>`;
       }).join('')}
     </tr>`).join('')}
   </table>`;
@@ -630,11 +666,11 @@ function buildCustomTableHTML(cols: string[], rows: any[]): string {
 .chat-bar { display: flex; gap: 10px; align-items: center; }
 .batch-period { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 .head-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .report-card { text-align: center; cursor: pointer; padding: 16px; }
-.report-card:hover { border-color: #1f2430; }
+.report-card:hover { border-color: $n-900; }
 .report-icon { margin-bottom: 12px; }
-.report-title { font-size: 15px; font-weight: 600; color: #1f2430; margin-bottom: 4px; }
-.report-desc { font-size: 11px; color: #7F8C8D; }
-h4 { margin: 8px 0; color: #1f2430; font-size: 14px; }
+.report-title { font-size: 15px; font-weight: 600; color: $n-900; margin-bottom: 4px; }
+.report-desc { font-size: 11px; color: $n-600; }
+h4 { margin: 8px 0; color: $n-900; font-size: 14px; }
 </style>

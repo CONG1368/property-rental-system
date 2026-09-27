@@ -7,40 +7,23 @@
       <el-col :span="6"><div class="stat-card"><div class="stat-num done">{{ stats.todayAbnormal }}</div><div class="stat-label">今日异常</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width:260px" @change="onFilterChange" />
-        <el-select v-model="filterStatus" placeholder="状态筛选" clearable style="width:140px" @change="onFilterChange">
-          <el-option label="正常" value="正常" />
-          <el-option label="异常" value="异常" />
-        </el-select>
-        <el-button type="primary" @click="onFilterChange">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width:260px" @change="onFilterChange" />
+      <el-select v-model="filterStatus" placeholder="状态筛选" clearable style="width:140px" @change="onFilterChange">
+      <el-option label="正常" value="正常" />
+      <el-option label="异常" value="异常" />
+      </el-select>
+      <el-button type="primary" @click="onFilterChange">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showDialog()">新增巡更</el-button>
-      </div>
-    </div>
-
-    <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading">
-      <el-table-column prop="point" label="巡更点" width="140" show-overflow-tooltip />
-      <el-table-column prop="route" label="路线" width="120" show-overflow-tooltip />
-      <el-table-column prop="patrolDate" label="日期" width="110" />
-      <el-table-column prop="patrolTime" label="时间" width="90" />
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="row.status === '异常' ? 'danger' : 'success'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column prop="inspector" label="巡更人" width="100" show-overflow-tooltip />
-      <el-table-column prop="notes" label="备注" min-width="160" show-overflow-tooltip />
-      <el-table-column label="操作" width="120" fixed="right">
-        <template #default="{ row }">
-          <el-button link size="small" @click="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确定删除该记录?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
       </template>
-    </el-table>
-    <el-pagination v-if="total > 0" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    </FilterBar>
+
+    <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+      <template #c5="{ row }"><el-tag :type="row.status === '异常' ? 'danger' : 'success'" size="small">{{ row.status }}</el-tag></template>
+      <template #c8="{ row }"><el-button link size="small" @click="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确定删除该记录?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+    </DataTable>
 
     <el-dialog :title="editing ? '编辑巡更记录' : '新增巡更记录'" v-model="dialogVisible" width="560px" @closed="resetForm">
       <el-form :model="form" label-width="90px" size="small">
@@ -64,6 +47,21 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'point', label: '巡更点', width: 140, tooltip: true },
+  { prop: 'route', label: '路线', width: 120, tooltip: true },
+  { prop: 'patrolDate', label: '日期', width: 110 },
+  { prop: 'patrolTime', label: '时间', width: 90 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c5' },
+  { prop: 'inspector', label: '巡更人', width: 100, tooltip: true },
+  { prop: 'notes', label: '备注', minWidth: 160, tooltip: true },
+  { label: '操作', width: 120, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -155,12 +153,9 @@ onMounted(() => {
 <style lang="scss" scoped>
 .patrol-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.warn { color: #E6A23C; }
-.stat-num.done { color: #67C23A; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.warn { color: $warn-600; }
+.stat-num.done { color: $ok-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 </style>

@@ -21,7 +21,8 @@ function check(name, cond, detail) { results.push({ name, ok: !!cond, detail });
   check('overview.occupiedProperties', typeof od.occupiedProperties === 'number', '=' + od.occupiedProperties);
   check('overview.totalContracts', typeof od.totalContracts === 'number', '=' + od.totalContracts);
   check('overview.occupancyRate', typeof od.occupancyRate === 'number', '=' + od.occupancyRate);
-  check('overview.version=1.0.3', od.version === '1.0.3', '=' + od.version);
+  const pkgVersion = require('../package.json').version;   // 版本号唯一来源：根 package.json
+  check('overview.version=' + pkgVersion, od.version === pkgVersion, '=' + od.version);
   // collectionRate 金额口径 = monthlyCollected/monthlyDue*100
   const expectCr = od.monthlyDue > 0 ? parseFloat((od.monthlyCollected / od.monthlyDue * 100).toFixed(1)) : 0;
   check('overview.collectionRate(金额口径)', od.collectionRate === expectCr, 'rate=' + od.collectionRate + ' expect=' + expectCr + ' col=' + od.monthlyCollected + ' due=' + od.monthlyDue);

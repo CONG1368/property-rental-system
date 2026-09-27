@@ -7,7 +7,7 @@
         <span class="header-time">{{ currentTime }}</span>
       </div>
       <div class="header-right">
-        <span v-if="!wsConnected" style="color:#f56c6c;font-size:12px;margin-right:12px">● 连接断开</span>
+        <span v-if="!wsConnected" class="ws-off">● 连接断开</span>
         <el-button text @click="enterFullscreen">全屏</el-button>
         <el-button text @click="$router.push('/rent/room-kanban')">房态看板</el-button>
       </div>
@@ -27,12 +27,14 @@
       <!-- 房态分布玫瑰饼图 -->
       <div class="chart-card">
         <div class="card-title">房态分布</div>
-        <v-chart :option="roseOption" autoresize style="height:280px" />
+        <v-chart v-if="hasStatus" :option="roseOption" autoresize style="height:280px" />
+        <div v-else class="chart-empty" style="height:280px">暂无房态数据</div>
       </div>
       <!-- 楼栋入住率对比 -->
       <div class="chart-card">
         <div class="card-title">楼栋入住率对比</div>
-        <v-chart :option="buildingBarOption" autoresize style="height:280px" />
+        <v-chart v-if="hasBuilding" :option="buildingBarOption" autoresize style="height:280px" />
+        <div v-else class="chart-empty" style="height:280px">暂无楼栋数据</div>
       </div>
       <!-- 入住率仪表盘 -->
       <div class="chart-card chart-gauge">
@@ -42,7 +44,8 @@
       <!-- 楼层热力图 -->
       <div class="chart-card chart-wide">
         <div class="card-title">楼层热力图</div>
-        <v-chart :option="heatmapOption" autoresize style="height:260px" />
+        <v-chart v-if="hasHeatmap" :option="heatmapOption" autoresize style="height:260px" />
+        <div v-else class="chart-empty" style="height:260px">暂无楼层数据</div>
       </div>
       <!-- 入住趋势 -->
       <div class="chart-card chart-wide">
@@ -59,7 +62,7 @@
         <div class="card-title">实时告警</div>
         <div class="alert-ticker">
           <div class="alert-list" ref="alertListRef">
-            <div v-for="(a, i) in alerts" :key="i" class="alert-item"><el-icon :size="13" style="vertical-align:-2px;margin-right:4px"><Warning /></el-icon>{{ a }}</div>
+            <div v-for="(a, i) in alerts" :key="i" class="alert-item"><el-icon :size="13" class="alert-icon"><Warning /></el-icon>{{ a }}</div>
             <div v-if="alerts.length === 0" class="alert-empty">暂无告警</div>
           </div>
         </div>
@@ -68,7 +71,8 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts">import { tokens } from '@/styles/tokens';
+
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Warning } from '@element-plus/icons-vue';
 import { getRoomStats, getRoomAnalytics } from '@/api/properties';
@@ -90,10 +94,10 @@ const floorHeatmap = ref<any[]>([]);
 const statusFlow = ref<any[]>([]);
 
 const kpis = computed(() => [
-  { label: '入住率', value: `${stats.value.occupancyRate ?? 0}%`, sub: '', color: '#67C23A' },
-  { label: '空置房', value: stats.value['空置'] ?? 0, sub: '套', color: '#909399' },
-  { label: '已出租', value: stats.value['已出租'] ?? 0, sub: '套', color: '#409EFF' },
-  { label: '维修中', value: (stats.value['维修中'] ?? 0) + (stats.value['待保洁'] ?? 0) + (stats.value['待验收'] ?? 0), sub: '套', color: '#F56C6C' },
+  { label: '入住率', value: `${stats.value.occupancyRate ?? 0}%`, sub: '', color: tokens.ok300 },
+  { label: '空置房', value: stats.value['空置'] ?? 0, sub: '套', color: tokens.stVacant },
+  { label: '已出租', value: stats.value['已出租'] ?? 0, sub: '套', color: tokens.stRented },
+  { label: '维修中', value: (stats.value['维修中'] ?? 0) + (stats.value['待保洁'] ?? 0) + (stats.value['待验收'] ?? 0), sub: '套', color: tokens.bad300 },
 ]);
 
 const alerts = computed(() => {
@@ -103,23 +107,28 @@ const alerts = computed(() => {
   return list;
 });
 
+const STATUS_KEYS = ['空置', '已锁定', '已预订', '已出租', '退租中', '待保洁', '待验收', '维修中', '已冻结'];
+const hasStatus = computed(() => STATUS_KEYS.some((s) => (stats.value[s] || 0) > 0));
+const hasBuilding = computed(() => buildingData.value.some((b: any) => (Number(b.total) || 0) > 0));
+const hasHeatmap = computed(() => floorHeatmap.value.length > 0);
+
 // 玫瑰饼图
 const roseOption = computed(() => ({
   tooltip: { trigger: 'item' },
-  legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: '#ccc', fontSize: 11 } },
+  legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { color: tokens.dText3, fontSize: 11 } },
   series: [{
     type: 'pie', roseType: 'area', radius: ['20%', '70%'], center: ['35%', '50%'],
     itemStyle: { borderRadius: 4 },
     data: [
-      { value: stats.value['空置'] || 0, name: '空置', itemStyle: { color: '#a0d911' } },
-      { value: stats.value['已预订'] || 0, name: '已预订', itemStyle: { color: '#faad14' } },
-      { value: stats.value['已出租'] || 0, name: '已出租', itemStyle: { color: '#1890ff' } },
-      { value: stats.value['维修中'] || 0, name: '维修中', itemStyle: { color: '#ff4d4f' } },
-      { value: stats.value['待保洁'] || 0, name: '待保洁', itemStyle: { color: '#722ed1' } },
-      { value: stats.value['待验收'] || 0, name: '待验收', itemStyle: { color: '#13c2c2' } },
-      { value: stats.value['已锁定'] || 0, name: '已锁定', itemStyle: { color: '#8c8c8c' } },
-      { value: stats.value['已冻结'] || 0, name: '已冻结', itemStyle: { color: '#595959' } },
-      { value: stats.value['退租中'] || 0, name: '退租中', itemStyle: { color: '#fadb14' } },
+      { value: stats.value['空置'] || 0, name: '空置', itemStyle: { color: tokens.stVacant } },
+      { value: stats.value['已锁定'] || 0, name: '已锁定', itemStyle: { color: tokens.stLocked } },
+      { value: stats.value['已预订'] || 0, name: '已预订', itemStyle: { color: tokens.stBooked } },
+      { value: stats.value['已出租'] || 0, name: '已出租', itemStyle: { color: tokens.stRented } },
+      { value: stats.value['退租中'] || 0, name: '退租中', itemStyle: { color: tokens.warn300 } },
+      { value: stats.value['待保洁'] || 0, name: '待保洁', itemStyle: { color: tokens.dText3 } },
+      { value: stats.value['待验收'] || 0, name: '待验收', itemStyle: { color: tokens.dText3 } },
+      { value: stats.value['维修中'] || 0, name: '维修中', itemStyle: { color: tokens.bad300 } },
+      { value: stats.value['已冻结'] || 0, name: '已冻结', itemStyle: { color: tokens.info300 } },
     ].filter(d => d.value > 0),
   }],
 }));
@@ -128,8 +137,8 @@ const roseOption = computed(() => ({
 const buildingBarOption = computed(() => ({
   tooltip: { trigger: 'axis' },
   grid: { left: 50, right: 30, top: 20, bottom: 30 },
-  xAxis: { type: 'category', data: buildingData.value.map((b: any) => b.buildingName || '未分组'), axisLabel: { color: '#ccc' } },
-  yAxis: { type: 'value', max: 100, axisLabel: { color: '#ccc', formatter: '{value}%' } },
+  xAxis: { type: 'category', data: buildingData.value.map((b: any) => b.buildingName || '未分组'), axisLabel: { color: tokens.dText3 } },
+  yAxis: { type: 'value', max: 100, axisLabel: { color: tokens.dText3, formatter: '{value}%' } },
   series: [{
     type: 'bar', data: buildingData.value.map((b: any) => {
       const t = Number(b.total) || 1;
@@ -137,7 +146,7 @@ const buildingBarOption = computed(() => ({
     }),
     itemStyle: {
       color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-        colorStops: [{ offset: 0, color: '#1890ff' }, { offset: 1, color: '#096dd9' }],
+        colorStops: [{ offset: 0, color: tokens.brand300 }, { offset: 1, color: tokens.brand600 }],
       },
     },
     barWidth: 40,
@@ -150,11 +159,11 @@ const gaugeOption = computed(() => ({
     type: 'gauge', radius: '85%', center: ['50%', '55%'],
     startAngle: 210, endAngle: -30,
     min: 0, max: 100,
-    axisLine: { lineStyle: { width: 16, color: [[0.5, '#ff4d4f'], [0.75, '#faad14'], [1, '#52c41a']] } },
+    axisLine: { lineStyle: { width: 16, color: [[0.5, tokens.bad300], [0.75, tokens.warn300], [1, tokens.ok300]] } },
     axisTick: { show: false },
     splitLine: { show: false },
     axisLabel: { show: false },
-    detail: { valueAnimation: true, formatter: '{value}%', fontSize: 28, color: '#fff', offsetCenter: [0, '60%'] },
+    detail: { valueAnimation: true, formatter: '{value}%', fontSize: 28, color: tokens.dText, offsetCenter: [0, '60%'] },
     data: [{ value: stats.value.occupancyRate ?? 0, name: '入住率' }],
   }],
 }));
@@ -172,10 +181,10 @@ const heatmapOption = computed(() => {
   return {
     tooltip: { formatter: (p: any) => `${bn[p.value[0]]} ${p.value[1] + 1}F: ${p.value[2]}%` },
     grid: { left: 80, right: 40, top: 10, bottom: 30 },
-    xAxis: { type: 'category', data: bn, axisLabel: { color: '#ccc' } },
-    yAxis: { type: 'category', data: Array.from({ length: maxFloor }, (_, i) => `${i + 1}F`), axisLabel: { color: '#ccc' } },
-    visualMap: { min: 0, max: 100, calculable: true, orient: 'vertical', right: 0, bottom: 20, inRange: { color: ['#ff4d4f', '#faad14', '#a0d911', '#52c41a'] } },
-    series: [{ type: 'heatmap', data, label: { show: true, color: '#fff', fontSize: 10 } }],
+    xAxis: { type: 'category', data: bn, axisLabel: { color: tokens.dText3 } },
+    yAxis: { type: 'category', data: Array.from({ length: maxFloor }, (_, i) => `${i + 1}F`), axisLabel: { color: tokens.dText3 } },
+    visualMap: { min: 0, max: 100, calculable: true, orient: 'vertical', right: 0, bottom: 20, inRange: { color: [tokens.dRaised, tokens.stBooked, tokens.brand300] } },
+    series: [{ type: 'heatmap', data, label: { show: false } }],
   };
 });
 
@@ -191,14 +200,14 @@ const trendOption = computed(() => {
   return {
     tooltip: { trigger: 'axis' },
     grid: { left: 40, right: 20, top: 20, bottom: 30 },
-    xAxis: { type: 'category', data: months, axisLabel: { color: '#ccc', rotate: 30, fontSize: 10 } },
-    yAxis: { type: 'value', min: 0, max: 100, axisLabel: { color: '#ccc', formatter: '{value}%' } },
+    xAxis: { type: 'category', data: months, axisLabel: { color: tokens.dText3, rotate: 30, fontSize: 10 } },
+    yAxis: { type: 'value', min: 0, max: 100, axisLabel: { color: tokens.dText3, formatter: '{value}%' } },
     series: [{
       type: 'line', smooth: true,
       data: months.map((_, i) => Math.round(baseRate + (Math.sin(i * 0.6) * 5) - (i * 0.2))),
-      lineStyle: { color: '#1890ff', width: 2 },
-      areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(24,144,255,0.3)' }, { offset: 1, color: 'rgba(24,144,255,0.02)' }] } },
-      itemStyle: { color: '#1890ff' },
+      lineStyle: { color: tokens.brand300, width: 2 },
+      areaStyle: { color: tokens.brand300, opacity: 0.18 },
+      itemStyle: { color: tokens.brand300 },
     }],
   };
 });
@@ -251,7 +260,7 @@ const sankeyOption = computed(() => {
     series: [{
       type: 'sankey', layout: 'none', emphasis: { focus: 'adjacency' },
       nodeWidth: 14, nodeGap: 10,
-      label: { color: '#ccc', fontSize: 11 },
+      label: { color: tokens.dText3, fontSize: 11 },
       lineStyle: { color: 'gradient', curveness: 0.5, opacity: 0.4 },
       data: nodes, links,
     }],
@@ -302,32 +311,39 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+// 房态大屏是唯一使用暗色面阶 $d-* 的地方：亮色阶 $n-* 是单向的，倒过来用只剩 2–3:1
+// （见 docs/UI设计准则.md「暗色面阶」）。
 .dashboard-dark {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a1628 0%, #0d2137 50%, #0f2b47 100%);
+  background: $d-bg;
   padding: 16px 20px;
-  color: #fff;
-  margin: -20px;
+  color: $d-text;
+  // 抵消 .main-content 的 padding，让暗色画布铺满内容区。
+  // 不再用 -20px 去啃面包屑区域——那会让面包屑变成深底深字、看不清。
+  margin: -16px;
 }
 
 .dash-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 16px;
+  padding-bottom: 12px; border-bottom: 1px solid $d-line; margin-bottom: 16px;
 }
-.header-left h2 { margin: 0; font-size: 20px; letter-spacing: 2px; color: #fff; }
-.header-time { font-size: 14px; color: #8899aa; margin-left: 16px; }
-.header-right .el-button { color: #8899aa; }
+.header-left h2 { margin: 0; font-size: 20px; letter-spacing: 2px; color: $d-text; }
+.header-time { font-size: 14px; color: $d-text-3; margin-left: 16px; }
+.header-right .el-button { color: $d-text-2; }
+.header-right .el-button:hover { color: $d-text; }
+.ws-off { color: $bad-300; font-size: 12px; margin-right: 12px; }
 
 .kpi-row { display: flex; gap: 16px; margin-bottom: 16px; }
 .kpi-item {
-  flex: 1; background: rgba(255,255,255,0.05); border-radius: 8px;
-  padding: 14px 20px; border-top: 3px solid #1890ff;
-  text-align: center;
+  flex: 1; background: $d-raised; border-radius: $r-box;
+  border: 1px solid $d-line;
+  border-top: 3px solid $d-line;   // 颜色由指标内联覆盖
+  padding: 14px 20px; text-align: center;
 }
-.kpi-val { font-size: 28px; font-weight: 700; color: #fff; }
-.kpi-lbl { font-size: 13px; color: #8899aa; margin-top: 4px; }
-.kpi-sub { font-size: 11px; color: #556677; }
+.kpi-val { font-size: 28px; font-weight: 700; color: $d-text; font-variant-numeric: tabular-nums; }
+.kpi-lbl { font-size: 13px; color: $d-text-2; margin-top: 4px; }
+.kpi-sub { font-size: 11px; color: $d-text-3; }
 
 .chart-grid {
   display: grid;
@@ -335,18 +351,24 @@ onUnmounted(() => {
   gap: 14px;
 }
 .chart-card {
-  background: rgba(255,255,255,0.04);
-  border-radius: 8px; padding: 12px 14px;
-  border: 1px solid rgba(255,255,255,0.06);
+  background: $d-surface;
+  border-radius: $r-box; padding: 12px 14px;
+  border: 1px solid $d-line;        // 描边必须比面亮一档，否则面板糊成一坨（原来两者同色）
 }
 .chart-wide { grid-column: span 2; }
 .chart-gauge { display: flex; flex-direction: column; align-items: center; }
 .card-title {
-  font-size: 14px; font-weight: 600; color: #aabbcc;
-  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 14px; font-weight: 600; color: $d-text-2;
+  margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid $d-line;
+}
+.chart-empty {
+  display: flex; align-items: center; justify-content: center;
+  color: $d-text-3; font-size: 13px;
 }
 
 .alert-ticker { max-height: 240px; overflow-y: auto; }
-.alert-item { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); color: #fadb14; font-size: 13px; }
-.alert-empty { color: #556677; text-align: center; padding: 40px 0; }
+// 告警走语义色（原来用 $st-booked 是语义误用：房态阶只表达房态，不表达告警级别）
+.alert-item { padding: 8px 0; border-bottom: 1px solid $d-line; color: $warn-300; font-size: 13px; }
+.alert-icon { color: $bad-300; vertical-align: -2px; margin-right: 4px; }
+.alert-empty { color: $d-text-3; text-align: center; padding: 40px 0; }
 </style>

@@ -8,19 +8,11 @@
         <el-col :span="6"><el-date-picker v-model="filters.dateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" @change="fetchData" style="width:100%" /></el-col>
         <el-col :span="4"><el-button type="primary" @click="showDialog(null)">新增检查</el-button></el-col>
       </el-row>
-      <el-table :data="list" size="small" stripe @row-click="(row: any) => $router.push('/fire/inspections/' + row.id)" style="cursor:pointer">
-        <el-table-column prop="property" label="房源" width="140"><template #default="{row}">{{ row.property?.name || '-' }}</template></el-table-column>
-        <el-table-column prop="inspectionDate" label="检查日期" width="110" />
-        <el-table-column prop="type" label="类型" width="100" />
-        <el-table-column prop="result" label="结果" width="100"><template #default="{row}"><el-tag :type="row.result==='合格'?'success':row.result==='限期整改'?'warning':'danger'" size="small">{{ row.result }}</el-tag></template></el-table-column>
-        <el-table-column prop="overallScore" label="评分" width="70" />
-        <el-table-column prop="nextInspectionDate" label="下次检查" width="110" />
-        <el-table-column label="操作" width="120"><template #default="{row}"><el-button link size="small" @click.stop="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template></el-table-column>
-              <template #empty>
-          <EmptyState title="暂无检查记录" description="开展消防检查后记录会在此汇总" />
-        </template>
-      </el-table>
-      <el-pagination v-if="total>0" style="margin-top:12px" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
+      <DataTable :data="list" :columns="COLUMNS" row-key="id" @row-click="(row: any) => $router.push('/fire/inspections/' + row.id)" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无检查记录" empty-description="开展消防检查后记录会在此汇总" style="cursor:pointer">
+        <template #c1="{ row }">{{ row.property?.name || '-' }}</template>
+        <template #c4="{ row }"><el-tag :type="row.result==='合格'?'success':row.result==='限期整改'?'warning':'danger'" size="small">{{ row.result }}</el-tag></template>
+        <template #c7="{ row }"><el-button link size="small" @click.stop="showDialog(row)">编辑</el-button><el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)"><template #reference><el-button link size="small" type="danger">删除</el-button></template></el-popconfirm></template>
+      </DataTable>
     </el-card>
 
     <el-dialog :title="editing ? '编辑检查记录' : '新增检查记录'" v-model="dialogVisible" width="600px">
@@ -52,6 +44,19 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'property', label: '房源', width: 140, slot: 'c1' },
+  { prop: 'inspectionDate', label: '检查日期', width: 110 },
+  { prop: 'type', label: '类型', width: 100 },
+  { prop: 'result', label: '结果', width: 100, slot: 'c4' },
+  { prop: 'overallScore', label: '评分', width: 70 },
+  { prop: 'nextInspectionDate', label: '下次检查', width: 110 },
+  { label: '操作', width: 120, slot: 'c7' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -86,5 +91,5 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 </style>

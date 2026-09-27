@@ -30,7 +30,7 @@ npm run build
 bash test-api.sh
 & 'C:\Program Files\Git\bin\bash.exe' ./test-api.sh
 
-# 全链路回归（23 项串联，需先启动 dev）
+# 全链路回归（25 项串联，需先启动 dev）
 npm run test:regression
 
 # 只跑单元测试（vitest：backend/tests + frontend/tests，纯函数，不需服务）
@@ -39,7 +39,7 @@ npm run test:unit
 # 仅无服务依赖的门禁（静态铁律 + 对比度 + 双端类型检查 + ESM 产物校验，CI 可直接跑）
 npm run test:static
 
-# 单跑静态铁律门禁（emoji/主题色/版本号/生产URL/multer/财务中间件）
+# 单跑静态铁律门禁（emoji/颜色字面量/版本号/生产URL/multer/财务中间件）
 npm run check:rules
 
 # 后端 TypeScript 类型检查（不生成输出）
@@ -60,17 +60,26 @@ npm run build:electron         # 先完成前后端构建，再运行此命令
 # 重拍说明书截图 → 再生成说明书 PDF（均需先启动 dev）
 node scripts/capture-manual-screenshots.js
 node scripts/generate-manual-pdf.js
+
+# 产品方案 Markdown → PDF（版本号取自 package.json；--html 额外落中间产物，便于排查渲染）
+node scripts/generate-proposal-pdf.js
 ```
 
 **默认登录凭据：** `admin / admin123`（数据库首次启动自动创建）
 
-**版本号**：仅根目录 `package.json` 中的 `version` 字段决定打包版本号。发版前先修改此字段，然后执行 `npm run build` 全量构建。构建产物输出到 `release/` 目录（NSIS exe + zip + blockmap）。
+**版本号**：仅根目录 `package.json` 中的 `version` 字段决定打包版本号。发版前先修改此字段，然后执行 `npm run build` 全量构建。构建产物输出到 `release/` 目录（NSIS 安装包 setup exe + blockmap + latest.yml）。
+
+**打包压缩级别必须是 `normal`（踩过的坑）**：`electron-builder.yml` 的 `compression` 一旦设为 `maximum`，7za 会以最高档 + 单线程压整个 `win-unpacked`（约 590MB），实测 zip 目标耗时 28 分钟、NSIS 目标再花 4 分钟（合计 30+ 分钟），期间 CPU 满载却没有任何进度输出，极易被误判为卡死。`maximum` 与 `normal` 的**产物内容完全相同**，只是体积略小，性价比极低——发版一律用 `normal`（耗时降到几分钟）。`win.target` 曾同时配 nsis + zip，electron-builder 会把整包对每个目标各完整压一遍（打包时间翻倍），已按需求移除 zip 目标、只出 NSIS 安装包；另外打包前必须停掉 dev（dev 锁 `backend/node_modules` 与 `runtime/node/node.exe`）。
+
+**文档生成器：版本号禁止硬编码 + 表格转换坑（踩过的坑）**：`scripts/generate-manual-pdf.js` 与 `scripts/generate-proposal-pdf.js` 的**源文件名、输出名、页眉版本号一律从根 `package.json` 的 version 拼接**——产品方案生成器曾把 `v1.0.2` 写死在文件名与页眉里，改版本时漏改就会产出旧版本号的文档。产品方案的 Markdown→HTML 表格转换曾用两次正则分别插 `<table>`/`</table>`：**3 行以上的表格会插出多个 `<table>`，剩下的裸 `<tr>` 会被浏览器解析器直接丢弃**，整张表塌成一段连在一起的文字（「数据库设计」表就这么丢的，肉眼很难发现），已改为整块一次性包裹并让首行输出 `<th>`；表格首列与表头加 `white-space: nowrap`，否则自动列宽会把中文挤成「租 赁 与 合 同」竖排。**重生成任何文档 PDF 后，都要用 `pdf-parse` 抽一次文本核对**（页数 + 关键短语/数字），别只看脚本打印的「生成成功」。
+
+**前端 dev 与 build 不要并行（踩过的坑）**：dev server 运行中若在同目录跑 `npm run build:frontend`，Dart Sass 会在源文件旁写 `.xxx.scss.<pid>.<uuid>.tmpdir/` 临时目录，而 Vite 的 FSWatcher 又去 watch 它 → `EBUSY: resource busy or locked` → watcher 抛错未捕获，**dev 进程直接退出（exit 1）**。改动 `variables.scss` 时最容易触发。要构建就先停 dev。
 
 ## 技术栈
 
 | 层 | 技术 | 关键版本 |
 |---|------|---------|
-| 前端框架 | Vue 3 Composition API (`<script setup lang="ts">`) | 3.4 |
+| 前端框架 | Vue 3 Composition API (`<script setup lang="ts">`) | 3.5 |
 | UI 库 | Element Plus + @element-plus/icons-vue | 2.5 |
 | 图表 | ECharts 6 + vue-echarts 8 | - |
 | PDF 导出 | Electron printToPDF（文字PDF，主路径）+ html2canvas/jspdf（截图回退） | 打印/导出 |
@@ -79,12 +88,12 @@ node scripts/generate-manual-pdf.js
 | 状态管理 | Pinia | 2.1 |
 | 路由 | Vue Router 4 (hash 模式) | 4.3 |
 | HTTP 客户端 | Axios (拦截器自动附加 Bearer token + 401 自动刷新) | - |
-| 后端框架 | Express | 4.18 |
+| 后端框架 | Express | 4.22 |
 | ORM | Sequelize 6 (SQLite 默认 / MySQL 可选) | 6.37 |
 | 认证 | JWT (access 4h + refresh 7d) | - |
-| 定时任务 | node-cron (账单生成/催缴/折旧/合同到期) | - |
+| 定时任务 | node-cron (账单生成/催缴升级/合同到期/月度折旧/物业自动化/月度简报/门锁清理，共 7 个) | - |
 | 实时通信 | WebSocket (ws) — 路径 `/ws` | - |
-| 打包 | electron-builder (NSIS 安装包, x64) | - |
+| 打包 | electron-builder (NSIS 安装包, x64, compression: normal) | - |
 
 ## 项目结构
 
@@ -94,21 +103,21 @@ node scripts/generate-manual-pdf.js
 │       ├── api/               # Axios 请求模块（每个业务域一个文件）
 │       ├── components/
 │       │   ├── layout/        # AppLayout.vue — 主布局（侧边栏+顶栏）
-│       │   └── print/         # 打印 HTML 模板（5套：合同/租客/账单/收据/批量）
+│       │   └── print/         # 打印 HTML 模板（6套：合同/租客/账单/收据/批量汇总/月度简报）
 │       ├── router/            # 路由定义（hash 模式，token 导航守卫）
 │       ├── composables/       # Vue3 组合式函数（useWebSocket / useIdCardReader）
 │       ├── utils/             # 工具模块（打印服务/头像/凭证存储）
-│       ├── views/             # 页面组件（86 个）：dashboard / rent / property / finance / contract / fire / system
+│       ├── views/             # 页面组件（87 个）：dashboard / rent / property / finance / contract / fire / system
 │       └── api/request.ts     # Axios 实例（baseURL=/api，拦截器处理 token/401）
 ├── backend/                   # Express 后端（ESM 模块）
 │   └── src/
 │       ├── index.ts           # 入口：连接DB→迁移→同步表→种子数据→启动HTTP+WS
 │       ├── app.ts             # Express 应用（helmet/cors/morgan/json/路由/错误处理）
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
-│       ├── models/            # Sequelize 模型（65 个模型 + index/BaseModel）
-│       ├── routes/            # Express 路由（66 个模块 + index，统一挂载 /api 前缀）
+│       ├── models/            # Sequelize 模型（69 个 + index/BaseModel）
+│       ├── routes/            # Express 路由（67 个模块 + index，统一挂载 /api 前缀）
 │       ├── middleware/        # auth / rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
-│       ├── services/          # 业务服务层（38 个）
+│       ├── services/          # 业务服务层（41 个）
 │       ├── jobs/scheduler.ts  # 7 个 cron 定时任务（任务注册表）
 │       └── websocket/         # WebSocket 广播
 ├── electron/                  # Electron 主进程 + preload
@@ -289,6 +298,7 @@ function decodeFilename(name: string): string {
 4. 开发模式窗口加载 `http://localhost:5173`，生产模式加载 `file://` 协议
 5. 生产模式禁止开发者工具（拦截 `devtools-opened` 事件）
 6. **两个真实生产坑（发版必记）**：① 版本号不能运行时读 package.json（在 app.asar 里读不到）——改为构建期 `scripts/gen-build-version.cjs` 注入 `BUILD_VERSION`；② 终端一关，主进程 `console.log` 后端 stdout 抛 **EPIPE 崩主进程**——stdout/stderr 写入包 try/catch，且 `main.ts` 对 `process.stdout/stderr` 加全局 `stream.on('error')`
+7. **单实例锁 + 后端日志必须同步落盘（踩过的坑）**：`main.ts` 的启动流程整体包在 `app.requestSingleInstanceLock()` 的 else 分支里——不加锁时重复启动（连点图标 / 安装器自启 + 手动点）会产生两个实例，各自拉起一个后端抢 3001 端口，**后启动者 `listen EADDRINUSE` 退出（exit 1）→ 弹「服务启动失败」，而先启动的后端仍在服务，于是出现「能正常登录却报启动失败」的自相矛盾弹窗**（实测复现：第二个进程的启动日志停在 `[DB] Admin user ready`，且该日志与第一个进程同秒写出、混在同一个 `startup-*.log` 里）。配套保险：① `spawnBackend()` 先探 `/api/health`，已有健康后端直接复用不重复拉起；② 子进程 `close` 时再探一次，占用者健康则 resolve 而非 reject；③ `before-quit` 调 `stopBackend()`，避免残留进程继续占端口；④ 弹窗诊断必须**同时**带启动日志与 stderr——原来的 `logContent || stderrBuffer` 只要日志非空就把真正的死因丢掉。后端 `index.ts` 的启动日志改为 `fs.openSync` + `fs.writeSync` **同步写**：`WriteStream` 异步缓冲，致命路径上 `process.exit(1)` 紧跟 `logStream.end()` 会把 `[ERR]/[FATAL]` 行整段丢掉，这正是那条弹窗「日志里看不出问题」的原因。
 
 ### RBAC 权限体系（双层防护 + 可配置化 + 二次确认）
 
@@ -393,16 +403,16 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 | Budget | `actualAmount`（实际金额） | ~~usedAmount~~ |
 | Budget | `status`（枚举：编制中/待审核/已批准） | ~~已审批~~ |
 | Expense | `bookId`（必填，关联账套） | 创建费用时必须传入 |
-| Bill | `lateFee`（滞纳金） | 模型已定义字段 |
+| Bill | `lateFee`（违约金） | 模型已定义字段 |
 | Contract | `endDate`, `rentAmount` | 续约时前端传 `newEndDate`/`newRent`，后端映射 |
 
 ### 项目完成度
 
 | 维度 | 状态 |
 |------|------|
-| 后端路由模块 | 全部实现（66 个路由模块） |
-| 后端服务 | 全部完整（38 个业务服务） |
-| 前端页面 | 全部功能完整（86 个页面） |
+| 后端路由模块 | 全部实现（67 个路由模块） |
+| 后端服务 | 全部完整（41 个业务服务） |
+| 前端页面 | 全部功能完整（87 个页面） |
 | 前端 TypeScript | 0 错误 |
 | 后端 TypeScript | 0 错误 |
 
@@ -480,6 +490,8 @@ if (contentText.length < 50) { /* 扫描件提示 */ }
 
 ### 种子数据就绪机制
 
+**演示数据开关（重要）**：services/seed-status.ts 用两个 system_configs 内置布尔项控制——`demo_enabled`（是否生成演示数据，系统参数中心可改开关）与 `demo_seeded`（一次性标记）。状态：demo_enabled=0→disabled；demo_seeded=1→already；老库(有 CT-2024-001/演示房源无标记)→legacy 补标跳过；否则 run。seedAllDemoData() 各步按 contractNo/(contractId,period)/(billId,level)/(bookId,category,period) 幂等，删任意演示合同、重启都不再重建；demo_enabled=0 时连同门锁/消防/读卡器一并跳过，**完全不生成演示内容**。科目/合同模板/字典/审批流是功能性基线，始终幂等执行不受该开关影响。
+
 `backend/src/index.ts` 导出 `seedDataReady` 标志，Phase 3 种子数据完成后设为 `true`。`/api/health` 端点返回 `seedReady` 字段，Electron IPC `get-backend-status` 返回 `{ ok, seedReady }`，Login.vue 轮询等待种子数据就绪后才允许登录（避免首次安装时空表查询导致"后端异常"）。
 
 ### Axios 静默模式
@@ -531,11 +543,16 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 }
 ```
 
-- **段落文本**（条款 content、备注 notes、消防违规处罚等）：使用 `wrapTextAsParagraphs(text, extraStyle)`，自动拆分+段落化
-- **表格单元格**：`td()` 辅助函数已内置 `normLines(value).join('<br>')`，多行值自动处理
-- **屏幕端展示**：Vue 模板中使用 `white-space:pre-wrap` 保留换行
+- **段落文本**（条款 content、备注、消防违规处罚等）：用 `wrapTextAsParagraphs(text, extraStyle)` 拆分+段落化
+- **表格单元格**：`td()` 内置 `normLines(value).join('<br>')`；**屏幕端**用 `white-space:pre-wrap`
 
-已覆盖：5 个打印模板 + ContractDetail / TenantDetail / ReportCenter / FireInspectionDetail / ContractApproval 的多行字段。
+已覆盖 6 套打印模板 + 各详情/报表页的多行字段。
+
+**80mm 热敏小票必须按「二值设备」写模板（踩过的坑）**：热敏机每个点只有黑/白，浏览器给的是带抗锯齿的 8 位灰度位图，驱动必须再二值化一次 → 模板里任何浅色都被拆成稀疏网点：小字糊版，彩色金额被打成空心点阵甚至整片消失（实测 `#E6A23C` 亮度 170/255，阈值法直接整片变白）。`ReceiptPrint.ts` 因此定下五条硬规则：① 只用纯黑 `#000`，**层级只用字号表达、不加粗**；② 正文 13px + `font-weight:400`（**用户 2026-09-13 实机要求不加粗**：粗体在热敏纸上笔画互相挤压更容易糊成一片，去掉加粗反而清爽。笔画宽度只靠字号保证——13px 在 203dpi 下字高约 27 个点、正常字重横画约 2 个点，二值化后仍不断笔；某台机器显淡就**调大字号，不要加回粗体**）；③ **抬头不打印甲方（出租方）公司名**（用户 2026-09-13 要求，票面只留 Logo + 「收款凭证」标题，故 `ReceiptPrintData` 已删掉 `companyName` 字段），④ 内容宽 **60mm**（**不许调宽**，见下文裁字坑）+ `@page { margin: 0 }`（不写 size，纸张交给驱动，避免强制 297mm 长页走纸）；原生打印还必须显式传 `margins: { marginType: 'none' }`；PDF 纸张由 `print-service.ts` 的 `withPaperSize()` 注入——Chromium 的 `preferCSSPageSize` **只认「宽 高」两个长度值**，`size:80mm auto` 被静默忽略而退回 Letter（215.9×279.4mm，实测），单值 `size:80mm` 则是正方形，两条 `@page` 规则（size / margin）会正常合并；**合同模板过去只写 `@page{margin}` 没写 size，导出 PDF 一直是 Letter 而非 A4，已一并修正**；⑤ 分隔线用 1px 实线（虚线二值化后碎成一行断点）。以上 ②③ 已由 `frontend/tests/unit.test.ts` 的「收款凭证打印模板（80mm 热敏小票）」3 条用例锁住（票面无甲方名 / 无加粗 / 60mm 宽仍在），改模板时别把它们改红。复现手法：按 `deviceScaleFactor = 203/96` 渲染截图后再做阈值/Floyd–Steinberg 抖动，即得热敏机实际输出，不必真机试错；对比见 `docs/小票打印-二值化前后对比.png`。
+
+**68mm 太宽会右侧裁字（2026-09-13 用户实机复现，踩过的坑）**：用户 80mm 热敏机打出来的小票，**内容右边缘正好压在纸边上、尾字符被切**（收据号/日期/交易号各缺 1~2 字），左侧却还有 3~4mm 留白——即内容相对纸面被整体右推了约 6mm：Chromium 的页面盒原点与纸边不重合，或驱动的「默认页边距」盖掉了模板的 `@page{margin:0}`。68mm 居中在 80mm 纸上只剩 6mm 余量，扣掉这 6mm 位移正好顶到纸边。两条修复缺一不可：**① 内容宽 68mm → 60mm**；`electron/main.ts` 的 `print-html` 增加 `margins: { marginType: 'none' }`，且**只对 80mm 小票启用**（`print-service.ts` 按 `paperSize` 传，A4 仍走 default，否则账单/合同的页边距会被清零）。**② 收据号/日期/交易号改成整行可折行**（`.no` + `colspan=2`）：放进右对齐的窄列时，长单号会折出「-09-」这种孤零零的尾巴，而右对齐行的尾巴永远贴着容器右边缘，最容易被裁掉。复现与验证手法：`/system/print-settings` 页的 `iframe.receipt-preview` 就是真实模板（视口 302px = 80mm），用 Playwright 量 `getBoundingClientRect()` 的最右子元素——60mm 版实测 69.68mm，按 +6mm 位移折算 75.68mm，仍在 80mm 纸的可打印窗（6~78mm）内；68mm 版折算正好 80.0mm，必裁。改完记得重跑 `npm run test:regression`。
+
+**打印模板有两种形态**：`ContractPrint`/`BriefingPrint`/`ReceiptPrint` 返回**完整文档**（自带 `<!DOCTYPE>` + `@page`），`BillPrint`/`TenantInfoPrint`/`ContractBatchPrint` 返回**纯片段**。`electron/main.ts` 的 `print-html` 以 `/<!DOCTYPE|<html[\s>]/` 判定，完整文档原样写盘——再包一层会让 `@page` 失效，且 16px 的 `body` padding 会把 80mm 小票顶到 80.8mm 而被裁边；`print-service.ts` 的截图回退路径用 `normalizePrintable()` 把它拆成「样式 + body 内容」。新增模板二选一并保持一致。
 
 ### 门锁管理架构
 
@@ -547,7 +564,7 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 
 **前端**：`DoorLockList.vue`（统计卡片 + 品类筛选 + 动态操作按钮，智能锁显示远程开锁/临时密码、传统锁显示钥匙借出）、`DoorLockDetail.vue`（根据 `category` 动态切换标签页：基本信息/密码管理or钥匙管理/操作日志）。
 
-**种子数据**：独立函数 `seedDoorLocks()`（4 套演示门锁：2 智能 + 2 传统，含密码/钥匙/日志演示数据），在 `seedAllDemoData()` 之后调用，已有数据时自动跳过。
+**种子数据**：独立函数 `seedDoorLocks()`（4 套演示门锁：2 智能 + 2 传统），在 `seedAllDemoData()` 之后调用，已有数据时自动跳过。
 
 ### 房态流转系统
 
@@ -651,11 +668,11 @@ off('room:status-changed', callback);
 
 | 页面 | 路由 | 说明 |
 |------|------|------|
-| `RoomStatusKanban.vue` | `/rent/room-kanban` | 房态看板主页面：楼栋/楼层筛选 + 网格卡片 + 快捷操作抽屉 + 批量状态对话框 |
-| `RoomDashboard.vue` | `/rent/room-kanban/dashboard` | 数据大屏：暗色主题，KPI 卡片 + ECharts 可视化（玫瑰饼图/柱图/仪表盘/热力图/趋势线/桑基图 + 告警跑马灯） |
+| `RoomStatusKanban.vue` | `/rent/room-kanban` | 房态看板主页面：楼栋/楼层筛选 + 卡片/表格视图切换（同一份数据）+ 快捷操作抽屉 + 批量状态对话框 |
+| `RoomDashboard.vue` | `/rent/room-kanban/dashboard` | 数据大屏：**唯一使用 `$d-*` 暗色面阶的页面**（见 UI 主题体系 1.5），KPI 卡片 + ECharts（玫瑰饼图/柱图/仪表盘/热力图/趋势线/桑基图 + 告警跑马灯），空数据出占位 |
 | `RoomBatchGenerate.vue` | `/rent/room-kanban/batch-gen` | 批量生成房间表单：配置楼栋名称、起止楼层、每层房间数、命名规则、默认面积 |
 
-**7 个组件**（`frontend/src/components/`）：`RoomCard`（9 状态色 + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，未挂载使用）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
+**7 个组件**（`frontend/src/components/`）：`RoomCard`（净表面 + 房态阶 chip + 门锁图标 + 租客/到期）、`RoomGrid`（Grid 容器）、`RoomTableView`（表格视图，`DataTable` 实现，**已接入看板的卡片/表格切换**，内置批量条「批量改状态」）、`RoomStatsPanel`（KPI）、`BuildingFloorSelector`（楼栋+楼层联动）、`RoomQuickActionDrawer`（快捷操作+时间线）、`BatchStatusDialog`（批量改状态）。
 
 **数据流**：
 1. `RoomStatusKanban` 调用 `GET /properties/rooms/kanban` 获取完整数据（含楼栋分组、楼层分组、门锁、租客关联）
@@ -663,13 +680,13 @@ off('room:status-changed', callback);
 3. 通过 `useWebSocket()` 的 `on('room:status-changed')` 和 `on('room:batch-status-changed')` 监听变更，自动刷新看板数据
 4. `RoomDashboard` 使用 `vue-echarts` 渲染图表，单独调用 `GET /properties/rooms/stats` 和 `GET /properties/rooms/analytics`
 
-**状态颜色映射**：定义在 `RoomCard.vue` 的 9 个 `status-*` CSS class 中（空置/已锁定/已预订/已出租/退租中/待保洁/待验收/维修中/已冻结），颜色见组件源码。
+**状态颜色映射**：统一走房态阶 `.room-chip--*`（`global.scss`）+ 映射源 `components/modules/room/room-status.ts`，见「UI 主题体系 1.4」；`RoomCard` 只负责组装，不再自己定义颜色。
 
 ### 打印功能架构
 
 （打印服务三种模式见上文「PDF 导出引擎」，此处只记模板与入口）
 
-**打印模板**：`frontend/src/components/print/` 下 5 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+签章位+Logo）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）。
+**打印模板**：`frontend/src/components/print/` 下 6 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+签章位+Logo）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）、`BriefingPrint`（月度经营简报）。
 
 **打印入口**：合同详情页（头部打印下拉：直接打印 / 导出PDF）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
 
@@ -694,7 +711,13 @@ off('room:status-changed', callback);
 
 **前端**：`useIdCardReader`（设备列表/读卡触发/自动选在线设备）、`IdCardReadButton.vue`（Props `readerId?`/`mode`，Emit `@success`/`@error`）、`IdCardReaderSettings.vue`（`/system/id-card-readers`）。
 
-**Electron IPC**：`read-id-card` 通道（当前返回 Mock 提示，预留 SDK 接入点）。
+**读卡 Provider 模式**：system_configs.id_card_provider（内置，默认 mock）——mock=演示（返回内置数据，带 mock:true），real=真实读卡（RealIdCardProvider 为厂商 SDK 接入点，未接 SDK 报错不伪成功）。
+
+**身份证号 NUL 陷阱（真实踩过的坑，务必遵守）**：华视 SDK 的 `GetPeopleIDCode` 缓冲区**结尾带 `\0`（NUL）**，桥接后若不剔除，身份证号会多出一个 `\0`（19 字符）。Sequelize 的 sqlite 方言把 `WHERE` 值**内联**进 SQL 字符串（非绑定参数），而 SQLite 的 tokenizer 把 **NUL 当作字符串结束** → SQL 提前截断、收尾引号丢失 → 报 `SQLITE_ERROR: unrecognized token: "'4405…"`。**修复（纵深防御）**：① `card_bridge.py` 的 `call_str_getter` 用 `rstrip(b'\x00')` + 解码后 `replace('\x00','')`；② `id-card-service.ts` 导出 `sanitizeIdNumber()`（剔 `[\u0000-\u001f\u007f]` + trim），在 `checkDuplicateIdNumber()` 与 `readCard()` 中调用；③ `id-card-provider.ts` 源头剔除；④ `tenants.ts` POST 创建前清理。**通用约定：凡把设备/用户提供的字符串内联进 SQL 前，先剔控制字符。**
+
+**读卡日期规范化**：桥返回的 8 位日期（`20000204`）在 `id-card-provider.ts` 统一规范化为 `YYYY-MM-DD`；`validFrom`/`validTo` 优先取 `GetStartDate`/`GetEndDate`，仅缺省时回退 `dateRange` 拆分（历史 bug：三元优先级把 `2020-02-04` 截成 `2020`）。
+
+**读卡失败诊断**：`readCard()` 的 catch 把**完整 `err.message` + `err.sql` + `err.stack`** 写入 `logs/id-card-error.log` 并 `console.error`（进启动日志）；读卡日志「失败原因」存完整 SQL。
 
 ### 合同 billingConfig — 可扩展 JSON 字段
 
@@ -741,36 +764,39 @@ off('room:status-changed', callback);
 5. **自动刷新**：60s 弱轮询 + WS 事件静默刷新（300ms 防抖，不闪加载态），`onUnmounted` 清理定时器与订阅。
 6. **系统信息条**：`version` 取自根 package.json（缓存一次），`uptimeSeconds` 取 `process.uptime()`。回归脚本 `scripts/verify-dashboard.js`（16 用例）。
 
-### UI 主题体系 — 湛蓝玻璃拟物
+### UI 主题体系 — 冷调中性（令牌 v2）
 
-全站视觉统一为「湛蓝玻璃拟物（Glassmorphism·湛蓝）」，完整规范见 `docs/UI设计准则.md`（唯一权威）。要点：
+全站视觉统一为「冷调中性 · 现代极简」，完整规范见 `docs/UI设计准则.md`（唯一权威）。要点：
 
-**1. 设计令牌集中在 `frontend/src/styles/variables.scss`**：强调色 `$color-primary: #4f7cf7`（全站唯一强调色）、渐变底 `$color-bg`、玻璃面 `$color-bg-elev: rgba(255,255,255,.62)`、白描边 `$color-border`、文字三阶（`#1f2430`/`#3a4354`/`#5b6472`）、大圆角（8/14/20px）、玻璃阴影（外阴影 + 内高光）。**页面内禁止硬编码主题色字面量**。
+**1. 设计令牌 v2 集中在 `frontend/src/styles/variables.scss`**（oklch）：中性阶 `$n-0…$n-900`（唯一色相 250）、品牌 `$brand-100/300/600/700`（唯一强调色）、语义 `$ok/warn/bad/info-100|600`、房态阶 `$st-vacant/locked/booked/rented`、非颜色令牌 `$sh-0/1/2`、`$glass`、`$scrim`、字号 `$fs-page/section/body/meta`、圆角 `$r-ctl/box/panel`。
+**1.1 JS 侧镜像 `styles/tokens.ts`**：由 `node scripts/gen-tokens-ts.cjs` 从 variables.scss 派生（oklch→sRGB），供 ECharts 等需要真实色值的 JS 场景使用。
+**1.2 规则：本文件之外不得出现任何颜色字面量**——由门禁 **R2** 以白名单方式强制（豁免 variables.scss / global.scss / tokens.ts / `components/print/**`）。
+**1.3 `<style>` 块必须写 `lang="scss"`（踩过的坑）**：令牌靠 vite 的 scss `additionalData` 注入，只有声明 `lang="scss"` 的块才走 SCSS。漏写时块按**纯 CSS** 编译——`$令牌` 原样进产物、被浏览器静默丢弃（**曾致 16 个文件 95 处声明失效**，`DataTable` / `PageHeader` / `MoneyText` / `RoomCard` 等都在内），且块内 `//` 注释会直接构建失败。**新增组件务必带上**，由门禁 **P6** 强制（0 违规）。
+**1.4 房态阶的落地**：`.room-chip--*`（`global.scss`）是唯一业务流程色阶的实现；9 种房态 → 色调的映射唯一来源是 `components/modules/room/room-status.ts`（`ROOM_STATUS_MAP` / `roomStatusClass()`），**房态词汇只允许出现在这里**。`StatusTag` 收到 `className` 时渲染 `<span>` 做令牌着色，否则仍走 EP 标签。
 
-**2. Element Plus 变量覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary`、圆角、填充色、边框色统一玻璃化；`.el-card`/`.el-dialog`/`.el-popper`/输入框统一 `backdrop-filter: blur(14px)`。
+**1.5 暗色面阶（唯一例外：房态大屏）**：`$d-bg/$d-surface/$d-raised/$d-line/$d-text/$d-text-2/$d-text-3`，以及语义「暗底专用档」`$ok/warn/bad/info-300`。为什么单列：亮色阶 `$n-*` 是单向的（`$n-0` 最亮=面 → `$n-900` 最深=字），倒过来当暗色用只剩 2–3:1（大屏此前数字发灰的根因）；暗底前景用 300 档、亮底前景用 600 档。**仅 `RoomDashboard.vue` 可用**，其它页面不得使用——是单一页面例外，不是第二主题。
 
-**3. ANTI-EMOJI（铁律）**：UI 与代码中禁用 emoji，一律用 `@element-plus/icons-vue` 线性图标。
-- `utils/avatars.ts` 已重构为图标方案：`avatarIcons`（键名→组件）+ `roleAvatars`（角色→键名+渐变底）+ `presetAvatars`（可选头像）+ **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容数据库里已存的 emoji 头像）。渲染方式：`<el-icon><component :is="resolveAvatarIcon(key)" /></el-icon>`。
-- 首页 `HomeDashboard.vue` 的 `iconMap` 已语义化（`home/users/money/trend/bell/doc/chart/coin/check/alert/warn/list`），KPI/待办/快捷入口的 `icon` 字段存语义键而非 emoji。
+**2. Element Plus 覆盖在 `global.scss` 的 `html:root`**（`main.ts` 中该文件在 element-plus 样式之后引入，覆盖生效）：`--el-color-primary: $brand-600`、`--el-fill-color-blank: $n-0`（取消半透明填充）、`--el-border-color: $n-400`（控件边界 ≥3:1）、`--el-border-radius-base: $r-box`；同时输出 `--n-*`/`--brand-*`/`--glass`/`--sh-*` 的 CSS 变量镜像，供内联样式与 JS 使用。
 
-**4. 存量色值迁移脚本 `scripts/theme-migrate.cjs`**：旧色（`#0A3D62`/`#F6B93B`/`#00B894`/`#FF6B35`/`#82CCDD`/`#1a5f8a`）→新令牌；`#0A3D62` 按语境二分——CSS `color:` 文字色→`#1f2430`，背景/边框/图表色→`#4f7cf7`。**自动跳过 `frontend/src/components/print/`**（打印模板面向纸质，保留深墨蓝）。
+**3. 材质：玻璃只留给侧栏 / 抽屉 / 弹层；顶栏为品牌实色**（`$brand-600` + 白字，实测 7.22:1；这是**唯一允许大面积使用品牌色的位置**），内容卡片一律**净表面**（`$n-0` + 1px `$n-200` + 无模糊无阴影），统一由 `global.scss` 的 `.surface` 定义，**禁止逐页复制**。门禁要求全站 `backdrop-filter` 模糊区 ≤4（当前 2 处：侧栏 + 浮层）。**浮层玻璃必须半透明底与 blur 成对**：`.el-dialog` / `.el-drawer` / `.el-popper` / `.el-message-box` 的底色改为 `$glass`（分别走 `--el-dialog-bg-color` / `--el-drawer-bg-color` / `--el-bg-color-overlay` / 直接 background），否则不透明面板上的 `blur(14px)` 是空转（曾如此存在过）。
 
-**5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**（此前 Login 硬编码 1.0.2 与实际 1.0.3 不符）。
+**4. ANTI-EMOJI（铁律）**：UI 与代码中禁用 emoji，一律用 `@element-plus/icons-vue` 线性图标。
+- `utils/avatars.ts` 为图标方案：`avatarIcons` + `roleAvatars` + `presetAvatars` + **`resolveAvatarIcon(key)`**（内置 legacy emoji→键名映射，兼容库里已存的 emoji 头像）。
+- 首页 `HomeDashboard.vue` 的 `iconMap` 已语义化（`home/users/money/trend/bell/doc/chart/coin/check/alert/warn/list`），`icon` 字段存语义键而非 emoji。
 
-**6. 交互态（Rule 5）— 骨架屏 + 统一空态**：两个全局自动注册组件位于 `frontend/src/components/common/`：
-- `TableSkeleton.vue`（首屏骨架，shimmer 动效 + 逐行淡入，替代通用转圈）
-- `EmptyState.vue`（图标 + 标题 + 引导说明 + 可选操作按钮，props：`title/description/icon/actionText/compact`）
+**5. 版本号注入**：`frontend/vite.config.ts` 读取根 `package.json` 并 `define: { __APP_VERSION__ }`，`env.d.ts` 中声明；`Login.vue` 使用 `__APP_VERSION__`。**禁止在页面里写死版本字符串**。
 
-标准接法（已覆盖 **68 个列表页**）：`<TableSkeleton v-if="loading && !list.length" />` + `<el-table v-show="!(loading && !list.length)">` + `<template #empty><EmptyState ... /></template>`。批量接入用 `scripts/apply-loading-states.cjs`（`--dry` 预演），验收用 `scripts/verify-ux-states.cjs`。按钮 `:active` 统一 `translateY(-1px) scale(.98)`；高密度表格区保持不透明背景（Anti-Card Overuse）。
+**6. 组件中间层（新增页面的默认动作 = 组装组件）**：
+- `components/base/`（无业务词汇）：`DataTable`（**内置 money/status/date/mono 列类型** + 批量 + 骨架 + 空态 + 分页 + 三档密度，`prop` 支持嵌套路径）、`FilterBar`、`StatusTag`、`MoneyText`、`DateText`、`FormDialog`、`PageHeader`、`types.ts`。
+- **页面级工具栏 = `FilterBar` / `PageHeader`，禁止再自写 `.toolbar` / `.search-group` 样式**：筛选控件放 `FilterBar` 默认插槽、批量/导出等操作放 `#actions`；只有标题/面包屑 + 操作的页头用 `PageHeader`。`FilterBar` 内置的「查询/重置」只在传了 `keyword` 或 `fields` 时才渲染，纯自定义布局只给默认插槽即可（不会多出空按钮）。门禁 **P4** 基线 = 0，扫描 `frontend/src` 全量。
+- `components/surfaces/`（只切密度）：`ListShell`/`DashboardShell`/`FormShell`/`DocumentShell`/`PortalShell`，差异来自 `data-surface` 密度变量。
+- `components/modules/`（允许业务语义）：`rent/TenantFormDialog`、`rent/BillLifecycle`、`finance/VoucherAutoGenerate`、`finance/VoucherEntryRows`、`contract/ClausePreview`。
+- `components/common/`：`EmptyState` / `TableSkeleton`（全局自动注册，**不要重写**）。
+- 依赖方向硬约束：`modules/` → `base/`/`surfaces/` 单向；反向禁止。复用件：`composables/useBatchDelete`、`composables/useDensity`、`utils/bill-print`。
 
-**7. 无障碍配色（WCAG 2.1 AA）**：原色只满足 UI 组件 3:1，作正文最低仅 1.72:1，故拆分用途——
-- **文字/链接/细线图标**用加深变体：`$color-primary-text: #2b57c9`（hover `#1e50bd`）、`$color-success-text: #0a7652`、`$color-warning-text: #8a5200`、`$color-danger-text: #bf2626`、次要文字 `$color-text-subtle: #5f6675`（原 #8b93a3）
-- **交互控件边界**用 `$color-border-control: #6f8299`（`--el-border-color`，SC 1.4.11 强制 ≥3:1）；白描边仅作装饰轮廓
-- **深色顶栏**上的主色/红点用 `$color-on-dark-primary: #a8c2fc` / `$color-on-dark-danger: #fca5a5`
-- **实心按钮**（primary/success/warning/danger）底色在 `global.scss` 覆盖为加深变体，使白字达 5.6–6.4:1
-- **原色保留**用于填充、标签底、图表系列色、进度条、KPI 大号数值（品牌湛蓝 `#4f7cf7` 未被替换）
+**7. 无障碍（WCAG 2.1 AA）**：v2 的 **600 档即文字安全档**（`$brand-600` 白字 7.22:1、`$n-600` 次要文字 5.23:1、语义 600 档 5.94–7.37:1），v1 的独立 `-text` 变体体系已被吸收，不再单列。控件边界用 `$n-400`（3.21:1，满足 SC 1.4.11）；`$n-200` 仅作分割线（装饰性豁免）。
 
-自检门禁：`node scripts/check-contrast.cjs`（46 条清单，覆盖玻璃面/页面底/深色顶栏三类背景与 alpha 合成；当前 46/46 通过 + 2 条装饰性豁免）。存量迁移用 `scripts/apply-a11y-colors.cjs`（只改 `<template>/<style>` 的文字色）。详见 `docs/对比度检查报告.md`。
+自检门禁：`node scripts/check-contrast.cjs`（62 条清单，62/62 + 3 条装饰性豁免，脚本直接解析 variables.scss 的 oklch，与令牌自动同步；含 `$st-*` 房态四档、5 条 chip 例外配对，以及玻璃浮层「页面底→遮罩→玻璃」三层合成）；三档密度验收 `node scripts/verify-table-density.cjs`（14 用例）。存量色值迁移用 `node scripts/theme-migrate-v2.cjs --dry` 预演。**内联表格已 100% 迁移到 `DataTable`**（87 视图 / 95 张表；门禁 P5 基线 = 0 且统计 `frontend/src` 全量，新增页面/组件不得再写 `<el-table>`，豁免仅 `base/DataTable.vue` 与 `modules/finance/VoucherEntryRows.vue`），迁移工具 `node scripts/migrate-tables-to-datatable.cjs`（`--dry` 预演，扫描范围仅 `views/`）。
 
 ### 依赖漏洞治理（当前状态与决策）
 
@@ -786,7 +812,7 @@ off('room:status-changed', callback);
 
 ### 全链路回归（发版前必跑）
 
-**一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **23 项**、分三段执行，全通过退出码 0：
+**一条命令**：`npm run test:regression`（先启动 `npm run dev`）。串联 **25 项**、分三段执行，全通过退出码 0：
 
 - **A 段 静态门禁**（无需服务）：`check-static-rules` → `check-contrast` → `check-deps-audit`（生产依赖漏洞，需 registry，离线自动跳过；上游无补丁项走 ALLOWLIST 豁免且有复审期限）
 - **B 段 类型/单测/构建门禁**（无需服务）：`vue-tsc` → `tsc` → **backend vitest（12 用例）** → **frontend vitest（11 用例）** → `verify-esm-build`（仅当 `backend/dist` 存在，否则显式跳过、不计失败）
@@ -812,7 +838,7 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 1. **唯一化**：租客 `idNumber` 有唯一校验（重复返回 409），房源/合同编号也应带时间戳，否则脚本**第二次运行必挂**。
 2. **清理顺序**：先删合同 → 再删租客/房源。租客存在关联合同时后端拒绝删除，残留租客会让下次运行的整条合同链路失败。
 3. **中文编码**：Windows bash 下 `curl -d` 直传中文会编码损坏并写入脏数据（曾导致页面乱码检测失败），中文 body 一律用 `--data-binary "@临时文件"`。
-4. **清理脏数据时禁止用宽泛通配**：`contractNo like 'CT-%'` 会连同演示种子合同 `CT-2024-001~005` 一起删掉。若误删，删除 `CT-2024-001` 会让 `seedAllDemoData()` 判定为"未初始化"，**重启后端即可完整重建**演示数据（房源/租客按 name 幂等复用）。
+4. **清理脏数据时禁止用宽泛通配**：`contractNo like 'CT-%'` 会连同种子合同一起删掉。注意演示数据现为**一次性初始化**（见上文 demo_seeded），删除后不再自动重建
 
 **系统触发场景的外键约束（重要）**：支付回调、定时任务等没有登录用户，写库时**不能用 `userId = 0`**——`users` 表外键会拒绝，导致整个请求 500。`voucher-generator.ts` 的 `normalizeOperator()` 统一把 0/空转为 `null`（`Voucher.createdBy` 允许为空）。
 
@@ -826,8 +852,8 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-esm-build.js` | 验证后端编译产物中所有 ESM import 路径有效 |
 | `full-e2e-test.js` | 全量 E2E 测试（37 项 + 250+ 断言 + 全局乱码检查） |
 | `generate-icon.js` | 从 build/icon.png 生成各尺寸图标 |
-| `capture-manual-screenshots.js` | 说明书截图采集（登录后批量拍 44 张写入 `docs/screenshots/`，可传 key 补拍）；需先启动 dev |
-| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（版本取根 package.json，截图 base64 内嵌，`--html` 落地中间 HTML 便于排查） |
+| `capture-manual-screenshots.js` | 说明书截图采集（登录后批量拍 44 张写入 `docs/screenshots/`，可传 key 补拍）；需 dev |
+| `generate-manual-pdf.js` | 从 `docs/使用说明书.md` 生成说明书 PDF（版本取根 package.json，截图 base64 内嵌，`--html` 排查） |
 | `generate-proposal-pdf.js` | 从 Markdown 生成产品方案 PDF |
 | `kill-dev.ps1` | 清理占用开发端口的残留进程（`dev:clean` 调用） |
 | `installer.nsi` | NSIS 安装包脚本 |
@@ -838,17 +864,20 @@ C 段顺序：`full-e2e-test` → `e2e-newmodules-regression` → `e2e-new-modul
 | `verify-system-settings.js` | 系统设置运行时回归（登录/配置只读/二次确认/非管理员/审计/字典/运维，9 用例）；需 dev |
 | `e2e-newmodules-regression.js` | 新增模块回归（34 页面渲染） |
 | `e2e-new-modules.js` | 新增模块 E2E |
-| `run-all-regression.js` | **全链路回归入口**：串联 23 项，分 A 静态 / B 类型+单测+构建 / C 运行时 三段；`--static` 只跑 A+B |
+| `run-all-regression.js` | **全链路回归入口**：串联 25 项，分 A 静态 / B 类型+单测+构建 / C 运行时 三段；`--static` 只跑 A+B |
 | `verify-uncovered-api.js` | 零覆盖模块 API 回归（door-locks + 读卡器/通知/审批/简报/导出/租户登录/OCR/智能问数/物业自动化，50 用例）；对种子门锁净零操作 |
 | `e2e-uncovered-pages.js` | 零覆盖页面渲染回归（消防 5 + 房态看板 3 + 门锁/起草/条款导入/打印设置/读卡器/参数/运维/门户，18 页 80 用例） |
 | `verify-excel-import.js` | Excel 链路回归（房源/条款导入解析、.xls 拒绝、服务端多表导出，12 用例）；迁 exceljs 后的守护 |
 | `verify-websocket.js` | WebSocket 广播回归（房态变更/批量变更事件、载荷结构、断开后服务健康，11 用例）；对种子房源做净零流转 |
 | `check-deps-audit.cjs` | **依赖漏洞门禁**（`npm audit --omit=dev`，high/critical 阻断；xlsx 等上游无补丁项在 ALLOWLIST 豁免并带复审期限） |
-| `check-static-rules.cjs` | **静态铁律门禁**（6 条：ANTI-EMOJI / 旧主题色 / 版本号硬编码 / 生产 URL 硬编码 / multer fileFilter / 财务写端点中间件），无需服务，行尾 `ci-allow:<规则号>` 可豁免 |
+| `check-static-rules.cjs` | **静态铁律门禁**（6 条：ANTI-EMOJI / 颜色字面量 / 版本号硬编码 / 生产 URL 硬编码 / multer fileFilter / 财务写端点中间件），无需服务，行尾 `ci-allow:<规则号>` 可豁免 |
 | `verify-external-providers.ts` | 短信/电子签算法自检（编码规则/签名确定性/TC3 派生链/未配置降级，21 用例）；用 `cd backend && npx tsx ../scripts/xxx` 运行 |
-| `theme-migrate.cjs` | 湛蓝玻璃主题色值迁移（旧色→新令牌，跳过打印模板） |
+| `theme-migrate-v2.cjs` | 令牌 v2 存量色值迁移（`--dry` 预演；按上下文产出 $令牌 / var() / tokens.x） |
 | `apply-loading-states.cjs` | 批量为列表页注入骨架屏 + 统一空态（`--dry` 预演） |
-| `apply-a11y-colors.cjs` | 无障碍配色迁移（文字场景语义色→ -text 变体） |
-| `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（46 条清单，可作 CI 门禁） |
+| `verify-table-density.cjs` | 第 5 周门槛：三档密度布局验收（14 用例） |
+| `verify-page-conventions.cjs` | 页面约定门禁（组件采用率 + 禁止复制玻璃/工具栏样式）；棘轮统计 **`frontend/src` 全量**（不只 views/，防止挪进 components/ 重生），基线 toolbarViews=0、**inlineTableView=0**；豁免仅 `base/DataTable.vue`（封装层自身）与 `modules/finance/VoucherEntryRows.vue`（可编辑录入网格） |
+| `migrate-toolbar-to-filterbar.cjs` | 页面级工具栏 → `FilterBar`（筛选+操作）或 `PageHeader` 批量迁移（`--dry` 预演 / `--only=X` 单页；按行缩进匹配标签，避开 CRLF 模板嵌套陷阱） |
+| `migrate-tables-to-datatable.cjs` | 内联 `<el-table>` → `DataTable` 批量迁移（`--dry` 预演 / `--only=X` 单页；一页多表多轮处理；动态列 `v-for`/`:label`/`:prop` 自动跳过需手工迁移） |
+| `gen-tokens-ts.cjs` | 从 variables.scss 生成 JS 令牌镜像（oklch→sRGB） |
+| `check-contrast.cjs` | WCAG 2.1 AA 对比度自检（62 条清单 + 3 装饰性豁免，可作 CI 门禁）；`--md` 重新生成 `docs/对比度检查报告.md`（自动生成，勿手改） |
 | `verify-ux-states.cjs` | 交互态验收（骨架/空态/头像图标化，10 用例）；需先启动 dev |
-| `verify-dashboard.js` | 首页概览运行时回归（overview 金额口径/todo-summary 权限过滤/rooms-stats/消防/物业运营，16 用例）；需 dev |
