@@ -317,7 +317,7 @@ export function buildContractHTML(data: ContractPrintData): string {
   <div class="section">
     <h3>${sn()}、合同细则</h3>
     <table>
-      ${td('滞纳金', `逾期未缴租金按 ${((data.lateFeeRate ?? 0.05) * 100).toFixed(1)}% / 月 计收滞纳金`)}
+      ${td('违约金', `逾期未缴租金按 ${((data.lateFeeRate ?? 0.05) * 100).toFixed(1)}% / 月 计收违约金`)}
       ${td('押金退还', data.depositTerms || '租赁期满且无违约欠费，押金全额无息退还')}
       ${td('日常维修', data.maintenanceParty === '乙方' ? '乙方负责租赁期间的日常维修' : data.maintenanceParty === '按约定' ? '双方按约定承担维修责任' : '甲方负责房屋主体及设施的自然损耗维修')}
       ${td('转租', data.subletAllowed ? '经甲方书面同意，乙方可将房屋转租' : '乙方不得将房屋转租给第三方')}
@@ -342,7 +342,7 @@ export function buildContractHTML(data: ContractPrintData): string {
       ${wrapTextAsParagraphs(c.content, 'color:#333')}
     </div>`).join('') : `
     <div style="margin:4px 0">
-      <p style="text-indent:2em;margin:8px 0">1. 乙方应按约定时间及时缴纳租金及相关费用，逾期甲方有权按合同约定收取滞纳金。</p>
+      <p style="text-indent:2em;margin:8px 0">1. 乙方应按约定时间及时缴纳租金及相关费用，逾期甲方有权按合同约定收取违约金。</p>
       <p style="text-indent:2em;margin:8px 0">2. 乙方不得擅自改变房屋用途或转租，如需变更应征得甲方书面同意。</p>
       <p style="text-indent:2em;margin:8px 0">3. 租赁期满，乙方如需续租应提前${data.renewalNotice ?? 30}日书面通知甲方。</p>
       <p style="text-indent:2em;margin:8px 0">4. 本合同一式两份，甲乙双方各执一份，具有同等法律效力。</p>

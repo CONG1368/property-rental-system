@@ -210,12 +210,12 @@ async function handleLogin() {
   display: grid;
   grid-template-columns: 1fr 1fr;
   min-height: 100vh;
-  background: linear-gradient(135deg, #e3ecfb, #dbe6f8 45%, #e0edf7);
+  background: linear-gradient(135deg, $n-50, $n-50 45%, $n-50);
 }
 /* 左侧品牌区 */
 .login-brand {
-  background: linear-gradient(160deg, #1a3a6b, #2456b8 55%, #3b72d8);
-  color: #fff;
+  background: linear-gradient(160deg, $n-900, $brand-700 55%, $brand-600);
+  color: $n-0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -224,8 +224,8 @@ async function handleLogin() {
 .brand-inner { max-width: 420px; }
 .brand-logo {
   width: 52px; height: 52px; border-radius: 14px;
-  background: #4f7cf7; display: flex; align-items: center; justify-content: center;
-  margin-bottom: 28px; box-shadow: 0 10px 30px rgba(79,124,247,.4);
+  background: $brand-600; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 28px; box-shadow: 0 10px 30px $brand-300;
 }
 .brand-h2 {
   font-size: 36px; font-weight: 700; letter-spacing: -0.02em;
@@ -235,7 +235,7 @@ async function handleLogin() {
 .brand-feature { display: flex; flex-direction: column; gap: 14px; margin-top: 40px; }
 .bf { display: flex; gap: 10px; align-items: center; font-size: 14px; opacity: .9; }
 .bf-dot {
-  width: 20px; height: 20px; border-radius: 6px; background: rgba(255,255,255,.15);
+  width: 20px; height: 20px; border-radius: $r-ctl; background: $n-100;
   display: inline-flex; align-items: center; justify-content: center; font-size: 12px;
 }
 /* 右侧登录卡 */
@@ -243,25 +243,23 @@ async function handleLogin() {
   width: 100%;
   max-width: 420px;
   padding: 48px 40px;
-  background: rgba(255,255,255,.62);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255,255,255,.72);
-  border-radius: 24px;
-  box-shadow: 0 8px 32px rgba(31,41,55,.14), inset 0 1px 0 rgba(255,255,255,.55);
+  background: $n-0;
+  border: 1px solid $n-200;
+  border-radius: $r-panel;
+  box-shadow: $sh-2;
   align-self: center;
   justify-self: center;
 }
 .login-title {
   font-size: 22px;
   text-align: center;
-  color: #1a1f36;
+  color: $n-900;
   font-weight: 700;
   margin-bottom: 8px;
 }
 .login-subtitle {
   text-align: center;
-  color: #687385;
+  color: $n-600;
   font-size: 12px;
   margin-bottom: 24px;
 }
@@ -279,12 +277,12 @@ async function handleLogin() {
   border-radius: 6px;
   font-size: 13px;
   &.waiting {
-    background: #fdf6ec;
-    color: #e6a23c;
+    background: $warn-100;
+    color: $warn-600;
   }
   &.ready {
-    background: #f0f9eb;
-    color: #67c23a;
+    background: $ok-100;
+    color: $ok-600;
   }
 }
 .login-alert {
@@ -301,7 +299,7 @@ async function handleLogin() {
 }
 .login-version {
   text-align: center;
-  color: #B0BEC5;
+  color: $n-400;
   font-size: 11px;
   margin-top: 24px;
   margin-bottom: 0;

@@ -4,7 +4,7 @@
  *
  * 规则来源：CLAUDE.md 中被标注为「铁律 / 重要陷阱」但此前没有任何自动检查的条目
  *   R1 ANTI-EMOJI          UI 与代码禁用 emoji（仅 avatars.ts 的 legacy 兼容映射豁免）
- *   R2 主题色硬编码          页面禁止出现旧配色字面量（打印模板面向纸质输出，豁免）
+ *   R2 颜色字面量            页面禁止 #hex / oklch() / rgb(a) 字面量（令牌文件与打印模板豁免）
  *   R3 版本号硬编码          版本号只能用 __APP_VERSION__ 注入
  *   R4 生产 URL 硬编码       fetch / el-upload action 禁止写死 /api 相对路径（file:// 下必挂）
  *   R5 multer fileFilter    每个 multer 实例必须声明 fileFilter（安全要求）
@@ -84,22 +84,34 @@ function checkEmoji() {
 }
 
 // ============================================================
-// R2 旧主题色硬编码（打印模板豁免）
+// R2 颜色字面量（白名单：只有令牌文件可以定义颜色）
+// 规则：frontend/src 下除「令牌文件」与「打印模板」外，一律不得出现颜色字面量：
+//   #hex / #rgb / oklch( / rgb( / rgba(
+// 豁免：styles/variables.scss（SCSS 令牌）、styles/global.scss（EP 覆盖 + CSS 变量）、
+//       styles/tokens.ts（JS 侧令牌镜像，供 ECharts / 内联 JS 使用）、components/print/**（纸质输出）
 // ============================================================
-const LEGACY_COLORS = ['#0A3D62', '#F6B93B', '#00B894', '#FF6B35', '#82CCDD', '#1a5f8a'];
+const COLOR_EXEMPT_FILES = [
+  'frontend/src/styles/variables.scss',
+  'frontend/src/styles/global.scss',
+  'frontend/src/styles/tokens.ts',
+];
+const COLOR_LITERAL_RE = /#[0-9a-fA-F]{3,8}\b|\boklch\(|\brgba?\(/g;
 
-function checkLegacyColors() {
+function checkColorLiterals() {
   const v = [];
-  const files = walk(path.join(root, 'frontend/src'), ['.vue', '.ts', '.scss'], ['frontend/src/components/print']);
+  const files = walk(path.join(root, 'frontend/src'), ['.vue', '.ts', '.scss'], ['frontend/src/components/print'])
+    .filter((f) => COLOR_EXEMPT_FILES.indexOf(relOf(f)) < 0);
   for (const f of files) {
     const rel = relOf(f);
     fs.readFileSync(f, 'utf-8').split(/\r?\n/).forEach((line, i) => {
-      const low = line.toLowerCase();
-      const hit = LEGACY_COLORS.find((c) => low.indexOf(c.toLowerCase()) >= 0);
-      if (hit && !allowed(line, 'R2')) v.push(rel + ':' + (i + 1) + '  ' + hit + '  ' + line.trim().slice(0, 80));
+      if (allowed(line, 'R2')) return;
+      // 先剔除 Vue 插槽简写（<template #c10> 会被 #hex 正则误判为颜色）
+      const scanLine = line.replace(/<template\s+#[\w-]+/g, '<template #');
+      const hit = scanLine.match(COLOR_LITERAL_RE);
+      if (hit) v.push(rel + ':' + (i + 1) + '  ' + hit[0] + '  ' + line.trim().slice(0, 70));
     });
   }
-  ok('R2 无旧主题色硬编码（湛蓝令牌唯一来源 variables.scss）', v, '扫描 ' + files.length + ' 个文件（打印模板豁免）');
+  ok('R2 无颜色字面量硬编码（令牌唯一来源 variables.scss / tokens.ts）', v, '扫描 ' + files.length + ' 个文件（令牌文件与打印模板豁免）');
 }
 
 // ============================================================
@@ -198,7 +210,7 @@ function checkFinanceGuards() {
 // ============================================================
 console.log('=== 静态铁律门禁 ===');
 checkEmoji();
-checkLegacyColors();
+checkColorLiterals();
 checkVersionLiteral();
 checkHardcodedApiUrl();
 checkMulterFileFilter();

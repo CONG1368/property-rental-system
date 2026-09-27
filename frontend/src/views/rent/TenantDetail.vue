@@ -38,29 +38,28 @@
 
     <el-card style="margin-top:16px" v-if="tenant?.contracts">
       <template #header>关联合同</template>
-      <el-table :data="tenant.contracts" stripe>
-        <el-table-column prop="contractNo" label="合同编号" width="150" />
-        <el-table-column prop="rentAmount" label="月租金" width="120" />
-        <el-table-column prop="startDate" label="开始日期" width="120" />
-        <el-table-column prop="endDate" label="结束日期" width="120" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="操作" width="100">
-          <template #default="{ row }">
-            <el-button size="small" @click="$router.push('/contract/detail/' + row.id)">查看</el-button>
-          </template>
-        </el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
+      <DataTable :data="tenant.contracts" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c5="{ row }"><el-tag size="small">{{ row.status }}</el-tag></template>
+        <template #c6="{ row }"><el-button size="small" @click="$router.push('/contract/detail/' + row.id)">查看</el-button></template>
+      </DataTable>
       <el-empty v-if="!tenant.contracts?.length" description="暂无合同" />
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'contractNo', label: '合同编号', width: 150 },
+  { prop: 'rentAmount', label: '月租金', width: 120 },
+  { prop: 'startDate', label: '开始日期', width: 120 },
+  { prop: 'endDate', label: '结束日期', width: 120 },
+  { prop: 'status', label: '状态', width: 100, slot: 'c5' },
+  { label: '操作', width: 100, slot: 'c6' },
+];
+
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';

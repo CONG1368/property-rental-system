@@ -5,7 +5,7 @@ import { sequelize } from '../config/database.js';
 interface IdCardReaderAttributes {
   id: number;
   name: string;
-  brand: '华视' | '新中新' | '普天' | '精伦' | '中控' | '其他';
+  brand: '华视' | '新中新' | '普天' | '精伦' | '中控' | '神思' | '熵基科技' | '汉王' | '航天信息' | '德生' | '其他';
   model: string;
   interfaceType: 'USB' | '串口' | '蓝牙' | 'WiFi';
   port: string;
@@ -23,7 +23,7 @@ class IdCardReader extends BaseModel<IdCardReaderAttributes, IdCardReaderCreatio
 IdCardReader.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
   name: { type: DataTypes.STRING(100), allowNull: false },
-  brand: { type: DataTypes.ENUM('华视', '新中新', '普天', '精伦', '中控', '其他'), allowNull: false },
+  brand: { type: DataTypes.ENUM('华视', '新中新', '普天', '精伦', '中控', '神思', '熵基科技', '汉王', '航天信息', '德生', '其他'), allowNull: false },
   model: { type: DataTypes.STRING(50), defaultValue: '' },
   interfaceType: { type: DataTypes.ENUM('USB', '串口', '蓝牙', 'WiFi'), defaultValue: 'USB' },
   port: { type: DataTypes.STRING(50), defaultValue: '' },

@@ -26,57 +26,34 @@
 
     <el-card>
       <!-- 工具栏 -->
-      <div class="toolbar">
-        <div class="search-group">
-          <el-input v-model="keyword" placeholder="搜索项目/收款方" clearable style="width:200px" @keyup.enter="fetchData" @clear="fetchData" />
-          <el-select v-model="filterType" placeholder="收益类型" clearable style="width:150px" @change="fetchData">
-            <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
-          </el-select>
-          <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
-            <el-option label="应收" value="应收" />
-            <el-option label="已入账" value="已入账" />
-            <el-option label="已核销" value="已核销" />
-          </el-select>
-          <el-button type="primary" @click="fetchData">查询</el-button>
-        </div>
-        <div class="action-group">
+      <FilterBar>
+        <el-input v-model="keyword" placeholder="搜索项目/收款方" clearable style="width:200px" @keyup.enter="fetchData" @clear="fetchData" />
+        <el-select v-model="filterType" placeholder="收益类型" clearable style="width:150px" @change="fetchData">
+        <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
+        </el-select>
+        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
+        <el-option label="应收" value="应收" />
+        <el-option label="已入账" value="已入账" />
+        <el-option label="已核销" value="已核销" />
+        </el-select>
+        <el-button type="primary" @click="fetchData">查询</el-button>
+        <template #actions>
           <el-button type="primary" @click="showDialog(null)">新增收益</el-button>
-        </div>
-      </div>
+        </template>
+      </FilterBar>
 
       <!-- 表格 -->
-      <TableSkeleton v-if="loading && !list.length" :rows="8" :columns="7" />
-      <el-table v-show="!(loading && !list.length)" :data="list" stripe v-loading="loading" style="margin-top:12px">
-        <el-table-column prop="item" label="项目" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="type" label="类型" width="120">
-          <template #default="{ row }"><el-tag :type="typeTagType(row.type)" size="small">{{ row.type }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="关联房源" width="150" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.property?.name || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="金额" width="130" align="right">
-          <template #default="{ row }">¥ {{ formatAmount(row.amount) }}</template>
-        </el-table-column>
-        <el-table-column prop="payer" label="收款方" width="150" show-overflow-tooltip />
-        <el-table-column prop="revenueDate" label="日期" width="110" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button v-if="row.status === '应收'" link type="success" size="small" @click="showConfirmDialog(row)">入账</el-button>
-            <el-button link size="small" @click="showDialog(row)">编辑</el-button>
-            <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
-              <template #reference><el-button link size="small" type="danger">删除</el-button></template>
-            </el-popconfirm>
-          </template>
-        </el-table-column>
-              <template #empty>
-          <EmptyState title="暂无公共收益" description="录入广告位、场地租赁等公共收益记录" />
-        </template>
-      </el-table>
-
-      <el-pagination v-if="total > 0" style="margin-top:12px; justify-content:flex-end" v-model:current-page="page" :page-size="pageSize" :total="total" @current-change="fetchData" layout="total, prev, pager, next" />
+      <DataTable :data="list" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无公共收益" empty-description="录入广告位、场地租赁等公共收益记录" style="margin-top:12px">
+        <template #c2="{ row }"><el-tag :type="typeTagType(row.type)" size="small">{{ row.type }}</el-tag></template>
+        <template #c3="{ row }">{{ row.property?.name || '-' }}</template>
+        <template #c4="{ row }">¥ {{ formatAmount(row.amount) }}</template>
+        <template #c7="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
+        <template #c8="{ row }"><el-button v-if="row.status === '应收'" link type="success" size="small" @click="showConfirmDialog(row)">入账</el-button>
+                  <el-button link size="small" @click="showDialog(row)">编辑</el-button>
+                  <el-popconfirm title="确认删除?" @confirm="handleDelete(row.id)">
+                    <template #reference><el-button link size="small" type="danger">删除</el-button></template>
+                  </el-popconfirm></template>
+      </DataTable>
     </el-card>
 
     <!-- 新增/编辑弹窗 -->
@@ -130,6 +107,21 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'item', label: '项目', minWidth: 160, tooltip: true },
+  { prop: 'type', label: '类型', width: 120, slot: 'c2' },
+  { label: '关联房源', width: 150, tooltip: true, slot: 'c3' },
+  { label: '金额', width: 130, align: 'right', slot: 'c4' },
+  { prop: 'payer', label: '收款方', width: 150, tooltip: true },
+  { prop: 'revenueDate', label: '日期', width: 110 },
+  { prop: 'status', label: '状态', width: 100, slot: 'c7' },
+  { label: '操作', width: 180, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -257,16 +249,14 @@ onMounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 .stats-row { margin-bottom: 16px; }
 .stat-card {
-  background: #fff; border-radius: 8px; padding: 20px; text-align: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06); border-left: 4px solid #409EFF;
-  .stat-value { font-size: 26px; font-weight: 700; color: #303133; }
-  .stat-label { font-size: 13px; color: #909399; margin-top: 4px; }
-  &.receivable { border-left-color: #E6A23C; .stat-value { color: #E6A23C; } }
-  &.received { border-left-color: #67C23A; .stat-value { color: #67C23A; } }
+  background: $n-0; border-radius: 8px; padding: 20px; text-align: center;
+  box-shadow: 0 1px 4px $n-100; border-left: 4px solid $brand-600;
+  .stat-value { font-size: 26px; font-weight: 700; color: $n-900; }
+  .stat-label { font-size: 13px; color: $n-600; margin-top: 4px; }
+  &.receivable { border-left-color: $warn-600; .stat-value { color: $warn-600; } }
+  &.received { border-left-color: $ok-600; .stat-value { color: $ok-600; } }
 }
-.toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
-.search-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 </style>

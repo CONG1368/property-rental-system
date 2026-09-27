@@ -17,24 +17,12 @@
             <el-col :span="4"><el-button type="primary" @click="fetchMeters">查询</el-button></el-col>
             <el-col :span="10" style="text-align:right"><el-button type="success" @click="showMeterDialog">新增仪表</el-button></el-col>
           </el-row>
-          <el-table :data="meterList" size="small" stripe>
-            <el-table-column prop="meterNo" label="表号" min-width="130" />
-            <el-table-column prop="type" label="类型" width="80"><template #default="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template></el-table-column>
-            <el-table-column prop="unit" label="单位" width="70" />
-            <el-table-column label="关联房源" width="150"><template #default="{ row }">{{ row.property?.name || '-' }}</template></el-table-column>
-            <el-table-column prop="lastReading" label="上次读数" width="100" />
-            <el-table-column prop="pricePerUnit" label="单价" width="90" />
-            <el-table-column label="操作" width="140">
-              <template #default="{ row }">
-                <el-button link size="small" type="primary" @click="showReadDialog(row)">抄表</el-button>
-                <el-button link size="small" @click="showMeterDetail(row)">详情</el-button>
-              </template>
-            </el-table-column>
-                      <template #empty>
-              <EmptyState title="暂无抄表记录" description="录入水电表读数后自动生成用量与费用" />
-            </template>
-          </el-table>
-          <el-pagination v-if="meterTotal > 0" style="margin-top:12px" v-model:current-page="meterPage" :page-size="meterPageSize" :total="meterTotal" @current-change="fetchMeters" layout="total, prev, pager, next" />
+          <DataTable :data="meterList" :columns="COLUMNS" row-key="id" v-model:page="meterPage" :total="meterTotal" :page-size="meterPageSize" @page-change="fetchMeters" empty-title="暂无抄表记录" empty-description="录入水电表读数后自动生成用量与费用">
+            <template #c2="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template>
+            <template #c4="{ row }">{{ row.property?.name || '-' }}</template>
+            <template #c7="{ row }"><el-button link size="small" type="primary" @click="showReadDialog(row)">抄表</el-button>
+                          <el-button link size="small" @click="showMeterDetail(row)">详情</el-button></template>
+          </DataTable>
         </el-card>
       </el-tab-pane>
 
@@ -61,18 +49,10 @@
               <el-button type="warning" @click="handleGenerateBills">生成账单</el-button>
             </el-col>
           </el-row>
-          <el-table :data="readingList" size="small" stripe>
-            <el-table-column prop="period" label="期间" width="90" />
-            <el-table-column label="表号" min-width="130"><template #default="{ row }">{{ row.meter?.meterNo || '-' }}</template></el-table-column>
-            <el-table-column prop="previousReading" label="上次" width="90" />
-            <el-table-column prop="currentReading" label="本次" width="90" />
-            <el-table-column prop="usage" label="用量" width="90" />
-            <el-table-column prop="pricePerUnit" label="单价" width="90" />
-            <el-table-column prop="amount" label="金额" width="100" />
-            <el-table-column prop="reader" label="抄表人" width="90" />
-            <el-table-column label="账单" width="90"><template #default="{ row }"><el-tag :type="row.billed === '已生成' ? 'success' : 'info'" size="small">{{ row.billed === '已生成' ? '已生成' : '未生成' }}</el-tag></template></el-table-column>
-          </el-table>
-          <el-pagination v-if="readingTotal > 0" style="margin-top:12px" v-model:current-page="readingPage" :page-size="readingPageSize" :total="readingTotal" @current-change="fetchReadings" layout="total, prev, pager, next" />
+          <DataTable :data="readingList" :columns="COLUMNS_2" row-key="id" v-model:page="readingPage" :total="readingTotal" :page-size="readingPageSize" @page-change="fetchReadings">
+            <template #c2="{ row }">{{ row.meter?.meterNo || '-' }}</template>
+            <template #c9="{ row }"><el-tag :type="row.billed === '已生成' ? 'success' : 'info'" size="small">{{ row.billed === '已生成' ? '已生成' : '未生成' }}</el-tag></template>
+          </DataTable>
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -129,15 +109,9 @@
         <el-form-item label="备注"><el-input v-model="detailMeter.notes" type="textarea" :rows="2" /></el-form-item>
       </el-form>
       <el-divider content-position="left">抄表历史</el-divider>
-      <el-table :data="detailReadings" size="small" stripe max-height="260">
-        <el-table-column prop="period" label="期间" width="90" />
-        <el-table-column prop="previousReading" label="上次" width="90" />
-        <el-table-column prop="currentReading" label="本次" width="90" />
-        <el-table-column prop="usage" label="用量" width="90" />
-        <el-table-column prop="amount" label="金额" width="100" />
-        <el-table-column prop="reader" label="抄表人" width="90" />
-        <el-table-column label="账单" width="90"><template #default="{ row }"><el-tag :type="row.billed === '已生成' ? 'success' : 'info'" size="small">{{ row.billed === '已生成' ? '已生成' : '未生成' }}</el-tag></template></el-table-column>
-      </el-table>
+      <DataTable :data="detailReadings" :columns="COLUMNS_3" row-key="id">
+        <template #c7="{ row }"><el-tag :type="row.billed === '已生成' ? 'success' : 'info'" size="small">{{ row.billed === '已生成' ? '已生成' : '未生成' }}</el-tag></template>
+      </DataTable>
       <template #footer>
         <el-button type="danger" link style="float:left" @click="handleDetailDelete">删除仪表</el-button>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
@@ -148,6 +122,41 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_3: TableColumn[] = [
+  { prop: 'period', label: '期间', width: 90 },
+  { prop: 'previousReading', label: '上次', width: 90 },
+  { prop: 'currentReading', label: '本次', width: 90 },
+  { prop: 'usage', label: '用量', width: 90 },
+  { prop: 'amount', label: '金额', width: 100 },
+  { prop: 'reader', label: '抄表人', width: 90 },
+  { label: '账单', width: 90, slot: 'c7' },
+];
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'period', label: '期间', width: 90 },
+  { label: '表号', minWidth: 130, slot: 'c2' },
+  { prop: 'previousReading', label: '上次', width: 90 },
+  { prop: 'currentReading', label: '本次', width: 90 },
+  { prop: 'usage', label: '用量', width: 90 },
+  { prop: 'pricePerUnit', label: '单价', width: 90 },
+  { prop: 'amount', label: '金额', width: 100 },
+  { prop: 'reader', label: '抄表人', width: 90 },
+  { label: '账单', width: 90, slot: 'c9' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'meterNo', label: '表号', minWidth: 130 },
+  { prop: 'type', label: '类型', width: 80, slot: 'c2' },
+  { prop: 'unit', label: '单位', width: 70 },
+  { label: '关联房源', width: 150, slot: 'c4' },
+  { prop: 'lastReading', label: '上次读数', width: 100 },
+  { prop: 'pricePerUnit', label: '单价', width: 90 },
+  { label: '操作', width: 140, slot: 'c7' },
+];
+
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -276,5 +285,5 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 </style>

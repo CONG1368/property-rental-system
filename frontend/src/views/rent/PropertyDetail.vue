@@ -51,13 +51,13 @@
         >
           <p style="margin:0">
             <el-tag :type="statusTagType(log.oldStatus)" size="small">{{ log.oldStatus }}</el-tag>
-            <span style="margin:0 8px;color:#909399">→</span>
+            <span style="margin:0 8px;color:var(--n-600)">→</span>
             <el-tag :type="statusTagType(log.newStatus)" size="small">{{ log.newStatus }}</el-tag>
           </p>
-          <p v-if="log.notes" style="margin:4px 0 0;font-size:12px;color:#909399">{{ log.notes }}</p>
+          <p v-if="log.notes" style="margin:4px 0 0;font-size:12px;color:var(--n-600)">{{ log.notes }}</p>
         </el-timeline-item>
       </el-timeline>
-      <span v-else style="color:#c0c4cc;font-size:13px">暂无变更记录</span>
+      <span v-else style="color:var(--n-300);font-size:13px">暂无变更记录</span>
     </el-card>
   </div>
 </template>

@@ -1,9 +1,10 @@
 <template>
   <div class="account-list">
-    <div class="toolbar">
-      <h2 class="page-title">科目管理</h2>
-      <el-button type="primary" @click="showDialog()">新增科目</el-button>
-    </div>
+    <PageHeader title="科目管理">
+      <template #actions>
+        <el-button type="primary" @click="showDialog()">新增科目</el-button>
+      </template>
+    </PageHeader>
 
     <el-tree :data="treeData" node-key="id" default-expand-all :props="{ label: 'label', children: 'children' }">
       <template #default="{ node, data }">
@@ -63,6 +64,7 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/base/PageHeader.vue';
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -146,11 +148,10 @@ onMounted(() => { fetchBooks(); fetchAccounts(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin: 0; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin: 0; }
 .account-node { display: flex; gap: 8px; align-items: center; font-size: 13px; flex: 1; }
-.account-code { color: #1f2430; font-weight: 600; }
-.account-direction { color: #7F8C8D; font-size: 10px; }
+.account-code { color: $n-900; font-weight: 600; }
+.account-direction { color: $n-600; font-size: 10px; }
 .node-actions { margin-left: auto; opacity: 0; transition: opacity 0.2s; }
 .account-node:hover .node-actions { opacity: 1; }
 </style>

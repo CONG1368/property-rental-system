@@ -1,10 +1,13 @@
 <template>
   <div class="system-params">
-    <div class="toolbar">
-      <h2 class="page-title">系统参数中心</h2>
-      <el-button type="primary" @click="openCreate">新增配置项</el-button>
-      <el-button @click="fetchData" :loading="loading">刷新</el-button>
-    </div>
+    <PageHeader title="系统参数中心">
+      <template #actions>
+        <el-button type="primary" @click="openCreate">新增配置项</el-button>
+        <el-button @click="fetchData" :loading="loading">刷新</el-button>
+        <el-switch v-model="hideTech" active-text="隐藏内置技术键" inactive-text="显示全部" style="margin-left:12px" />
+        <span style="font-size:12px;color:var(--n-600)">本页仅面向开发/运维对接；业务配置请到各业务页（读卡器/水电表/打印/系统运维）操作</span>
+      </template>
+    </PageHeader>
 
     <el-row :gutter="16">
       <el-col :span="6">
@@ -23,41 +26,16 @@
       </el-col>
 
       <el-col :span="18">
-        <TableSkeleton v-if="loading && !filteredList.length" :rows="8" :columns="7" />
-        <el-table v-show="!(loading && !filteredList.length)" :data="filteredList" stripe v-loading="loading">
-          <el-table-column prop="configKey" label="键名" width="220" />
-          <el-table-column label="键值" min-width="220">
-            <template #default="{ row }">
-              <span v-if="row.isSensitive && row.configValue" class="sensitive">••••••（敏感值）</span>
-              <span v-else>{{ row.configValue }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="configGroup" label="分组" width="110" />
-          <el-table-column prop="valueType" label="类型" width="90" />
-          <el-table-column prop="description" label="描述" min-width="140" />
-          <el-table-column label="内置" width="70">
-            <template #default="{ row }">
-              <el-tag :type="row.builtIn ? 'warning' : 'info'" size="small">{{ row.builtIn ? '是' : '否' }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="{ row }">
-              <el-button size="small" @click="openEdit(row)">编辑</el-button>
-              <el-popconfirm title="确定删除该配置项？" @confirm="handleDelete(row)">
-                <template #reference><el-button size="small" type="danger" :disabled="row.builtIn">删除</el-button></template>
-              </el-popconfirm>
-            </template>
-          </el-table-column>
-                  <template #empty>
-            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-          </template>
-        </el-table>
-
-        <el-pagination
-          v-model:current-page="page" :total="total" :page-size="pageSize"
-          layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end"
-          @current-change="fetchData"
-        />
+        <DataTable :data="filteredList" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+          <template #c2="{ row }"><span v-if="row.isSensitive && row.configValue" class="sensitive">••••••（敏感值）</span>
+                      <span v-else-if="row.valueType === 'boolean'">{{ (row.configValue === '1' || row.configValue === 'true' || row.configValue === '是') ? '是' : '否' }}</span>
+                      <span v-else>{{ row.configValue }}</span></template>
+          <template #c6="{ row }"><el-tag :type="row.builtIn ? 'warning' : 'info'" size="small">{{ row.builtIn ? '是' : '否' }}</el-tag></template>
+          <template #c7="{ row }"><el-button size="small" @click="openEdit(row)">编辑</el-button>
+                      <el-popconfirm title="确定删除该配置项？" @confirm="handleDelete(row)">
+                        <template #reference><el-button size="small" type="danger" :disabled="row.builtIn">删除</el-button></template>
+                      </el-popconfirm></template>
+        </DataTable>
       </el-col>
     </el-row>
 
@@ -65,7 +43,10 @@
     <el-dialog :title="editing ? '编辑配置项' : '新增配置项'" v-model="dialogVisible" width="520px">
       <el-form label-width="100px">
         <el-form-item label="键名" required><el-input v-model="form.configKey" :disabled="!!editing" /></el-form-item>
-        <el-form-item label="键值"><el-input v-model="form.configValue" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="键值">
+          <el-switch v-if="form.valueType === 'boolean'" v-model="form.boolValue" active-text="开" inactive-text="关" />
+          <el-input v-else v-model="form.configValue" type="textarea" :rows="3" />
+        </el-form-item>
         <el-form-item label="分组">
           <el-select v-model="form.configGroup" style="width:100%">
             <el-option v-for="g in groups" :key="g" :label="g" :value="g" />
@@ -89,6 +70,20 @@
 </template>
 
 <script setup lang="ts">
+import PageHeader from '@/components/base/PageHeader.vue';
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'configKey', label: '键名', width: 220 },
+  { label: '键值', minWidth: 220, slot: 'c2' },
+  { prop: 'configGroup', label: '分组', width: 110 },
+  { prop: 'valueType', label: '类型', width: 90 },
+  { prop: 'description', label: '描述', minWidth: 140 },
+  { label: '内置', width: 70, slot: 'c6' },
+  { label: '操作', width: 150, fixed: 'right', slot: 'c7' },
+];
+
 import { ref, onMounted, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { confirmWithPassword } from '@/utils/confirm-password';
@@ -104,20 +99,37 @@ const groupFilter = ref('');
 
 const dialogVisible = ref(false);
 const editing = ref(false);
-const form = ref<any>({ configKey: '', configValue: '', configGroup: '其他', valueType: 'string', isSensitive: false, description: '' });
+const form = ref<any>({ configKey: '', configValue: '', configGroup: '其他', valueType: 'string', isSensitive: false, description: '', boolValue: true });
+function isTrue(v: any) { const s = String(v ?? '').trim().toLowerCase(); return s === '1' || s === 'true' || s === 'yes' || s === 'on' || s === '是'; }
+
+// 内置/技术键：已迁移到各业务页（读卡器/水电表/打印/系统运维）的配置，普通用户不应在此手改
+const hideTech = ref(true);
+const TECH_KEY_PREFIXES = ['id_card_', 'meter_platform_', 'smtp_', 'sms_', 'wechat_', 'redis_', 'demo_'];
+const TECH_KEYS = ['audit_enabled', 'demo_enabled', 'demo_seeded', 'company_name_for_print'];
+function isTechKey(key: string) {
+  const k = String(key || '');
+  if (TECH_KEYS.includes(k)) return true;
+  return TECH_KEY_PREFIXES.some((p) => k.startsWith(p));
+}
+
+// 先应用 hideTech（隐藏内置技术键），再做分组筛选
+const visibleList = computed(() => {
+  if (!hideTech.value) return list.value;
+  return list.value.filter((i) => !(i.builtIn && isTechKey(i.configKey)));
+});
 
 const filteredList = computed(() => {
-  if (!groupFilter.value) return list.value;
-  return list.value.filter((i) => (i.configGroup || '其他') === groupFilter.value);
+  if (!groupFilter.value) return visibleList.value;
+  return visibleList.value.filter((i) => (i.configGroup || '其他') === groupFilter.value);
 });
 
 const groups = computed(() => {
-  const set = new Set<string>(list.value.map((i) => i.configGroup || '其他'));
+  const set = new Set<string>(visibleList.value.map((i) => i.configGroup || '其他'));
   return Array.from(set);
 });
 
 function groupCount(g: string) {
-  return list.value.filter((i) => (i.configGroup || '其他') === g).length;
+  return visibleList.value.filter((i) => (i.configGroup || '其他') === g).length;
 }
 
 async function fetchData() {
@@ -125,19 +137,19 @@ async function fetchData() {
   try {
     const res = await request.get('/system-configs', { params: { page: page.value, pageSize: pageSize.value } });
     list.value = res.data?.list || [];
-    total.value = list.value.length;
+    total.value = visibleList.value.length;
   } catch { /* silent */ } finally { loading.value = false; }
 }
 
 function openCreate() {
   editing.value = false;
-  form.value = { configKey: '', configValue: '', configGroup: groupFilter.value || '其他', valueType: 'string', isSensitive: false, description: '' };
+  form.value = { configKey: '', configValue: '', configGroup: groupFilter.value || '其他', valueType: 'string', isSensitive: false, description: '', boolValue: true };
   dialogVisible.value = true;
 }
 
 function openEdit(row: any) {
   editing.value = true;
-  form.value = { ...row, isSensitive: !!row.isSensitive };
+  form.value = { ...row, isSensitive: !!row.isSensitive, boolValue: isTrue(row.configValue) };
   dialogVisible.value = true;
 }
 
@@ -148,9 +160,11 @@ async function handleSave() {
     const pwd = await confirmWithPassword(editing.value ? '保存系统配置需重新输入登录密码确认' : '新增系统配置需重新输入登录密码确认', '二次确认');
     if (!pwd) return;
     if (editing.value) {
-      await request.put('/system-configs/' + form.value.configKey, { configValue: form.value.configValue, description: form.value.description, confirmPassword: pwd });
+      const cv = form.value.valueType === 'boolean' ? (form.value.boolValue ? '1' : '0') : form.value.configValue;
+      await request.put('/system-configs/' + form.value.configKey, { configValue: cv, description: form.value.description, confirmPassword: pwd });
     } else {
-      await request.post('/system-configs', { ...form.value, confirmPassword: pwd });
+      const cv = form.value.valueType === 'boolean' ? (form.value.boolValue ? '1' : '0') : form.value.configValue;
+      await request.post('/system-configs', { ...form.value, configValue: cv, confirmPassword: pwd });
     }
     ElMessage.success('已保存');
     dialogVisible.value = false;
@@ -176,14 +190,13 @@ onMounted(fetchData);
 </script>
 
 <style lang="scss" scoped>
-.toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
-.page-title { font-size:18px; font-weight:700; color:#1f2430; margin:0; }
+.page-title { font-size:18px; font-weight:700; color:$n-900; margin:0; }
 .group-item {
   padding:10px 12px; border-radius:6px; cursor:pointer; margin-bottom:6px;
   display:flex; justify-content:space-between; align-items:center;
-  font-size:14px; color:#333; transition: all .15s;
-  &:hover { background:#f2f6fc; }
-  &.active { background:#4f7cf7; color:#fff; }
+  font-size:14px; color:$n-900; transition: all .15s;
+  &:hover { background:$n-50; }
+  &.active { background:$brand-600; color:$n-0; }
 }
-.sensitive { font-family: monospace; color:#909399; letter-spacing:2px; }
+.sensitive { font-family: monospace; color:$n-600; letter-spacing:2px; }
 </style>

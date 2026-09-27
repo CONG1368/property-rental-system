@@ -197,6 +197,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '抄表计费', icon: 'Odometer' },
       },
       {
+        path: 'property/smart-meter',
+        name: 'SmartMeter',
+        component: () => import('@/views/property/SmartMeter.vue'),
+        meta: { title: '智能水电表', icon: 'Odometer' },
+      },
+      {
         path: 'property/announcements',
         name: 'AnnouncementList',
         component: () => import('@/views/rent/AnnouncementList.vue'),

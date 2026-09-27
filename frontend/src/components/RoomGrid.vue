@@ -27,7 +27,7 @@ defineEmits<{
 }>();
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 .room-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -37,7 +37,7 @@ defineEmits<{
 .empty-hint {
   grid-column: 1 / -1;
   text-align: center;
-  color: #909399;
+  color: $n-600;
   padding: 60px 0;
   font-size: 14px;
 }

@@ -9,23 +9,26 @@
 
     <el-card>
       <template #header><span>合规检查结果</span><el-button type="primary" style="float:right" @click="runCheck" :loading="checking">执行合规检查</el-button></template>
-      <TableSkeleton v-if="loading && !issues.length" :rows="8" :columns="7" />
-      <el-table v-show="!(loading && !issues.length)" :data="issues" stripe v-loading="loading">
-        <el-table-column prop="contractNo" label="合同编号" width="150" />
-        <el-table-column prop="checkItem" label="检查项" width="180" />
-        <el-table-column label="检查结果" width="100"><template #default="{ row }"><el-tag :type="row.result === '通过' ? 'success' : 'danger'" size="small">{{ row.result }}</el-tag></template></el-table-column>
-        <el-table-column prop="detail" label="详情" min-width="300" show-overflow-tooltip />
-        <el-table-column prop="checkedAt" label="检查时间" width="170"><template #default="{ row }">{{ row.checkedAt?.slice(0, 16)?.replace('T', ' ') }}</template></el-table-column>
-              <template #empty>
-          <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-        </template>
-      </el-table>
-      <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+      <DataTable :data="issues" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+        <template #c3="{ row }"><el-tag :type="row.result === '通过' ? 'success' : 'danger'" size="small">{{ row.result }}</el-tag></template>
+        <template #c5="{ row }">{{ row.checkedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+      </DataTable>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'contractNo', label: '合同编号', width: 150 },
+  { prop: 'checkItem', label: '检查项', width: 180 },
+  { label: '检查结果', width: 100, slot: 'c3' },
+  { prop: 'detail', label: '详情', minWidth: 300, tooltip: true },
+  { prop: 'checkedAt', label: '检查时间', width: 170, slot: 'c5' },
+];
+
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -61,5 +64,5 @@ onMounted(() => { fetchData(); });
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
 </style>

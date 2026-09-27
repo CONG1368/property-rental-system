@@ -17,6 +17,7 @@ export interface IdCardData {
 export interface IdCardReadResult {
   success: boolean;
   data?: IdCardData;
+  mock?: boolean;
   warnings?: string[];
   error?: string;
 }
@@ -43,6 +44,7 @@ export function useIdCardReader() {
       const result: IdCardReadResult = {
         success: true,
         data: res.data,
+        mock: (res as any).mock === true,
         warnings: (res as any).warnings,
       };
       lastResult.value = result;

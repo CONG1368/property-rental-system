@@ -19,28 +19,23 @@
       <el-col :span="16">
         <el-card shadow="never">
           <template #header><b>批量调价</b></template>
-          <div class="toolbar">
+          <FilterBar>
             <el-select v-model="priceType" placeholder="按业态筛选" clearable style="width:140px" @change="loadContracts">
-              <el-option label="公寓" value="公寓" /><el-option label="厂房" value="厂房" /><el-option label="商铺" value="商铺" />
+            <el-option label="公寓" value="公寓" /><el-option label="厂房" value="厂房" /><el-option label="商铺" value="商铺" />
             </el-select>
             <el-input-number v-model="adjustRate" :min="-50" :max="100" :precision="1" placeholder="调价%" style="width:140px" />
             <span class="hint">调价比例（%：正为涨、负为降）</span>
             <el-select v-model="selectedIds" multiple collapse-tags filterable placeholder="选择执行中合同" style="flex:1">
-              <el-option v-for="c in contracts" :key="c.id" :label="`${c.contractNo}（${c.tenant?.name || ''} ${c.property?.name || ''}）`" :value="c.id" />
+            <el-option v-for="c in contracts" :key="c.id" :label="`${c.contractNo}（${c.tenant?.name || ''} ${c.property?.name || ''}）`" :value="c.id" />
             </el-select>
             <el-button type="warning" :loading="adjusting" @click="doAdjust">执行调价</el-button>
-          </div>
-          <el-table :data="contracts" stripe size="small" max-height="320">
-            <el-table-column type="selection" width="40" @selection-change="(rows:any[])=>selectedIds=rows.map((r:any)=>r.id)" />
-            <el-table-column prop="contractNo" label="合同号" width="130" />
-            <el-table-column label="租客" width="110"><template #default="{ row }">{{ row.tenant?.name || '-' }}</template></el-table-column>
-            <el-table-column label="房源" min-width="140"><template #default="{ row }">{{ row.property?.name || '-' }}</template></el-table-column>
-            <el-table-column label="业态" width="80"><template #default="{ row }">{{ row.property?.type || '-' }}</template></el-table-column>
-            <el-table-column prop="rentAmount" label="月租金" width="110" align="right"><template #default="{ row }">{{ fmt(row.rentAmount) }}</template></el-table-column>
-                      <template #empty>
-              <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-            </template>
-          </el-table>
+          </FilterBar>
+          <DataTable :data="contracts" :columns="COLUMNS" row-key="id" selectable empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+            <template #c2="{ row }">{{ row.tenant?.name || '-' }}</template>
+            <template #c3="{ row }">{{ row.property?.name || '-' }}</template>
+            <template #c4="{ row }">{{ row.property?.type || '-' }}</template>
+            <template #c5="{ row }">{{ fmt(row.rentAmount) }}</template>
+          </DataTable>
         </el-card>
       </el-col>
     </el-row>
@@ -48,6 +43,18 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'contractNo', label: '合同号', width: 130 },
+  { label: '租客', width: 110, slot: 'c2' },
+  { label: '房源', minWidth: 140, slot: 'c3' },
+  { label: '业态', width: 80, slot: 'c4' },
+  { prop: 'rentAmount', label: '月租金', width: 110, align: 'right', slot: 'c5' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -77,6 +84,5 @@ onMounted(() => loadContracts());
 
 <style lang="scss" scoped>
 .pricing-page { padding: 0; }
-.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-.hint { color: #909399; font-size: 12px; }
+.hint { color: $n-600; font-size: 12px; }
 </style>

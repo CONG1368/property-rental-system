@@ -53,12 +53,12 @@ const iconComp = computed(() => iconMap[props.icon] || DocumentDelete);
 .empty-icon {
   width: 56px; height: 56px; border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  color: #7ba0f9;
+  background: $n-100;
+  border: 1px solid $n-200;
+  box-shadow: $sh-0;
+  color: $brand-300;
 }
-.empty-title { font-size: 14px; font-weight: 600; color: #3a4354; }
-.empty-desc { font-size: 12px; color: #5b6472; max-width: 42ch; line-height: 1.6; }
+.empty-title { font-size: 14px; font-weight: 600; color: $n-700; }
+.empty-desc { font-size: 12px; color: $n-600; max-width: 42ch; line-height: 1.6; }
 .empty-action { margin-top: 4px; }
 </style>

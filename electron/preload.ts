@@ -6,10 +6,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBackendUrl: () => ipcRenderer.invoke('get-backend-url'),
   openFileDialog: (options: any) => ipcRenderer.invoke('open-file-dialog', options),
   saveFileDialog: (options: any) => ipcRenderer.invoke('save-file-dialog', options),
-  printHTML: (html: string, title: string) => ipcRenderer.invoke('print-html', html, title),
+  printHTML: (html: string, title: string, options?: { marginType?: string }) => ipcRenderer.invoke('print-html', html, title, options),
   exportPDF: (html: string, title: string) => ipcRenderer.invoke('export-pdf', html, title),
   saveFile: (options: any) => ipcRenderer.invoke('save-file-dialog', options),
   readIdCard: (provider: string, port: string) => ipcRenderer.invoke('read-id-card', provider, port),
+  getIdCardDriverStatus: () => ipcRenderer.invoke('get-id-card-driver-status'),
+  installIdCardDriver: () => ipcRenderer.invoke('install-id-card-driver'),
+  openPlatformLogin: (sysToken?: string) => ipcRenderer.invoke('open-platform-login', sysToken),
+  getMeterTokenStatus: () => ipcRenderer.invoke('get-meter-token-status'),
+  stopMeterSync: () => ipcRenderer.invoke('stop-meter-sync'),
+  onSmartMeterEvent: (callback: (payload: any) => void) => { ipcRenderer.on('smart-meter', (_event, p: any) => callback(p)); },
   onMenuNavigate: (callback: (path: string) => void) => {
     ipcRenderer.on('navigate', (_event, path: string) => callback(path));
   },

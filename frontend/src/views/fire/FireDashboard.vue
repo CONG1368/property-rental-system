@@ -45,25 +45,16 @@
     <el-row :gutter="16" style="margin-top:16px">
       <el-col :span="12">
         <el-card><template #header><span>即将过期器材</span><el-button link size="small" style="float:right" @click="$router.push('/fire/equipment')">查看全部</el-button></template>
-          <el-table :data="stats.expiringList" size="small" empty-text="暂无即将过期器材" max-height="260">
-            <el-table-column prop="name" label="器材" min-width="140" />
-            <el-table-column prop="propertyName" label="房源" width="120" />
-            <el-table-column prop="status" label="状态" width="90"><template #default="{row}"><el-tag :type="row.status==='已过期'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
-            <el-table-column prop="nextCheckDate" label="下次检查" width="110" />
-                      <template #empty>
-              <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-            </template>
-          </el-table>
+          <DataTable :data="stats.expiringList" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+            <template #c3="{ row }"><el-tag :type="row.status==='已过期'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template>
+          </DataTable>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card><template #header><span>待整改违规</span><el-button link size="small" style="float:right" @click="$router.push('/fire/violations')">查看全部</el-button></template>
-          <el-table :data="stats.pendingList" size="small" empty-text="暂无待整改违规" max-height="260">
-            <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip />
-            <el-table-column prop="propertyName" label="房源" width="120" />
-            <el-table-column prop="severity" label="严重程度" width="90"><template #default="{row}"><el-tag :type="row.severity==='紧急'?'danger':'warning'" size="small">{{ row.severity }}</el-tag></template></el-table-column>
-            <el-table-column prop="deadline" label="期限" width="110" />
-          </el-table>
+          <DataTable :data="stats.pendingList" :columns="COLUMNS_2" row-key="id">
+            <template #c3="{ row }"><el-tag :type="row.severity==='紧急'?'danger':'warning'" size="small">{{ row.severity }}</el-tag></template>
+          </DataTable>
         </el-card>
       </el-col>
     </el-row>
@@ -79,6 +70,23 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'description', label: '描述', minWidth: 160, tooltip: true },
+  { prop: 'propertyName', label: '房源', width: 120 },
+  { prop: 'severity', label: '严重程度', width: 90, slot: 'c3' },
+  { prop: 'deadline', label: '期限', width: 110 },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '器材', minWidth: 140 },
+  { prop: 'propertyName', label: '房源', width: 120 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c3' },
+  { prop: 'nextCheckDate', label: '下次检查', width: 110 },
+];
+
 import { ref, onMounted } from 'vue'
 import { Search, Box, Warning, Bell } from '@element-plus/icons-vue'
 import request from '@/api/request'
@@ -100,10 +108,10 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.page-title { font-size: 18px; font-weight: 700; color: #1f2430; margin-bottom: 16px; }
-.kpi-row { .kpi-card { background: #fff; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  &.warn { border-left: 3px solid #e6a23c; } &.danger { border-left: 3px solid #f56c6c; }
-  .kpi-value { font-size: 28px; font-weight: 700; color: #1f2430; } .kpi-label { font-size: 13px; color: #909399; margin-top: 4px; }
+.page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
+.kpi-row { .kpi-card { background: $n-0; border-radius: 8px; padding: 20px; text-align: center; cursor: pointer; box-shadow: 0 2px 8px $n-100;
+  &.warn { border-left: 3px solid $warn-600; } &.danger { border-left: 3px solid $bad-600; }
+  .kpi-value { font-size: 28px; font-weight: 700; color: $n-900; } .kpi-label { font-size: 13px; color: $n-600; margin-top: 4px; }
 }}
-.quick-btn { background: #fff; border-radius: 8px; padding: 14px 16px; cursor: pointer; text-align: center; font-size: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); &:hover { background: #f0f5ff; } }
+.quick-btn { background: $n-0; border-radius: 8px; padding: 14px 16px; cursor: pointer; text-align: center; font-size: 14px; box-shadow: 0 2px 6px $n-100; &:hover { background: $brand-100; } }
 </style>

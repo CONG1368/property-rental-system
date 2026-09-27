@@ -18,25 +18,43 @@ extraResources:
     to: runtime/node/
     filter:
       - "**/*"
+  # 读卡器：32 位 Python(桥运行时) + 华视 CVR-100U SDK(Termb.dll/sdtapi.dll/license.dat/card_bridge.py)
+  - from: runtime/python-x86/
+    to: runtime/python-x86/
+    filter:
+      - "**/*"
+  - from: runtime/idcard/
+    to: runtime/idcard/
+    filter:
+      - "**/*"
+  # 华视 CVR-100U 内核驱动（官方 V3.5，64 位 WHQL 签名，Win10 x64 用；pnputil 提权安装）
+  - from: runtime/idcard-driver/
+    to: runtime/idcard-driver/
+    filter:
+      - "**/*"
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: 物业租赁综合管理系统
+  # NSIS 安装包使用 electron-builder 默认的 setup 命名（${name}-setup-${version}.exe）以与 latest.yml 的 url 一致
+  artifactName: '${name}-setup-${version}.${ext}'
   # 安装/卸载时写入注册表，新版本自动读取旧安装路径实现覆盖升级
   installerHeaderIcon: build/icon.ico
   # 卸载时先关闭应用
   uninstallDisplayName: 物业租赁综合管理系统
 win:
   target:
+    # 只出 NSIS 安装包。曾同时配 zip 目标 —— electron-builder 会把整包（约 590MB）
+    # 对每个目标各完整压一遍，打包时间直接翻倍；zip 分发包已确认不需要，故移除。
     - target: nsis
-      arch:
-        - x64
-    - target: zip
       arch:
         - x64
   sign: null
   signAndEditExecutable: false
 asar: true
-compression: maximum
+# 压缩级别：normal（electron-builder 默认值）。
+# 曾用 maximum —— 7za 单线程以最高档压整个 win-unpacked(约 590MB)，实测耗时 30+ 分钟
+# （zip 28 分钟 + NSIS 4 分钟）。两者产物内容完全一致，maximum 仅体积略小，不值得。
+compression: normal

@@ -1,34 +1,32 @@
 <template>
   <div class="property-list">
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索房源名称/地址" clearable style="width:220px" @keyup.enter="fetchData" />
-        <el-select v-model="filterType" placeholder="业态类型" clearable style="width:130px" @change="fetchData">
-          <el-option label="公寓" value="公寓" />
-          <el-option label="厂房" value="厂房" />
-          <el-option label="商铺" value="商铺" />
-        </el-select>
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
-          <el-option label="空置" value="空置" />
-          <el-option label="已锁定" value="已锁定" />
-          <el-option label="已预订" value="已预订" />
-          <el-option label="已出租" value="已出租" />
-          <el-option label="退租中" value="退租中" />
-          <el-option label="待保洁" value="待保洁" />
-          <el-option label="待验收" value="待验收" />
-          <el-option label="维修中" value="维修中" />
-          <el-option label="已冻结" value="已冻结" />
-        </el-select>
-        <el-input v-model="filterBuilding" placeholder="楼栋" clearable style="width:110px" @keyup.enter="fetchData" />
-        <el-input v-model="filterRoom" placeholder="房号" clearable style="width:110px" @keyup.enter="fetchData" />
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group">
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索房源名称/地址" clearable style="width:220px" @keyup.enter="fetchData" />
+      <el-select v-model="filterType" placeholder="业态类型" clearable style="width:130px" @change="fetchData">
+      <el-option label="公寓" value="公寓" />
+      <el-option label="厂房" value="厂房" />
+      <el-option label="商铺" value="商铺" />
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:130px" @change="fetchData">
+      <el-option label="空置" value="空置" />
+      <el-option label="已锁定" value="已锁定" />
+      <el-option label="已预订" value="已预订" />
+      <el-option label="已出租" value="已出租" />
+      <el-option label="退租中" value="退租中" />
+      <el-option label="待保洁" value="待保洁" />
+      <el-option label="待验收" value="待验收" />
+      <el-option label="维修中" value="维修中" />
+      <el-option label="已冻结" value="已冻结" />
+      </el-select>
+      <el-input v-model="filterBuilding" placeholder="楼栋" clearable style="width:110px" @keyup.enter="fetchData" />
+      <el-input v-model="filterRoom" placeholder="房号" clearable style="width:110px" @keyup.enter="fetchData" />
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
         <el-button type="primary" @click="showDialog()">新增房源</el-button>
         <el-button @click="$router.push('/rent/properties/import')">批量导入</el-button>
         <el-button type="success" @click="$router.push('/rent/room-kanban')">房态看板</el-button>
-      </div>
-    </div>
+      </template>
+    </FilterBar>
 
     <!-- 批量操作栏 -->
     <div class="batch-bar" v-if="selectedIds.length > 0">
@@ -37,56 +35,18 @@
       <el-button size="small" @click="clearSelection">取消选择</el-button>
     </div>
 
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="8" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading" @row-click="onRowClick" @selection-change="(rows: any[]) => selectedRows = rows" style="cursor:pointer" ref="tableRef">
-      <el-table-column type="selection" width="45" />
-      <el-table-column prop="name" label="房源名称" width="180" />
-      <el-table-column prop="buildingName" label="楼栋" width="80">
-        <template #default="{ row }">
-          {{ row.buildingName || '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="roomNumber" label="房号" width="80">
-        <template #default="{ row }">
-          {{ row.roomNumber || '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="type" label="业态" width="80">
-        <template #default="{ row }">
-          <el-tag :type="row.type === '公寓' ? '' : row.type === '厂房' ? 'warning' : 'success'" size="small">{{ row.type }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="area" label="面积(㎡)" width="100" />
-      <el-table-column prop="address" label="地址" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="floor" label="楼层" width="80" />
-      <el-table-column prop="status" label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="160" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" @click.stop="showDialog(row)">编辑</el-button>
-          <el-popconfirm title="确定删除该房源?" @confirm="handleDelete(row.id)">
-            <template #reference>
-              <el-button size="small" type="danger" @click.stop>删除</el-button>
-            </template>
-          </el-popconfirm>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无房源" description="新增房源或使用批量导入，快速建立房源台账" />
-      </template>
-    </el-table>
-
-    <el-pagination
-      v-model:current-page="page"
-      :total="total"
-      :page-size="pageSize"
-      @current-change="fetchData"
-      layout="total, prev, pager, next"
-      style="margin-top:16px; justify-content:flex-end"
-    />
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" selectable @selection-change="(rows: any[]) => selectedRows = rows" @row-click="onRowClick" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无房源" empty-description="新增房源或使用批量导入，快速建立房源台账" style="cursor:pointer">
+      <template #c2="{ row }">{{ row.buildingName || '-' }}</template>
+      <template #c3="{ row }">{{ row.roomNumber || '-' }}</template>
+      <template #c4="{ row }"><el-tag :type="row.type === '公寓' ? '' : row.type === '厂房' ? 'warning' : 'success'" size="small">{{ row.type }}</el-tag></template>
+      <template #c8="{ row }"><el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c9="{ row }"><el-button size="small" @click.stop="showDialog(row)">编辑</el-button>
+              <el-popconfirm title="确定删除该房源?" @confirm="handleDelete(row.id)">
+                <template #reference>
+                  <el-button size="small" type="danger" @click.stop>删除</el-button>
+                </template>
+              </el-popconfirm></template>
+    </DataTable>
 
     <el-dialog :title="isEdit ? '编辑房源' : '新增房源'" v-model="dialogVisible" width="600px" @closed="resetForm">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
@@ -100,6 +60,8 @@
         <el-form-item label="面积(㎡)" prop="area"><el-input-number v-model="form.area" :min="0" :precision="2" style="width:100%" /></el-form-item>
         <el-form-item label="地址" prop="address"><el-input v-model="form.address" /></el-form-item>
         <el-form-item label="楼层" prop="floor"><el-input v-model="form.floor" /></el-form-item>
+        <el-form-item label="楼栋" prop="buildingName"><el-input v-model="form.buildingName" placeholder="如：产业园B栋" /></el-form-item>
+        <el-form-item label="房号" prop="roomNumber"><el-input v-model="form.roomNumber" placeholder="如：01" /></el-form-item>
         <el-form-item label="单元" prop="unit"><el-input v-model="form.unit" /></el-form-item>
         <el-form-item label="状态" prop="status">
           <el-select v-model="form.status" style="width:100%">
@@ -122,6 +84,22 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '房源名称', width: 180 },
+  { prop: 'buildingName', label: '楼栋', width: 80, slot: 'c2' },
+  { prop: 'roomNumber', label: '房号', width: 80, slot: 'c3' },
+  { prop: 'type', label: '业态', width: 80, slot: 'c4' },
+  { prop: 'area', label: '面积(㎡)', width: 100 },
+  { prop: 'address', label: '地址', minWidth: 200, tooltip: true },
+  { prop: 'floor', label: '楼层', width: 80 },
+  { prop: 'status', label: '状态', width: 100, slot: 'c8' },
+  { label: '操作', width: 160, fixed: 'right', slot: 'c9' },
+];
+
 import { ref, reactive, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -150,6 +128,7 @@ const submitting = ref(false);
 const form = reactive({
   name: '', type: '公寓', subType: '', area: 0,
   address: '', floor: '', unit: '', status: '空置', owner: '', notes: '',
+  buildingName: '', roomNumber: '',
 });
 
 const rules: FormRules = {
@@ -198,6 +177,7 @@ function resetForm() {
   form.name = ''; form.type = '公寓'; form.subType = ''; form.area = 0;
   form.address = ''; form.floor = ''; form.unit = ''; form.status = '空置';
   form.owner = ''; form.notes = '';
+  form.buildingName = ''; form.roomNumber = '';
 }
 
 async function handleSubmit() {
@@ -259,15 +239,10 @@ onMounted(() => fetchData());
 
 <style lang="scss" scoped>
 .property-list { padding: 0; }
-.toolbar {
-  display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
-}
-.search-group { display: flex; gap: 10px; align-items: center; }
-.action-group { display: flex; gap: 10px; }
 .batch-bar {
   display: flex; gap: 10px; align-items: center;
   padding: 8px 16px; margin-bottom: 12px;
-  background: #ecf5ff; border-radius: 6px; border: 1px solid #b3d8ff;
+  background: $brand-100; border-radius: 6px; border: 1px solid $brand-100;
 }
-.batch-info { font-size: 13px; color: #409eff; font-weight: 600; margin-right: 8px; }
+.batch-info { font-size: 13px; color: $brand-600; font-weight: 600; margin-right: 8px; }
 </style>

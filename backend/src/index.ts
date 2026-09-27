@@ -12,8 +12,18 @@ export let seedDataReady = false;
 
 // ====== 文件日志系统 ======
 // 启动时创建日志文件，Tea（分流）模式——同时输出到控制台和日志文件
-let logStream: fs.WriteStream | null = null;
+let logFd: number | null = null;
 let logFilePath: string | null = null;
+
+/** 同步写日志（fs.writeSync）：WriteStream 是异步缓冲的，致命错误路径上的
+ *  process.exit(1) 会把尚未落盘的诊断行整段丢掉——「服务启动失败」时日志里看不到真正原因（踩过的坑）。 */
+function writeRawLog(text: string): void {
+  try { if (logFd !== null) fs.writeSync(logFd, text); } catch { /* 日志写失败不影响主流程 */ }
+}
+
+function closeRawLog(): void {
+  try { if (logFd !== null) { fs.closeSync(logFd); logFd = null; } } catch { /* ignore */ }
+}
 const originalConsole = { log: console.log, error: console.error, warn: console.warn };
 
 function setupStartupLogging(): void {
@@ -41,22 +51,22 @@ function setupStartupLogging(): void {
   const now = new Date();
   const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
   logFilePath = path.join(logDir, `startup-${ts}.log`);
-  logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+  logFd = fs.openSync(logFilePath, 'a');
 
   // 写入文件头
-  logStream.write(`=== 物业租赁综合管理系统 启动日志 ===\n`);
-  logStream.write(`时间: ${now.toISOString()}\n`);
-  logStream.write(`Node.js: ${process.version}\n`);
-  logStream.write(`平台: ${process.platform} / ${process.arch}\n`);
-  logStream.write(`工作目录: ${process.cwd()}\n`);
-  logStream.write(`DB 路径: ${config.db.storage || 'N/A'}\n`);
-  logStream.write(`Redis: ${config.redis.enabled ? 'enabled' : 'disabled'}\n`);
-  logStream.write(`========================================\n\n`);
+  writeRawLog(`=== 物业租赁综合管理系统 启动日志 ===\n`);
+  writeRawLog(`时间: ${now.toISOString()}\n`);
+  writeRawLog(`Node.js: ${process.version}\n`);
+  writeRawLog(`平台: ${process.platform} / ${process.arch}\n`);
+  writeRawLog(`工作目录: ${process.cwd()}\n`);
+  writeRawLog(`DB 路径: ${config.db.storage || 'N/A'}\n`);
+  writeRawLog(`Redis: ${config.redis.enabled ? 'enabled' : 'disabled'}\n`);
+  writeRawLog(`========================================\n\n`);
 
   // 重定向 console 到文件 + 控制台
   function teeLog(level: string, args: any[]) {
     const line = `[${level}] ${new Date().toISOString()} ${args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2)).join(' ')}\n`;
-    try { logStream?.write(line); } catch {}
+    writeRawLog(line);
   }
 
   console.log = (...args: any[]) => { teeLog('LOG', args); originalConsole.log(...args); };
@@ -65,12 +75,8 @@ function setupStartupLogging(): void {
 }
 
 function flushAndCloseLog(): void {
-  try {
-    if (logStream) {
-      logStream.write('\n=== 日志结束 ===\n');
-      logStream.end();
-    }
-  } catch {}
+  writeRawLog('\n=== 日志结束 ===\n');
+  closeRawLog();
 }
 
 // ====== 全局错误捕获 ======
@@ -78,22 +84,15 @@ function setupGlobalErrorHandlers(): void {
   process.on('uncaughtException', (err) => {
     originalConsole.error('[FATAL] 未捕获异常:', err.message);
     originalConsole.error(err.stack || '');
-    try {
-      if (logStream) {
-        logStream.write(`\n[FATAL] 未捕获异常: ${err.message}\n${err.stack || ''}\n`);
-        logStream.end();
-      }
-    } catch {}
+    writeRawLog(`\n[FATAL] 未捕获异常: ${err.message}\n${err.stack || ''}\n`);
+    closeRawLog();
     process.exit(1);
   });
 
   process.on('unhandledRejection', (reason) => {
     originalConsole.error('[FATAL] 未处理的Promise拒绝:', reason);
-    try {
-      if (logStream) {
-        logStream.write(`\n[FATAL] 未处理的Promise拒绝: ${reason}\n`);
-      }
-    } catch {}
+    writeRawLog(`\n[FATAL] 未处理的Promise拒绝: ${reason}\n`);
+    closeRawLog();
     process.exit(1);
   });
 }
@@ -140,13 +139,33 @@ async function start() {
   // Phase 3：后台初始化种子数据（幂等，已有数据自动跳过）
   console.log('[Seed] Starting background data initialization...');
   try {
+    // 演示数据一次性初始化标记（system_configs.demo_seeded）：
+    // 已初始化（含老库迁移补标）则不重种，避免「删掉的演示数据重启后复活」。
+    const { getDemoSeedState, ensureSeedConfig, isDemoEnabled } = await import('./services/seed-status.js');
+    await ensureSeedConfig();
+    const { ensureIdCardConfig } = await import('./services/id-card-service.js');
+    await ensureIdCardConfig();
+    const { ensureMeterPlatformConfig } = await import('./services/meter-platform.js');
+    await ensureMeterPlatformConfig();
+    const demoState = await getDemoSeedState();
+    const demoEnabled = await isDemoEnabled();
     const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates, seedIdCardReaders, seedFireSafety } = await import('./services/seed-data.js');
+    // 功能性基线（始终幂等执行，缺了会补——系统正常运行必需）：科目 / 合同模板 / 字典 / 审批流
     await seedChartOfAccounts();
-    await seedAllDemoData();
-    await seedDoorLocks();
     await seedContractTemplates();
-    await seedIdCardReaders();
-    await seedFireSafety();
+    if (demoEnabled) {
+      // 演示内容（经营演示数据 / 门锁 / 消防 / 读卡器）——受 demo_enabled 与一次性标记管控
+      if (demoState === 'run') {
+        await seedAllDemoData();
+      } else {
+        console.log('[Seed] Demo seed skipped (state=' + demoState + ') — 演示数据已初始化，不再重建');
+      }
+      await seedDoorLocks();
+      await seedIdCardReaders();
+      await seedFireSafety();
+    } else {
+      console.log('[Seed] Demo content disabled (demo_enabled=0) — 跳过：经营演示数据 / 门锁 / 消防 / 读卡器');
+    }
     // 业务枚举数据字典统一（幂等）
     const { seedBusinessDicts, seedDefaultFlows } = await import('./services/dict-seed.js');
     const dictCount = await seedBusinessDicts();

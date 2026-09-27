@@ -45,7 +45,7 @@
           <div class="card-label">电量</div>
           <div class="card-value">
             <el-progress :percentage="lock.battery ?? 0" :stroke-width="8" style="width:120px"
-              :color="(lock.battery ?? 100) <= 30 ? '#F56C6C' : (lock.battery ?? 100) <= 60 ? '#E6A23C' : '#67C23A'" />
+              :color="(lock.battery ?? 100) <= 30 ? 'var(--bad-600)' : (lock.battery ?? 100) <= 60 ? 'var(--warn-600)' : 'var(--ok-600)'" />
           </div>
         </div>
         <div class="info-card">
@@ -116,43 +116,20 @@
         <div style="margin-bottom:12px">
           <el-button type="primary" size="small" @click="showPwdDialog">创建密码</el-button>
         </div>
-        <el-table :data="passwords" stripe>
-          <el-table-column prop="password" label="密码" width="120" />
-          <el-table-column prop="passwordType" label="类型" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.passwordType === '永久' ? 'success' : row.passwordType === '临时' ? 'warning' : 'info'" size="small">{{ row.passwordType }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="purpose" label="用途" width="80" />
-          <el-table-column label="有效期" width="200">
-            <template #default="{ row }">
-              <span v-if="row.startTime">{{ new Date(row.startTime).toLocaleDateString() }}</span>
-              <span v-else>-</span>
-              <span> ~ </span>
-              <span v-if="row.endTime">{{ new Date(row.endTime).toLocaleDateString() }}</span>
-              <span v-else>永久</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="isActive" label="状态" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.isActive ? 'success' : 'danger'" size="small">{{ row.isActive ? '启用' : '禁用' }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="usedCount" label="已用次数" width="90" />
-          <el-table-column prop="notes" label="备注" min-width="120" show-overflow-tooltip />
-          <el-table-column label="操作" width="140">
-            <template #default="{ row }">
-              <el-button size="small" v-if="row.isActive" @click="togglePassword(row, false)">禁用</el-button>
-              <el-button size="small" v-else @click="togglePassword(row, true)">启用</el-button>
-              <el-popconfirm title="确定删除该密码?" @confirm="deletePassword(row.id)">
-                <template #reference><el-button size="small" type="danger">删除</el-button></template>
-              </el-popconfirm>
-            </template>
-          </el-table-column>
-                  <template #empty>
-            <EmptyState title="暂无数据" description="调整筛选条件或新增记录后，数据会显示在这里" />
-          </template>
-        </el-table>
+        <DataTable :data="passwords" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
+          <template #c2="{ row }"><el-tag :type="row.passwordType === '永久' ? 'success' : row.passwordType === '临时' ? 'warning' : 'info'" size="small">{{ row.passwordType }}</el-tag></template>
+          <template #c4="{ row }"><span v-if="row.startTime">{{ new Date(row.startTime).toLocaleDateString() }}</span>
+                      <span v-else>-</span>
+                      <span> ~ </span>
+                      <span v-if="row.endTime">{{ new Date(row.endTime).toLocaleDateString() }}</span>
+                      <span v-else>永久</span></template>
+          <template #c5="{ row }"><el-tag :type="row.isActive ? 'success' : 'danger'" size="small">{{ row.isActive ? '启用' : '禁用' }}</el-tag></template>
+          <template #c8="{ row }"><el-button size="small" v-if="row.isActive" @click="togglePassword(row, false)">禁用</el-button>
+                      <el-button size="small" v-else @click="togglePassword(row, true)">启用</el-button>
+                      <el-popconfirm title="确定删除该密码?" @confirm="deletePassword(row.id)">
+                        <template #reference><el-button size="small" type="danger">删除</el-button></template>
+                      </el-popconfirm></template>
+        </DataTable>
       </el-tab-pane>
 
       <!-- 传统门锁：钥匙管理 -->
@@ -164,45 +141,26 @@
             <el-option label="丢失" value="丢失" /><el-option label="作废" value="作废" />
           </el-select>
         </div>
-        <el-table :data="keys" stripe>
-          <el-table-column prop="keyCode" label="钥匙编号" width="150" />
-          <el-table-column prop="keyStatus" label="状态" width="80">
-            <template #default="{ row }">
-              <el-tag :type="row.keyStatus === '在库' ? 'success' : row.keyStatus === '借出' ? 'warning' : row.keyStatus === '丢失' ? 'danger' : 'info'" size="small">{{ row.keyStatus }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="holderName" label="持有人" width="100" />
-          <el-table-column prop="holderPhone" label="联系电话" width="130" />
-          <el-table-column label="借出时间" width="160">
-            <template #default="{ row }">{{ row.lendTime ? new Date(row.lendTime).toLocaleString() : '-' }}</template>
-          </el-table-column>
-          <el-table-column label="预计归还" width="160">
-            <template #default="{ row }">
-              <span :style="{ color: row.expectedReturnTime && new Date(row.expectedReturnTime) < new Date() && row.keyStatus === '借出' ? '#F56C6C' : '' }">
-                {{ row.expectedReturnTime ? new Date(row.expectedReturnTime).toLocaleString() : '-' }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column label="实际归还" width="160">
-            <template #default="{ row }">{{ row.returnTime ? new Date(row.returnTime).toLocaleString() : '-' }}</template>
-          </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
-            <template #default="{ row }">
-              <template v-if="row.keyStatus === '在库'">
-                <el-button size="small" type="warning" @click="showKeyLendSingle(row)">借出</el-button>
-              </template>
-              <template v-if="row.keyStatus === '借出'">
-                <el-button size="small" type="success" @click="doKeyReturn(row.id)">归还</el-button>
-              </template>
-              <template v-if="row.keyStatus === '在库' || row.keyStatus === '借出'">
-                <el-button size="small" type="danger" @click="doKeyLost(row.id)">挂失</el-button>
-              </template>
-              <template v-if="row.keyStatus === '丢失'">
-                <el-button size="small" type="info" @click="doKeyScrap(row.id)">作废</el-button>
-              </template>
-            </template>
-          </el-table-column>
-        </el-table>
+        <DataTable :data="keys" :columns="COLUMNS_2" row-key="id">
+          <template #c2="{ row }"><el-tag :type="row.keyStatus === '在库' ? 'success' : row.keyStatus === '借出' ? 'warning' : row.keyStatus === '丢失' ? 'danger' : 'info'" size="small">{{ row.keyStatus }}</el-tag></template>
+          <template #c5="{ row }">{{ row.lendTime ? new Date(row.lendTime).toLocaleString() : '-' }}</template>
+          <template #c6="{ row }"><span :style="{ color: row.expectedReturnTime && new Date(row.expectedReturnTime) < new Date() && row.keyStatus === '借出' ? 'var(--bad-600)' : '' }">
+                        {{ row.expectedReturnTime ? new Date(row.expectedReturnTime).toLocaleString() : '-' }}
+                      </span></template>
+          <template #c7="{ row }">{{ row.returnTime ? new Date(row.returnTime).toLocaleString() : '-' }}</template>
+          <template #c8="{ row }"><template v-if="row.keyStatus === '在库'">
+                        <el-button size="small" type="warning" @click="showKeyLendSingle(row)">借出</el-button>
+                      </template>
+                      <template v-if="row.keyStatus === '借出'">
+                        <el-button size="small" type="success" @click="doKeyReturn(row.id)">归还</el-button>
+                      </template>
+                      <template v-if="row.keyStatus === '在库' || row.keyStatus === '借出'">
+                        <el-button size="small" type="danger" @click="doKeyLost(row.id)">挂失</el-button>
+                      </template>
+                      <template v-if="row.keyStatus === '丢失'">
+                        <el-button size="small" type="info" @click="doKeyScrap(row.id)">作废</el-button>
+                      </template></template>
+        </DataTable>
       </el-tab-pane>
 
       <!-- 操作日志（通用） -->
@@ -217,7 +175,7 @@
           <el-timeline-item
             v-for="log in logs" :key="log.id"
             :timestamp="new Date(log.createdAt).toLocaleString()"
-            :color="log.result === '成功' ? '#67C23A' : '#F56C6C'"
+            :color="log.result === '成功' ? 'var(--ok-600)' : 'var(--bad-600)'"
           >
             <div class="log-item">
               <el-tag size="small" :type="log.operationType.includes('开锁') ? 'success' : log.operationType.includes('借') ? 'warning' : log.operationType.includes('归') ? '' : 'info'" style="margin-right:8px">{{ log.operationType }}</el-tag>
@@ -362,7 +320,7 @@
     <!-- ====== 远程开锁确认 ====== -->
     <el-dialog title="远程开锁" v-model="openDialogVisible" width="400px">
       <div style="text-align:center; padding:20px 0">
-        <el-icon :size="48" color="#409EFF"><Lock /></el-icon>
+        <el-icon :size="48" color="var(--brand-600)"><Lock /></el-icon>
         <p style="margin-top:16px; font-size:16px">确认对 <b>{{ lock?.name }}</b> 执行远程开锁？</p>
       </div>
       <template #footer>
@@ -374,6 +332,31 @@
 </template>
 
 <script setup lang="ts">
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS_2: TableColumn[] = [
+  { prop: 'keyCode', label: '钥匙编号', width: 150 },
+  { prop: 'keyStatus', label: '状态', width: 80, slot: 'c2' },
+  { prop: 'holderName', label: '持有人', width: 100 },
+  { prop: 'holderPhone', label: '联系电话', width: 130 },
+  { label: '借出时间', width: 160, slot: 'c5' },
+  { label: '预计归还', width: 160, slot: 'c6' },
+  { label: '实际归还', width: 160, slot: 'c7' },
+  { label: '操作', width: 200, fixed: 'right', slot: 'c8' },
+];
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'password', label: '密码', width: 120 },
+  { prop: 'passwordType', label: '类型', width: 80, slot: 'c2' },
+  { prop: 'purpose', label: '用途', width: 80 },
+  { label: '有效期', width: 200, slot: 'c4' },
+  { prop: 'isActive', label: '状态', width: 80, slot: 'c5' },
+  { prop: 'usedCount', label: '已用次数', width: 90 },
+  { prop: 'notes', label: '备注', minWidth: 120, tooltip: true },
+  { label: '操作', width: 140, slot: 'c8' },
+];
+
 import { ref, reactive, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
@@ -652,10 +635,10 @@ async function fetchLogs() {
   .info-cards {
     display: flex; flex-wrap: wrap; gap: 12px;
     .info-card {
-      background: #fff; border-radius: 6px; padding: 12px 18px;
-      min-width: 130px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-      .card-label { font-size: 12px; color: #909399; margin-bottom: 4px; }
-      .card-value { font-size: 15px; color: #303133; font-weight: 500; }
+      background: $n-0; border-radius: 6px; padding: 12px 18px;
+      min-width: 130px; box-shadow: 0 1px 3px $n-100;
+      .card-label { font-size: 12px; color: $n-600; margin-bottom: 4px; }
+      .card-value { font-size: 15px; color: $n-900; font-weight: 500; }
     }
   }
   .log-item { display: flex; align-items: center; }

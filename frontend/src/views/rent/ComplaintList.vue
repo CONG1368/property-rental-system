@@ -8,41 +8,29 @@
       <el-col :span="4"><div class="stat-card"><div class="stat-num closed">{{ stats.closed }}</div><div class="stat-label">已关闭</div></div></el-col>
     </el-row>
 
-    <div class="toolbar">
-      <div class="search-group">
-        <el-input v-model="searchKeyword" placeholder="搜索标题/反馈人" clearable style="width:200px" @keyup.enter="fetchData" />
-        <el-select v-model="filterType" placeholder="类型" clearable style="width:120px" @change="fetchData">
-          <el-option label="投诉" value="投诉" /><el-option label="建议" value="建议" /><el-option label="咨询" value="咨询" /><el-option label="表扬" value="表扬" />
-        </el-select>
-        <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchData">
-          <el-option label="待受理" value="待受理" /><el-option label="处理中" value="处理中" />
-          <el-option label="已回复" value="已回复" /><el-option label="已解决" value="已解决" /><el-option label="已关闭" value="已关闭" />
-        </el-select>
-        <el-button type="primary" @click="fetchData">查询</el-button>
-      </div>
-      <div class="action-group"><el-button type="primary" @click="showCreate">受理新单</el-button></div>
-    </div>
-
-    <TableSkeleton v-if="loading && !tableData.length" :rows="8" :columns="7" />
-    <el-table v-show="!(loading && !tableData.length)" :data="tableData" stripe v-loading="loading">
-      <el-table-column prop="title" label="标题" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="type" label="类型" width="80"><template #default="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template></el-table-column>
-      <el-table-column label="关联房源" width="130" show-overflow-tooltip><template #default="{ row }">{{ row.property?.name }}</template></el-table-column>
-      <el-table-column prop="reporter" label="反馈人" width="100" />
-      <el-table-column prop="status" label="状态" width="90"><template #default="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template></el-table-column>
-      <el-table-column prop="assignee" label="处理人" width="100" />
-      <el-table-column label="满意度" width="90"><template #default="{ row }"><el-rate v-if="row.satisfaction" :model-value="row.satisfaction" disabled size="small" /><span v-else>—</span></template></el-table-column>
-      <el-table-column label="操作" width="180" fixed="right">
-        <template #default="{ row }">
-          <el-button size="small" link v-if="row.status === '待受理'" type="primary" @click="showProcess(row)">处理</el-button>
-          <el-button size="small" link @click="onDetail(row)">详情</el-button>
-        </template>
-      </el-table-column>
-          <template #empty>
-        <EmptyState title="暂无投诉建议" description="住户提交的投诉与建议会汇总到这里" />
+    <FilterBar>
+      <el-input v-model="searchKeyword" placeholder="搜索标题/反馈人" clearable style="width:200px" @keyup.enter="fetchData" />
+      <el-select v-model="filterType" placeholder="类型" clearable style="width:120px" @change="fetchData">
+      <el-option label="投诉" value="投诉" /><el-option label="建议" value="建议" /><el-option label="咨询" value="咨询" /><el-option label="表扬" value="表扬" />
+      </el-select>
+      <el-select v-model="filterStatus" placeholder="状态" clearable style="width:120px" @change="fetchData">
+      <el-option label="待受理" value="待受理" /><el-option label="处理中" value="处理中" />
+      <el-option label="已回复" value="已回复" /><el-option label="已解决" value="已解决" /><el-option label="已关闭" value="已关闭" />
+      </el-select>
+      <el-button type="primary" @click="fetchData">查询</el-button>
+      <template #actions>
+        <div class="action-group"><el-button type="primary" @click="showCreate">受理新单</el-button></div>
       </template>
-    </el-table>
-    <el-pagination v-model:current-page="page" :total="total" :page-size="pageSize" @current-change="fetchData" layout="total, prev, pager, next" style="margin-top:16px; justify-content:flex-end" />
+    </FilterBar>
+
+    <DataTable :data="tableData" :loading="loading" :columns="COLUMNS" row-key="id" v-model:page="page" :total="total" :page-size="pageSize" @page-change="fetchData" empty-title="暂无投诉建议" empty-description="住户提交的投诉与建议会汇总到这里">
+      <template #c2="{ row }"><el-tag :type="typeTag(row.type)" size="small">{{ row.type }}</el-tag></template>
+      <template #c3="{ row }">{{ row.property?.name }}</template>
+      <template #c5="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag></template>
+      <template #c7="{ row }"><el-rate v-if="row.satisfaction" :model-value="row.satisfaction" disabled size="small" /><span v-else>—</span></template>
+      <template #c8="{ row }"><el-button size="small" link v-if="row.status === '待受理'" type="primary" @click="showProcess(row)">处理</el-button>
+              <el-button size="small" link @click="onDetail(row)">详情</el-button></template>
+    </DataTable>
 
     <!-- 新增 -->
     <el-dialog title="受理新单" v-model="createVisible" width="520px" @closed="resetCreate">
@@ -84,6 +72,21 @@
 </template>
 
 <script setup lang="ts">
+import FilterBar from '@/components/base/FilterBar.vue';
+import DataTable from '@/components/base/DataTable.vue';
+import type { TableColumn } from '@/components/base/types';
+
+const COLUMNS: TableColumn[] = [
+  { prop: 'title', label: '标题', minWidth: 150, tooltip: true },
+  { prop: 'type', label: '类型', width: 80, slot: 'c2' },
+  { label: '关联房源', width: 130, tooltip: true, slot: 'c3' },
+  { prop: 'reporter', label: '反馈人', width: 100 },
+  { prop: 'status', label: '状态', width: 90, slot: 'c5' },
+  { prop: 'assignee', label: '处理人', width: 100 },
+  { label: '满意度', width: 90, slot: 'c7' },
+  { label: '操作', width: 180, fixed: 'right', slot: 'c8' },
+];
+
 import { ref, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
 import request from '@/api/request';
@@ -137,14 +140,11 @@ onMounted(() => { fetchData(); });
 <style lang="scss" scoped>
 .complaint-page { padding: 0; }
 .stat-cards { margin-bottom: 16px; }
-.stat-card { background: #fff; border: 1px solid #ebeef5; border-radius: 8px; padding: 18px; text-align: center; }
-.stat-num { font-size: 24px; font-weight: 700; color: #1f2430; }
-.stat-num.pending { color: #E6A23C; }
-.stat-num.proc { color: #409EFF; }
-.stat-num.resolved { color: #67C23A; }
-.stat-num.closed { color: #909399; }
-.stat-label { margin-top: 6px; color: #909399; font-size: 13px; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.search-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.action-group { display: flex; gap: 8px; }
+.stat-card { background: $n-0; border: 1px solid $n-200; border-radius: 8px; padding: 18px; text-align: center; }
+.stat-num { font-size: 24px; font-weight: 700; color: $n-900; }
+.stat-num.pending { color: $warn-600; }
+.stat-num.proc { color: $brand-600; }
+.stat-num.resolved { color: $ok-600; }
+.stat-num.closed { color: $n-600; }
+.stat-label { margin-top: 6px; color: $n-600; font-size: 13px; }
 </style>
