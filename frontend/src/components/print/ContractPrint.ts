@@ -30,6 +30,7 @@ interface ContractPrintData {
   // 首期应交租金（用户 2026-10-10 要求）：0/缺省＝自动按「月租金 × 付款周期月数」，>0 为自定义金额（几年一起交）
   firstPeriodRent?: number;
   paymentCycle: string;
+  // status 仍由调用方传入，但**不再打印在合同上**（用户 2026-10-10 要求）
   status: string;
   notes: string;
   feeItems?: FeeItem[];
@@ -255,10 +256,7 @@ export function buildContractHTML(data: ContractPrintData): string {
     ? `<img src="${data.companyLogo}" style="max-width:200px;max-height:52px;margin-bottom:6px" crossorigin="anonymous" />`
     : '';
 
-  const statusBadge = {
-    '执行中': '执行中', '已签订': '已签订', '已到期': '已到期',
-    '已终止': '已终止', '草稿': '草稿', '待审批': '待审批',
-  }[data.status] || data.status;
+  // 抬头不再打印合同状态（用户 2026-10-10 要求：给租户正式签署的合同上不能出现「起草中」这类状态提示）
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -293,7 +291,7 @@ export function buildContractHTML(data: ContractPrintData): string {
       <h1 style="margin:0 24px;font-size:24px;font-weight:bold;letter-spacing:6px;white-space:nowrap">物业租赁合同</h1>
       <div style="flex:1;height:1px;background:#333"></div>
     </div>
-    <p style="font-size:12px;color:#666;margin-top:6px">合同编号：${data.contractNo}　　状态：${statusBadge}</p>
+    <p style="font-size:12px;color:#666;margin-top:6px">合同编号：${data.contractNo}</p>
   </div>
 
   <!-- ====== 合同当事人 ====== -->

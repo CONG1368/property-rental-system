@@ -222,6 +222,13 @@ describe('合同底部签章区（甲乙双方签约信息，用户 2026-10-10 �
     paymentCycle: '月', status: '起草中', notes: '', companyName: '回归测试物业公司', companyPhone: '025-88880000',
   };
 
+  it('合同上不打印状态提示（给租户签署的合同不能出现「起草中」）', () => {
+    const html = buildContractHTML({ ...base, status: '起草中' });
+    expect(html).not.toContain('状态：');
+    expect(html).not.toContain('起草中');
+    expect(html).toContain('合同编号：HT-SIGN-001');
+  });
+
   it('甲乙双方要求的字段标签齐全，且各自带日期栏', () => {
     const html = buildContractHTML(base);
     for (const label of ['甲方', '签约代表人', '邮编', '开户银行', '帐户名', '帐　号', '乙方', '法定代表人', '（授权代表）', '身份证号码']) {

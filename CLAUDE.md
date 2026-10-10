@@ -529,7 +529,7 @@ window.electronAPI.exportPDF(html: string, title: string): Promise<{ success: bo
 window.electronAPI.printHTML(html: string, title: string): Promise<{ success: boolean; failureReason?: string }>
 ```
 
-**ContractPrint.ts**（合同打印模板）采用正式法律合同排版：双横线装饰标题、双方当事人两列表格对比、统一表格边框 `#999` 实线、底部**甲乙双方签约信息栏**（两列字段表：甲方 名称/签约代表人/地址/电话/邮编/开户银行/帐户名/帐号，乙方 名称/法定代表人/（授权代表）/身份证号码/地址/电话/邮编/开户银行/帐号，各自带签署日期；有值带出、无值留空划线）、章节中文数字编号（一~七）、页脚含合同编号和签订日期。`billingConfig.fireSafety` 消防约定通过 `buildFireSafetyHTML()` 渲染为独立区块。
+**ContractPrint.ts**（合同打印模板）采用正式法律合同排版：双横线装饰标题、双方当事人两列表格对比、统一表格边框 `#999` 实线、底部**甲乙双方签约信息栏**（两列字段表：甲方 名称/签约代表人/地址/电话/邮编/开户银行/帐户名/帐号，乙方 名称/法定代表人/（授权代表）/身份证号码/地址/电话/邮编/开户银行/帐号，各自带签署日期；有值带出、无值留空划线）、章节中文数字编号（一~七）、页脚含合同编号和签订日期。**抬头只印合同编号、不打印合同状态**（用户 2026-10-10 要求：给租户正式签署的合同上不能出现「起草中」这类状态提示，已由 `frontend/tests/unit.test.ts` 锁定；`status` 字段仍传入但不再上纸）。`billingConfig.fireSafety` 消防约定通过 `buildFireSafetyHTML()` 渲染为独立区块。
 
 **打印模板多行文本处理（重要）**：HTML 中 `\n` 换行符会被折叠为空格，导致多段落文本挤在一起。`ContractPrint.ts` 提供了两个工具函数：
 
