@@ -405,6 +405,9 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 | Expense | `bookId`（必填，关联账套） | 创建费用时必须传入 |
 | Bill | `lateFee`（违约金） | 模型已定义字段 |
 | Contract | `endDate`, `rentAmount` | 续约时前端传 `newEndDate`/`newRent`，后端映射 |
+| Contract | `performancePenalty`（履约违约金） / `firstPeriodRent`（首期应交租金，0=自动） | 真实列（非 billingConfig）；续约沿用原值 |
+| Tenant | `legalPerson` / `signAddress` / `postcode` / `bankName` / `bankAccount`（合同底部乙方签约信息） | 用户自填，**不要**用 `contactPerson`/`idAddress` 顶替 |
+| Bill | `periodMonths`（本账期覆盖月数） + `items`（`bill_items` 明细） | 明细由 `services/bill-items.ts` 折算 |
 
 ### 项目完成度
 
@@ -526,7 +529,7 @@ window.electronAPI.exportPDF(html: string, title: string): Promise<{ success: bo
 window.electronAPI.printHTML(html: string, title: string): Promise<{ success: boolean; failureReason?: string }>
 ```
 
-**ContractPrint.ts**（合同打印模板）采用正式法律合同排版：双横线装饰标题、双方当事人两列表格对比、统一表格边框 `#999` 实线、签章区竖线分隔、章节中文数字编号（一~七）、页脚含合同编号和签订日期。`billingConfig.fireSafety` 消防约定通过 `buildFireSafetyHTML()` 渲染为独立区块。
+**ContractPrint.ts**（合同打印模板）采用正式法律合同排版：双横线装饰标题、双方当事人两列表格对比、统一表格边框 `#999` 实线、底部**甲乙双方签约信息栏**（两列字段表：甲方 名称/签约代表人/地址/电话/邮编/开户银行/帐户名/帐号，乙方 名称/法定代表人/（授权代表）/身份证号码/地址/电话/邮编/开户银行/帐号，各自带签署日期；有值带出、无值留空划线）、章节中文数字编号（一~七）、页脚含合同编号和签订日期。`billingConfig.fireSafety` 消防约定通过 `buildFireSafetyHTML()` 渲染为独立区块。
 
 **打印模板多行文本处理（重要）**：HTML 中 `\n` 换行符会被折叠为空格，导致多段落文本挤在一起。`ContractPrint.ts` 提供了两个工具函数：
 
@@ -620,12 +623,16 @@ function wrapTextAsParagraphs(text: string, extraStyle = ''): string {
 |------|--------|------|
 | `bills` | `periodMonths` | INTEGER (默认1) |
 | `contracts` | `clauses` | TEXT (默认'[]') |
-| `properties` | `buildingName` | VARCHAR(50) |
-| `properties` | `roomNumber` | VARCHAR(20) |
-| `properties` | `buildingOrder` | INTEGER (默认0) |
-| `properties` | `floorOrder` | INTEGER (默认0) |
+| `contracts` | `performancePenalty`（履约违约金） / `firstPeriodRent`（首期应交租金） | DECIMAL(12,2) (默认0) |
+| `properties` | `buildingName` / `roomNumber` / `buildingOrder` / `floorOrder` | VARCHAR/INTEGER |
+| `properties` | `projectId` | INTEGER (默认 NULL) |
+| `fixed_assets` | `lastDepreciationPeriod` | VARCHAR(7) |
+| `work_orders` | `facilityId` | INTEGER (默认 NULL) |
 | `tenants` | `gender` / `birthDate` / `ethnicity` / `idAddress` / `idIssuingAuthority` / `idValidFrom` / `idValidTo` / `idPhoto` | VARCHAR/TEXT (8列) |
-| `tenants` | `pendingClauses` | TEXT (默认'[]') |
+| `tenants` | `pendingClauses` / `loginPin` | TEXT (默认'[]') / VARCHAR(6) |
+| `tenants` | `legalPerson` / `signAddress` / `postcode` / `bankName` / `bankAccount`（合同底部乙方签约信息，用户自填） | VARCHAR (5列) |
+| `users` | `projectIds` | TEXT (默认'[]') |
+| `system_configs` | `configGroup` / `valueType` / `isSensitive` / `builtIn` / `extra` | VARCHAR/INTEGER/TEXT (5列) |
 
 **新增迁移步骤**：在 `MIGRATION_DEFINITIONS` 数组中添加新条目即可，重启后自动应用。
 
@@ -686,11 +693,13 @@ off('room:status-changed', callback);
 
 （打印服务三种模式见上文「PDF 导出引擎」，此处只记模板与入口）
 
-**打印模板**：`frontend/src/components/print/` 下 6 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+签章位+Logo）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）、`BriefingPrint`（月度经营简报）。
+**打印模板**：`frontend/src/components/print/` 下 6 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+Logo+底部甲乙双方签约信息栏）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）、`BriefingPrint`（月度经营简报）。
 
 **打印入口**：合同详情页（头部打印下拉：直接打印 / 导出PDF）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
 
-**打印设置**：`PrintSettings.vue`（`/system/print-settings`）— 配置公司全称/Logo/电子签章/证件类型/证件号码/联系电话（6 个 system_configs key），实时预览合同抬头。Base64 存储图片。
+**打印设置**：`PrintSettings.vue`（`/system/print-settings`）— 配置公司全称/Logo/电子签章/证件类型/证件号码/联系电话 + **公司地址/公司邮编/签约代表人**（共 9 个 system_configs key，后三项用于合同底部**甲方**签约信息栏），右侧实时预览合同抬头与签章区字段表。Base64 存储图片。
+
+**合同底部签约信息栏（用户 2026-10-10 要求）**：`ContractPrint` 的 `signField()` 渲染甲乙两列字段表。**甲方**取打印设置的公司全称/电话/地址/邮编/签约代表人（后三项选填，未配置则留空划线）与合同收款信息里的开户银行/帐户名/帐号；**乙方**取租客档案里**用户自行填写**的 5 个字段（`legalPerson` 签约代表人 / `signAddress` 签约地址 / `postcode` 邮编 / `bankName` 开户银行 / `bankAccount` 银行账号，均为 `tenants` 新列，迁移清单自动补列）——**不做任何"用联系人顶法定代表人、用证件地址顶签约地址"的映射**（用户明确要求让用户自定义填写）。乙方栏的名称/身份证号码/电话仍受合同起草页「乙方证件信息」开关控制（关闭时同名栏位留空），字段标签始终打印、供手写。改这 3 处模板时别把 `frontend/tests/unit.test.ts` 的「合同底部签章区」3 条用例改红。
 
 **后端 API**：`/api/system-configs`（admin 权限）— `GET /keys?keys=k1,k2` 批量查询配置、`PUT /:key` 保存单个配置（upsert 模式）。
 

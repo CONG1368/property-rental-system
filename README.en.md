@@ -108,13 +108,13 @@ DB_NAME=property_rental
 | Feature | Description |
 |------|------|
 | Property Management | Property registration, status tracking, area/layout/fee standards, bulk import |
-| Tenant Management | Tenant info, contract association, credit scoring |
+| Tenant Management | Tenant info (ID/contact optional), 5 contract-signing fields (signer / signing address / postcode / bank / account, user-entered), contract association, credit scoring |
 | Rent Collection | Bill generation, manual creation, payment records, fee breakdown (rent / water / electricity / property / other) |
 | Smart Dunning | Four-level dunning escalation (3 days before due / 7 / 30 / 60 days overdue; channels: in-app message, in-app message, SMS, written notice), dunning task tracking, overdue marking |
 | Room Status Kanban | Building/floor filtering + card/table view toggle + quick-action drawer + batch status change; dark data dashboard (6 chart types); batch room generation |
 | Door Lock Management | Smart locks (remote unlock / password management / battery monitoring), traditional locks (key borrow-return / loss-report / void workflow), audit logs |
 | ID Card Reader | Huashi CVR-100U real integration (built-in WHQL driver with one-click install), ID number validation & masking, card-reading audit |
-| Printing | 6 template sets (contract / tenant info / bill / receipt / batch summary / monthly briefing), native system printing + text-based PDF export; 80mm thermal receipts use binary layout (pure black, no bold, no landlord company name in the header) |
+| Printing | 6 template sets (contract / tenant info / bill / receipt / batch summary / monthly briefing), native system printing + text-based PDF export; contracts end with a both-parties signing block (values filled in when available, otherwise left blank for handwriting); 80mm thermal receipts use binary layout (pure black, no bold, no landlord company name in the header) |
 | Collection Dashboard | Collection rate, overdue rate, payment channel distribution, rent trend |
 | Collection Calendar | Monthly collection calendar view, batch status overview |
 
@@ -147,7 +147,7 @@ DB_NAME=property_rental
 | Feature | Description |
 |------|------|
 | Contract List | Full lifecycle: draft / approval / signing / execution / expiry |
-| Contract Drafting | Form-based creation, fee configuration (water / electricity / property), property-tenant association |
+| Contract Drafting | Form-based creation, fee items (incl. editable billing area for per-sqm/month), customizable deposit / performance penalty / first-period rent with "= N months rent" quick fill, tenant-ID write switch, property-tenant association |
 | Contract Approval | Submit / reject / sign-off workflow, approval record audit trail |
 | Contract Details | Full info display, fee config cards, file upload & download |
 | Contract Kanban | 8-column kanban by status |
@@ -179,7 +179,7 @@ DB_NAME=property_rental
 | Data Dictionary | Dictionary type and dictionary item configuration |
 | System Parameters | Parameter center (grouping, sensitive values masked, built-in items cannot be deleted) |
 | System Operations | Version / Node / memory / database info, manual execution of 7 scheduled tasks, audit toggle, database backup |
-| Print Settings | Company full name / logo / e-signature / certificate info / contact phone configuration, real-time preview |
+| Print Settings | Company full name / logo / e-signature / certificate info / contact phone, plus company address / postcode / signer (used in the lessor block at the bottom of contracts), real-time preview |
 | ID Card Reader | Reader device registration, driver detection & installation, mock/real mode switching |
 | Audit Log | Full operation audit (success / failure / unauthorized), supports filtering and CSV export |
 
