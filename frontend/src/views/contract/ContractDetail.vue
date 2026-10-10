@@ -419,8 +419,9 @@ async function getCompanyInfo() {
   let companyName = '物业租赁管理公司';
   let companyLogo = ''; let companySeal = '';
   let companyIdType = ''; let companyIdNumber = ''; let companyPhone = '';
+  let companyAddress = ''; let companyPostcode = ''; let companySigner = '';
   try {
-    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo,company_seal,company_id_type,company_id_number,company_phone' } });
+    const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo,company_seal,company_id_type,company_id_number,company_phone,company_address,company_postcode,company_signer' } });
     const map: Record<string, string> = {};
     (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
     if (map['company_name_for_print']) companyName = map['company_name_for_print'];
@@ -429,8 +430,11 @@ async function getCompanyInfo() {
     if (map['company_id_type']) companyIdType = map['company_id_type'];
     if (map['company_id_number']) companyIdNumber = map['company_id_number'];
     if (map['company_phone']) companyPhone = map['company_phone'];
+    if (map['company_address']) companyAddress = map['company_address'];
+    if (map['company_postcode']) companyPostcode = map['company_postcode'];
+    if (map['company_signer']) companySigner = map['company_signer'];
   } catch { /* use defaults */ }
-  return { companyName, companyLogo, companySeal, companyIdType, companyIdNumber, companyPhone };
+  return { companyName, companyLogo, companySeal, companyIdType, companyIdNumber, companyPhone, companyAddress, companyPostcode, companySigner };
 }
 
 async function handlePrint(mode: string) {
@@ -447,6 +451,9 @@ async function handlePrint(mode: string) {
       tenantIdType: contract.value.tenant?.idType || '',
       tenantIdNumber: contract.value.tenant?.idNumber || '',
       tenantPhone: contract.value.tenant?.phone || '',
+      // 底部签章区的乙方信息：联系人作为「法定代表人（授权代表）」，地址取租客证件地址
+      tenantContactPerson: contract.value.tenant?.contactPerson || '',
+      tenantAddress: contract.value.tenant?.idAddress || contract.value.tenant?.address || '',
       showTenantContact: showTenantContact.value,
       startDate: contract.value.startDate,
       endDate: contract.value.endDate,

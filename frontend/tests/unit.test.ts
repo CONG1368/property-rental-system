@@ -214,6 +214,41 @@ describe('首期应交租金可自定义（用户 2026-10-10 要求）', () => {
   });
 });
 
+describe('合同底部签章区（甲乙双方签约信息，用户 2026-10-10 要求）', () => {
+  const base: any = {
+    contractNo: 'HT-SIGN-001', propertyName: 'A栋101', propertyAddress: '示例路1号', propertyArea: 88,
+    tenantName: '张三', tenantIdType: '身份证', tenantIdNumber: '320102199001011234', tenantPhone: '13800138000',
+    startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 3000, depositAmount: 3000,
+    paymentCycle: '月', status: '起草中', notes: '', companyName: '回归测试物业公司', companyPhone: '025-88880000',
+  };
+
+  it('甲乙双方要求的字段标签齐全，且各自带日期栏', () => {
+    const html = buildContractHTML(base);
+    for (const label of ['甲方', '签约代表人', '邮编', '开户银行', '帐户名', '帐　号', '乙方', '法定代表人', '（授权代表）', '身份证号码']) {
+      expect(html).toContain(label);
+    }
+    expect(html.match(/日期：＿＿＿＿年＿＿月＿＿日/g)?.length).toBe(2);
+  });
+
+  it('系统里的数据自动带出（甲方名称/电话/收款账号、乙方名称/证件号/联系人/地址）', () => {
+    const html = buildContractHTML({
+      ...base,
+      companySigner: '张经理', companyAddress: '示例路9号', companyPostcode: '210000',
+      bankName: '中国工商银行示例支行', bankAccountName: '回归测试物业公司', bankAccountNumber: '6222020200112233',
+      tenantContactPerson: '李四', tenantAddress: '南京市玄武区示例路1号',
+    });
+    for (const v of ['张经理', '示例路9号', '210000', '中国工商银行示例支行', '6222020200112233', '李四', '南京市玄武区示例路1号']) {
+      expect(html).toContain(v);
+    }
+    expect(html).toContain('张三');
+    expect(html).toContain('320102199001011234');
+  });
+
+  it('没有配置的值留空划线（不再出现旧的「（盖章）」占位符）', () => {
+    expect(buildContractHTML(base)).not.toContain('（盖章）');
+  });
+});
+
 describe('日期格式化', () => {
   it('标准化为 YYYY-MM-DD 可读形式', () => {
     const s = formatDate('2026-09-01');

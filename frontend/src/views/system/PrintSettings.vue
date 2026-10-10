@@ -45,6 +45,18 @@
               <el-input v-model="form.companyPhone" placeholder="公司联系电话" />
             </el-form-item>
 
+            <el-form-item label="公司地址">
+              <el-input v-model="form.companyAddress" placeholder="合同底部甲方地址栏（可留空手写）" />
+            </el-form-item>
+
+            <el-form-item label="公司邮编">
+              <el-input v-model="form.companyPostcode" placeholder="合同底部甲方邮编栏（可留空手写）" />
+            </el-form-item>
+
+            <el-form-item label="签约代表人">
+              <el-input v-model="form.companySigner" placeholder="合同底部甲方签约代表人（可留空手写）" />
+            </el-form-item>
+
             <el-form-item label="电子签章">
               <div style="display:flex;align-items:center;gap:12px">
                 <el-upload
@@ -98,19 +110,24 @@
 
           <div class="preview-section" style="margin-top:16px">
             <h4 style="margin:0 0 8px;color:var(--n-700)">签章预览</h4>
-            <div class="preview-box seal-preview" style="display:flex;justify-content:space-around;text-align:center">
-              <div>
-                <p style="font-size:12px;color:var(--n-700);margin:0 0 8px">甲方（出租方）</p>
-                <div v-if="form.companySeal" style="width:100px;height:100px;display:flex;align-items:center;justify-content:center;margin:0 auto">
-                  <img :src="form.companySeal" style="max-width:100px;max-height:100px" />
+            <div class="preview-box seal-preview" style="display:flex;gap:18px">
+              <div style="flex:1;font-size:12px;color:var(--n-900)">
+                <div v-if="form.companySeal" style="text-align:center;margin-bottom:6px">
+                  <img :src="form.companySeal" style="max-width:72px;max-height:72px" />
+                  <p style="font-size:11px;color:var(--n-600);margin:2px 0 0">（甲方盖章）</p>
                 </div>
-                <p v-else style="font-size:12px;color:var(--n-600)">_______________</p>
-                <p style="font-size:11px;color:var(--n-600)">日期：____年____月____日</p>
+                <p v-for="f in signPreviewLeft" :key="f.label" style="display:flex;margin:4px 0;line-height:1.7">
+                  <span style="flex:0 0 74px;color:var(--n-700)">{{ f.label }}：</span>
+                  <span style="flex:1;border-bottom:1px solid var(--n-400)">{{ f.value }}</span>
+                </p>
+                <p style="margin:10px 0 0;font-size:11px;color:var(--n-600)">日期：＿＿＿＿年＿＿月＿＿日</p>
               </div>
-              <div>
-                <p style="font-size:12px;color:var(--n-700);margin:0 0 8px">乙方（承租方）</p>
-                <p style="font-size:12px;color:var(--n-600);margin-top:20px">_______________</p>
-                <p style="font-size:11px;color:var(--n-600)">日期：____年____月____日</p>
+              <div style="flex:1;font-size:12px;color:var(--n-900)">
+                <p v-for="f in signPreviewRight" :key="f.label" style="display:flex;margin:4px 0;line-height:1.7">
+                  <span style="flex:0 0 86px;color:var(--n-700)">{{ f.label }}：</span>
+                  <span style="flex:1;border-bottom:1px solid var(--n-400)">{{ f.value }}</span>
+                </p>
+                <p style="margin:10px 0 0;font-size:11px;color:var(--n-600)">日期：＿＿＿＿年＿＿月＿＿日</p>
               </div>
             </div>
           </div>
@@ -142,7 +159,27 @@ const form = reactive({
   companyIdType: '',
   companyIdNumber: '',
   companyPhone: '',
+  companyAddress: '',
+  companyPostcode: '',
+  companySigner: '',
 });
+
+// 合同底部签章区预览：字段与 ContractPrint 的签约信息栏保持一致（甲方侧带出已填值）
+const signPreviewLeft = computed(() => [
+  { label: '甲方', value: form.companyName || '物业租赁管理公司' },
+  { label: '签约代表人', value: form.companySigner },
+  { label: '地址', value: form.companyAddress },
+  { label: '电话', value: form.companyPhone },
+  { label: '邮编', value: form.companyPostcode },
+  { label: '开户银行', value: '' }, { label: '帐户名', value: '' }, { label: '帐　号', value: '' },
+]);
+const signPreviewRight = computed(() => [
+  { label: '乙方', value: '张伟' },
+  { label: '法定代表人', value: '' }, { label: '（授权代表）', value: '' },
+  { label: '身份证号码', value: '320106199001011234' },
+  { label: '地址', value: '' }, { label: '电话', value: '13800138000' },
+  { label: '邮编', value: '' }, { label: '开户银行', value: '' }, { label: '帐　号', value: '' },
+]);
 
 // 直接用真实模板渲染预览：iframe 隔离样式，看到的就是打印出来的版式
 const receiptPreview = computed(() => buildReceiptHTML({
@@ -162,7 +199,7 @@ const receiptPreview = computed(() => buildReceiptHTML({
 onMounted(async () => {
   try {
     const res = await request.get('/system-configs/keys', {
-      params: { keys: 'company_name_for_print,company_logo,company_seal,company_id_type,company_id_number,company_phone' },
+      params: { keys: 'company_name_for_print,company_logo,company_seal,company_id_type,company_id_number,company_phone,company_address,company_postcode,company_signer' },
     });
     const map: Record<string, string> = {};
     (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
@@ -172,6 +209,9 @@ onMounted(async () => {
     if (map['company_id_type']) form.companyIdType = map['company_id_type'];
     if (map['company_id_number']) form.companyIdNumber = map['company_id_number'];
     if (map['company_phone']) form.companyPhone = map['company_phone'];
+    if (map['company_address']) form.companyAddress = map['company_address'];
+    if (map['company_postcode']) form.companyPostcode = map['company_postcode'];
+    if (map['company_signer']) form.companySigner = map['company_signer'];
   } catch { /* use defaults */ }
 });
 
@@ -198,6 +238,9 @@ async function handleSave() {
     await request.put('/system-configs/company_id_type', { configValue: form.companyIdType, confirmPassword: pwd });
     await request.put('/system-configs/company_id_number', { configValue: form.companyIdNumber, confirmPassword: pwd });
     await request.put('/system-configs/company_phone', { configValue: form.companyPhone, confirmPassword: pwd });
+    await request.put('/system-configs/company_address', { configValue: form.companyAddress, confirmPassword: pwd });
+    await request.put('/system-configs/company_postcode', { configValue: form.companyPostcode, confirmPassword: pwd });
+    await request.put('/system-configs/company_signer', { configValue: form.companySigner, confirmPassword: pwd });
     ElMessage.success('打印设置已保存');
   } catch (err: any) {
     ElMessage.error(err?.response?.data?.message || '保存失败，请重试');

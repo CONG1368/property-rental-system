@@ -11,6 +11,9 @@ interface ContractPrintData {
   tenantIdType: string;
   tenantIdNumber: string;
   tenantPhone: string;
+  // 乙方签约信息（合同底部签章区）：联系人为「法定代表人（授权代表）」，地址取租客证件地址
+  tenantContactPerson?: string;
+  tenantAddress?: string;
   // 是否把乙方（承租方）证件信息与联系方式写入合同（用户 2026-10-10 要求）：
   // 由合同起草页的开关决定；未显式传值时按老合同处理，保持原有输出
   showTenantContact?: boolean;
@@ -32,6 +35,10 @@ interface ContractPrintData {
   companyIdType?: string;
   companyIdNumber?: string;
   companyPhone?: string;
+  // 甲方签约信息（用户 2026-10-10 要求，用于合同底部签章区）：来自打印设置，未配置则留空供手写
+  companyAddress?: string;
+  companyPostcode?: string;
+  companySigner?: string;
   paymentMethod?: string;
   bankName?: string;
   bankAccountNumber?: string;
@@ -166,8 +173,11 @@ export function buildContractHTML(data: ContractPrintData): string {
   if (data.companyPhone) lessorDetail.push(`联系电话：${data.companyPhone}`);
 
   // 乙方证件信息为选填：开关关闭时整段不输出；证件类型单独存在（没有证件号）时也不输出，避免出现孤立的「证件类型：身份证」
+  // 乙方证件与联系方式是否写入合同（用户 2026-10-10 要求）：开关关闭时乙方栏不输出，
+  // 合同底部的乙方签约信息栏同样留空（标签保留，供手写）
+  const withTenantContact = data.showTenantContact !== false;
   const tenantDetail: string[] = [];
-  if (data.showTenantContact !== false) {
+  if (withTenantContact) {
     // 证件类型只有和证件号一起才打印：避免出现「证件类型：身份证」这种没有号码支撑的孤立声明
     if (data.tenantIdNumber) {
       if (data.tenantIdType) tenantDetail.push(`证件类型：${data.tenantIdType}`);
@@ -228,18 +238,13 @@ export function buildContractHTML(data: ContractPrintData): string {
     return String(sec);
   };
 
-  // === 签章区 ===
-  const sealBlock = (label: string, imgSrc?: string) => {
-    if (imgSrc) {
-      return `<div style="text-align:center;padding:0 10px">
-        <img src="${imgSrc}" style="max-width:140px;max-height:140px" crossorigin="anonymous" />
-        <p style="margin:4px 0 0;font-size:12px">${label}（盖章）</p>
-      </div>`;
-    }
-    return `<div style="text-align:center;padding:0 10px">
-      <p style="margin:40px 0 8px;font-size:13px">${label}：_______________</p>
-      <p style="font-size:11px;color:#888">日期：____年____月____日</p>
-    </div>`;
+  // === 签章区（用户 2026-10-10 要求）：甲乙双方各自的签约信息栏，系统里有的就带出，没有的留空划线供手写 ===
+  const signField = (label: string, value?: string | number | null) => {
+    const v = value === undefined || value === null ? '' : String(value).trim();
+    return `<p style="display:flex;align-items:flex-end;margin:7px 0;font-size:13px;line-height:1.7">
+      <span style="flex:0 0 104px;color:#333">${label}：</span>
+      <span style="flex:1;border-bottom:1px solid #333;min-height:20px;padding:0 4px">${v}</span>
+    </p>`;
   };
 
   const logoHtml = data.companyLogo
@@ -379,13 +384,34 @@ export function buildContractHTML(data: ContractPrintData): string {
 
   ${buildFireSafetyHTML(data)}
 
-  <!-- ====== 签章 ====== -->
+  <!-- ====== 签章区（甲乙双方签约信息，用户 2026-10-10 要求）====== -->
   <div class="sign-area">
     <div class="sign-col" style="border-right:1px solid #ccc;padding-right:30px">
-      ${sealBlock('甲方（出租方）', data.companySeal)}
+      ${data.companySeal ? `<div style="text-align:center;margin-bottom:8px">
+        <img src="${data.companySeal}" style="max-width:120px;max-height:120px" crossorigin="anonymous" />
+        <p style="margin:2px 0 0;font-size:11px;color:#888">（甲方盖章）</p>
+      </div>` : ''}
+      ${signField('甲方', data.companyName)}
+      ${signField('签约代表人', data.companySigner)}
+      ${signField('地址', data.companyAddress)}
+      ${signField('电话', data.companyPhone)}
+      ${signField('邮编', data.companyPostcode)}
+      ${signField('开户银行', data.bankName)}
+      ${signField('帐户名', data.bankAccountName)}
+      ${signField('帐　号', data.bankAccountNumber)}
+      <p style="margin:16px 0 0;font-size:13px">日期：＿＿＿＿年＿＿月＿＿日</p>
     </div>
     <div class="sign-col" style="padding-left:30px">
-      ${sealBlock('乙方（承租方）')}
+      ${signField('乙方', data.tenantName)}
+      ${signField('法定代表人', data.tenantContactPerson)}
+      ${signField('（授权代表）', '')}
+      ${signField('身份证号码', withTenantContact ? data.tenantIdNumber : '')}
+      ${signField('地址', withTenantContact ? data.tenantAddress : '')}
+      ${signField('电话', withTenantContact ? data.tenantPhone : '')}
+      ${signField('邮编', '')}
+      ${signField('开户银行', '')}
+      ${signField('帐　号', '')}
+      <p style="margin:16px 0 0;font-size:13px">日期：＿＿＿＿年＿＿月＿＿日</p>
     </div>
   </div>
 

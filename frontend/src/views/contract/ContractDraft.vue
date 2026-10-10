@@ -94,7 +94,7 @@
             <el-form-item label="乙方证件信息">
               <el-switch v-model="writeTenantContact" active-text="写入合同" inactive-text="不写入" />
               <span style="margin-left:10px;font-size:12px;color:var(--n-600)">
-                选填：开启后打印合同会在乙方栏写入租客登记的电话与证件信息；租客档案里没登记的项目留空。
+                选填：开启后打印合同会在乙方栏、以及合同底部的「乙方签约信息」里写入租客登记的电话与证件信息；关闭或档案里没登记的项目留空供手写。
               </span>
             </el-form-item>
           </el-col>

@@ -73,7 +73,7 @@ node scripts/generate-proposal-pdf.js
 
 **文档生成器：版本号禁止硬编码 + 表格转换坑（踩过的坑）**：`scripts/generate-manual-pdf.js` 与 `scripts/generate-proposal-pdf.js` 的**源文件名、输出名、页眉版本号一律从根 `package.json` 的 version 拼接**——产品方案生成器曾把 `v1.0.2` 写死在文件名与页眉里，改版本时漏改就会产出旧版本号的文档。产品方案的 Markdown→HTML 表格转换曾用两次正则分别插 `<table>`/`</table>`：**3 行以上的表格会插出多个 `<table>`，剩下的裸 `<tr>` 会被浏览器解析器直接丢弃**，整张表塌成一段连在一起的文字（「数据库设计」表就这么丢的，肉眼很难发现），已改为整块一次性包裹并让首行输出 `<th>`；表格首列与表头加 `white-space: nowrap`，否则自动列宽会把中文挤成「租 赁 与 合 同」竖排。**重生成任何文档 PDF 后，都要用 `pdf-parse` 抽一次文本核对**（页数 + 关键短语/数字），别只看脚本打印的「生成成功」。
 
-**前端 dev 与 build 不要并行（踩过的坑）**：dev server 运行中若在同目录跑 `npm run build:frontend`，Dart Sass 会在源文件旁写 `.xxx.scss.<pid>.<uuid>.tmpdir/` 临时目录，而 Vite 的 FSWatcher 又去 watch 它 → `EBUSY: resource busy or locked` → watcher 抛错未捕获，**dev 进程直接退出（exit 1）**。改动 `variables.scss` 时最容易触发。要构建就先停 dev。
+**前端 dev 与 build 不要并行（踩过的坑）**：dev server 运行中若在同目录跑 `npm run build:frontend`，Dart Sass 会在源文件旁写 `.xxx.scss.<pid>.<uuid>.tmpdir/` 临时目录，而 Vite 的 FSWatcher 又去 watch 它 → `EBUSY: resource busy or locked` → watcher 抛错未捕获，**dev 进程直接退出（exit 1）**。改动 `variables.scss` 时最容易触发。**同类坑还有 `npx vue-tsc --noEmit`**：它同样会在源文件旁写 `.Xxx.vue.<pid>.<uuid>.tmpdir/`（实测改完 `PrintSettings.vue` 后在 dev 运行期间跑 vue-tsc → `.PrintSettings.vue.<pid>.<uuid>.tmpdir\PrintSettings.vue.tmp` watch 失败 → `npm run dev:frontend` 直接 exit 1，concurrently 连带把后端一起 SIGTERM）。**结论：dev 运行期间不要跑任何会往 `frontend/src` 写临时文件的命令（`build:frontend`、`vue-tsc`）；要跑先停 dev。**
 
 ## 技术栈
 
