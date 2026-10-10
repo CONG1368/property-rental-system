@@ -62,6 +62,12 @@ const MIGRATION_DEFINITIONS: ColumnMigration[] = [
       { name: 'idPhoto', sqliteType: 'TEXT', defaultValue: "''" },
       { name: 'pendingClauses', sqliteType: 'TEXT', defaultValue: "'[]'" },
       { name: 'loginPin', sqliteType: 'VARCHAR(6)', defaultValue: "''" },
+      // 合同底部乙方签约信息（用户 2026-10-10 要求）：全部由用户自行填写
+      { name: 'legalPerson', sqliteType: 'VARCHAR(50)', defaultValue: "''" },
+      { name: 'signAddress', sqliteType: 'VARCHAR(200)', defaultValue: "''" },
+      { name: 'postcode', sqliteType: 'VARCHAR(10)', defaultValue: "''" },
+      { name: 'bankName', sqliteType: 'VARCHAR(100)', defaultValue: "''" },
+      { name: 'bankAccount', sqliteType: 'VARCHAR(50)', defaultValue: "''" },
     ],
   },
   {

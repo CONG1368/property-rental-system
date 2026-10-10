@@ -11,9 +11,13 @@ interface ContractPrintData {
   tenantIdType: string;
   tenantIdNumber: string;
   tenantPhone: string;
-  // 乙方签约信息（合同底部签章区）：联系人为「法定代表人（授权代表）」，地址取租客证件地址
-  tenantContactPerson?: string;
-  tenantAddress?: string;
+  // 乙方签约信息（合同底部签章区，用户 2026-10-10 要求）：五项全部来自租客档案里用户自行填写的字段，
+  // 不做任何"用联系人顶法定代表人、用证件地址顶签约地址"的映射
+  tenantLegalPerson?: string;
+  tenantSignAddress?: string;
+  tenantPostcode?: string;
+  tenantBankName?: string;
+  tenantBankAccount?: string;
   // 是否把乙方（承租方）证件信息与联系方式写入合同（用户 2026-10-10 要求）：
   // 由合同起草页的开关决定；未显式传值时按老合同处理，保持原有输出
   showTenantContact?: boolean;
@@ -403,14 +407,14 @@ export function buildContractHTML(data: ContractPrintData): string {
     </div>
     <div class="sign-col" style="padding-left:30px">
       ${signField('乙方', data.tenantName)}
-      ${signField('法定代表人', data.tenantContactPerson)}
+      ${signField('法定代表人', data.tenantLegalPerson)}
       ${signField('（授权代表）', '')}
       ${signField('身份证号码', withTenantContact ? data.tenantIdNumber : '')}
-      ${signField('地址', withTenantContact ? data.tenantAddress : '')}
+      ${signField('地址', data.tenantSignAddress)}
       ${signField('电话', withTenantContact ? data.tenantPhone : '')}
-      ${signField('邮编', '')}
-      ${signField('开户银行', '')}
-      ${signField('帐　号', '')}
+      ${signField('邮编', data.tenantPostcode)}
+      ${signField('开户银行', data.tenantBankName)}
+      ${signField('帐　号', data.tenantBankAccount)}
       <p style="margin:16px 0 0;font-size:13px">日期：＿＿＿＿年＿＿月＿＿日</p>
     </div>
   </div>

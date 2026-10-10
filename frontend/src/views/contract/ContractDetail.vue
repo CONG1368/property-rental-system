@@ -452,8 +452,12 @@ async function handlePrint(mode: string) {
       tenantIdNumber: contract.value.tenant?.idNumber || '',
       tenantPhone: contract.value.tenant?.phone || '',
       // 底部签章区的乙方信息：联系人作为「法定代表人（授权代表）」，地址取租客证件地址
-      tenantContactPerson: contract.value.tenant?.contactPerson || '',
-      tenantAddress: contract.value.tenant?.idAddress || contract.value.tenant?.address || '',
+      // 乙方签约信息：全部取租客档案里用户自行填写的字段（不做映射）
+      tenantLegalPerson: contract.value.tenant?.legalPerson || '',
+      tenantSignAddress: contract.value.tenant?.signAddress || '',
+      tenantPostcode: contract.value.tenant?.postcode || '',
+      tenantBankName: contract.value.tenant?.bankName || '',
+      tenantBankAccount: contract.value.tenant?.bankAccount || '',
       showTenantContact: showTenantContact.value,
       startDate: contract.value.startDate,
       endDate: contract.value.endDate,

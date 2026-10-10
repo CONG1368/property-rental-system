@@ -6,6 +6,8 @@ interface TenantAttributes {
   // 证件类型/证件号/手机号为选填（用户 2026-10-10 要求）：不填即空串
   id: number; name: string; idType: string; idNumber: string;
   phone: string; email: string; wechat: string; contactPerson: string;
+  // 合同底部乙方签约信息（用户 2026-10-10 要求）：全部由用户自行填写，不做任何从其他字段的映射
+  legalPerson: string; signAddress: string; postcode: string; bankName: string; bankAccount: string;
   creditScore: number; creditGrade: 'A'|'B'|'C'|'D';
   status: '待入住'|'在租中'|'已退租'; attachments: object; notes: string;
   gender: string; birthDate: string; ethnicity: string;
@@ -17,7 +19,8 @@ interface TenantAttributes {
   createdAt?: Date; updatedAt?: Date;
 }
 
-type TenantCreationAttributes = Optional<TenantAttributes, 'id' | 'loginPin' | 'createdAt' | 'updatedAt'>;
+// 新增的签约信息字段有默认值，创建时可省略（用户 2026-10-10 要求）
+type TenantCreationAttributes = Optional<TenantAttributes, 'id' | 'loginPin' | 'createdAt' | 'updatedAt' | 'legalPerson' | 'signAddress' | 'postcode' | 'bankName' | 'bankAccount'>;
 
 class Tenant extends BaseModel<TenantAttributes, TenantCreationAttributes> {
 }
@@ -32,6 +35,12 @@ Tenant.init({
   email: { type: DataTypes.STRING(100), defaultValue: '' },
   wechat: { type: DataTypes.STRING(50), defaultValue: '' },
   contactPerson: { type: DataTypes.STRING(50), defaultValue: '' },
+  // 乙方签约信息（合同底部）：选填、全部用户自行填写，填了打印合同时自动带出
+  legalPerson: { type: DataTypes.STRING(50), defaultValue: '' },
+  signAddress: { type: DataTypes.STRING(200), defaultValue: '' },
+  postcode: { type: DataTypes.STRING(10), defaultValue: '' },
+  bankName: { type: DataTypes.STRING(100), defaultValue: '' },
+  bankAccount: { type: DataTypes.STRING(50), defaultValue: '' },
   creditScore: { type: DataTypes.INTEGER, defaultValue: 60 },
   creditGrade: { type: DataTypes.ENUM('A','B','C','D'), defaultValue: 'C' },
   status: { type: DataTypes.ENUM('待入住','在租中','已退租'), defaultValue: '待入住' },

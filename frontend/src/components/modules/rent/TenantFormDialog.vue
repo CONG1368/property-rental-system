@@ -24,6 +24,17 @@
       </el-form-item>
       <el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item>
       <el-form-item label="联系人"><el-input v-model="form.contactPerson" /></el-form-item>
+      <el-form-item label="签约代表人"><el-input v-model="form.legalPerson" placeholder="合同底部乙方「法定代表人（授权代表）」（选填）" /></el-form-item>
+      <el-form-item label="签约地址"><el-input v-model="form.signAddress" placeholder="合同底部乙方地址（选填，与证件地址互不影响）" /></el-form-item>
+      <el-form-item label="邮编"><el-input v-model="form.postcode" placeholder="合同底部乙方邮编（选填）" /></el-form-item>
+      <el-form-item label="开户银行"><el-input v-model="form.bankName" placeholder="合同底部乙方开户银行（选填）" /></el-form-item>
+      <el-form-item label="银行账号"><el-input v-model="form.bankAccount" placeholder="合同底部乙方帐号（选填）" /></el-form-item>
+      <el-form-item label=" ">
+        <span style="font-size:12px;color:var(--n-600);line-height:1.6">
+          以上五项（签约代表人 / 签约地址 / 邮编 / 开户银行 / 银行账号）全部选填、由你自己填写，只用于合同底部的乙方签约信息栏；
+          不填则该栏留空，签约时手写即可。系统不会拿其他字段去顶替它们。
+        </span>
+      </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="form.status" style="width:100%"><el-option v-for="s in STATUS_OPTIONS" :key="s" :label="s" :value="s" /></el-select>
       </el-form-item>
@@ -52,7 +63,7 @@ const ID_TYPES = ['身份证', '营业执照', '护照'];
 const STATUS_OPTIONS = ['待入住', '在租中', '已退租'];
 const formRef = ref();
 // 证件类型默认留空（用户 2026-10-10 要求）：只有真正选择后才记录，合同里也不会凭空出现「证件类型：身份证」
-const emptyForm = () => ({ name: '', idType: '', idNumber: '', phone: '', email: '', contactPerson: '', status: '待入住', gender: '', birthDate: '', idAddress: '', notes: '' });
+const emptyForm = () => ({ name: '', idType: '', idNumber: '', phone: '', email: '', contactPerson: '', legalPerson: '', signAddress: '', postcode: '', bankName: '', bankAccount: '', status: '待入住', gender: '', birthDate: '', idAddress: '', notes: '' });
 const form = ref<any>(emptyForm());
 // 仅姓名必填；证件类型/证件号/手机号均为选填（用户 2026-10-10 要求，可自行决定是否添加）
 const rules = {

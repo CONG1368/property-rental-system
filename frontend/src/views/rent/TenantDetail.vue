@@ -30,6 +30,11 @@
         <el-descriptions-item label="微信">{{ tenant.wechat }}</el-descriptions-item>
         <el-descriptions-item label="信用评分">{{ tenant.creditScore }}分 ({{ tenant.creditGrade }}级)</el-descriptions-item>
         <el-descriptions-item label="联系人">{{ tenant.contactPerson }}</el-descriptions-item>
+        <el-descriptions-item label="签约代表人">{{ tenant.legalPerson || '未登记' }}</el-descriptions-item>
+        <el-descriptions-item label="签约地址">{{ tenant.signAddress || '未登记' }}</el-descriptions-item>
+        <el-descriptions-item label="邮编">{{ tenant.postcode || '未登记' }}</el-descriptions-item>
+        <el-descriptions-item label="开户银行">{{ tenant.bankName || '未登记' }}</el-descriptions-item>
+        <el-descriptions-item label="银行账号">{{ tenant.bankAccount || '未登记' }}</el-descriptions-item>
         <el-descriptions-item label="备注">
           <span style="white-space:pre-wrap">{{ tenant.notes }}</span>
         </el-descriptions-item>

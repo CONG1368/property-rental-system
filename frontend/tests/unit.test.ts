@@ -235,9 +235,11 @@ describe('合同底部签章区（甲乙双方签约信息，用户 2026-10-10 �
       ...base,
       companySigner: '张经理', companyAddress: '示例路9号', companyPostcode: '210000',
       bankName: '中国工商银行示例支行', bankAccountName: '回归测试物业公司', bankAccountNumber: '6222020200112233',
-      tenantContactPerson: '李四', tenantAddress: '南京市玄武区示例路1号',
+      tenantLegalPerson: '李四', tenantSignAddress: '南京市玄武区示例路1号', tenantPostcode: '210008',
+      tenantBankName: '招商银行示例支行', tenantBankAccount: '6214830200112233',
     });
-    for (const v of ['张经理', '示例路9号', '210000', '中国工商银行示例支行', '6222020200112233', '李四', '南京市玄武区示例路1号']) {
+    for (const v of ['张经理', '示例路9号', '210000', '中国工商银行示例支行', '6222020200112233',
+                     '李四', '南京市玄武区示例路1号', '210008', '招商银行示例支行', '6214830200112233']) {
       expect(html).toContain(v);
     }
     expect(html).toContain('张三');
