@@ -199,7 +199,7 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 │       └── styles/             # 设计令牌（冷调中性 v2）
 ├── backend/                    # Express 后端（ESM）
 │   └── src/
-│       ├── models/             # 69 个 Sequelize 模型
+│       ├── models/             # 70 个 Sequelize 模型
 │       ├── routes/             # 67 个 API 路由模块
 │       ├── services/           # 业务服务
 │       ├── middleware/         # 认证/权限/审计/校验
@@ -256,7 +256,7 @@ npm run build:electron   # tsc -p electron/tsconfig.json && electron-builder
 | 项目 | 说明 |
 |------|------|
 | 技术架构 | Electron + Vue3 + Express + Sequelize（SQLite 默认 / MySQL 可选） |
-| 数据表 | 69 个 Sequelize 模型 |
+| 数据表 | 70 个 Sequelize 模型 |
 | API 路由 | 67 个路由模块（`/api` 前缀） |
 | 前端页面 | 87 个业务视图 |
 | 读卡器 | 华视 CVR-100U（32 位桥 + 内置 WHQL 驱动） |

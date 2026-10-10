@@ -90,7 +90,7 @@ DB_NAME=property_rental
 │           └── system/        # 시스템 설정 (11) + 로그인 페이지
 ├── backend/                   # Express 백엔드 (ESM)
 │   └── src/
-│       ├── models/            # Sequelize 모델 (69개)
+│       ├── models/            # Sequelize 모델 (70개)
 │       ├── routes/            # API 라우트 (67개 모듈)
 │       ├── services/          # 비즈니스 서비스 계층 (41개)
 │       ├── middleware/        # 미들웨어 (인증/감사/유효성 검사/속도 제한)

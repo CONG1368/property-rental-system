@@ -114,7 +114,7 @@ node scripts/generate-proposal-pdf.js
 │       ├── index.ts           # 入口：连接DB→迁移→同步表→种子数据→启动HTTP+WS
 │       ├── app.ts             # Express 应用（helmet/cors/morgan/json/路由/错误处理）
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
-│       ├── models/            # Sequelize 模型（69 个 + index/BaseModel）
+│       ├── models/            # Sequelize 模型（70 个 + index/BaseModel）
 │       ├── routes/            # Express 路由（67 个模块 + index，统一挂载 /api 前缀）
 │       ├── middleware/        # auth / rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
 │       ├── services/          # 业务服务层（41 个）
