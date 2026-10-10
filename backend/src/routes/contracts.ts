@@ -294,6 +294,9 @@ router.post('/:id/renew', requirePermission('contract', 'approve'), async (req: 
       endDate: (newEndDate || dayjs(oldContract.endDate).add(1, 'year').format('YYYY-MM-DD')) as any,
       rentAmount: newRent || oldContract.rentAmount,
       depositAmount: oldContract.depositAmount,
+      // 续约沿用原合同的履约违约金与首期应交租金口径（用户 2026-10-10 新增字段）
+      performancePenalty: oldContract.performancePenalty,
+      firstPeriodRent: oldContract.firstPeriodRent,
       paymentCycle: oldContract.paymentCycle,
       billingMode: oldContract.billingMode,
       billingConfig: oldContract.billingConfig,

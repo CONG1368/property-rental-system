@@ -4,7 +4,9 @@
     <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
       <el-form-item label="姓名" prop="name"><el-input v-model="form.name" /></el-form-item>
       <el-form-item label="证件类型" prop="idType">
-        <el-select v-model="form.idType" style="width:100%"><el-option v-for="t in ID_TYPES" :key="t" :label="t" :value="t" /></el-select>
+        <el-select v-model="form.idType" style="width:100%" clearable placeholder="选填，不填则不采集">
+          <el-option v-for="t in ID_TYPES" :key="t" :label="t" :value="t" />
+        </el-select>
       </el-form-item>
       <el-form-item label=" ">
         <IdCardReadButton mode="fill" @success="onIdCardRead" />
@@ -12,8 +14,14 @@
           <el-button size="small" type="primary">AI识别身份证</el-button>
         </el-upload>
       </el-form-item>
-      <el-form-item label="证件号" prop="idNumber"><el-input v-model="form.idNumber" /></el-form-item>
-      <el-form-item label="手机号" prop="phone"><el-input v-model="form.phone" /></el-form-item>
+      <el-form-item label="证件号" prop="idNumber"><el-input v-model="form.idNumber" placeholder="选填，可留空" /></el-form-item>
+      <el-form-item label="手机号" prop="phone"><el-input v-model="form.phone" placeholder="选填，可留空" /></el-form-item>
+      <el-form-item label=" ">
+        <span style="font-size:12px;color:var(--n-600);line-height:1.6">
+          证件信息与联系方式均为选填，留空不影响保存。不填手机号时该租客无法使用租客自助门户；
+          合同里是否写入这两项，由合同起草页的「乙方证件信息」开关单独决定。
+        </span>
+      </el-form-item>
       <el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item>
       <el-form-item label="联系人"><el-input v-model="form.contactPerson" /></el-form-item>
       <el-form-item label="状态" prop="status">
@@ -30,6 +38,7 @@
 
 <script setup lang="ts">
 // 租客新增/编辑弹窗：表单 + 身份证读卡回填 + AI(OCR) 识别回填 + 提交。
+// 证件类型/证件号/手机号为选填（用户 2026-10-10 要求）：不登记也能建档，读卡/OCR 只是便捷回填。
 import { ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import request, { apiBaseURL } from '@/api/request';
@@ -42,13 +51,12 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'save
 const ID_TYPES = ['身份证', '营业执照', '护照'];
 const STATUS_OPTIONS = ['待入住', '在租中', '已退租'];
 const formRef = ref();
-const emptyForm = () => ({ name: '', idType: '身份证', idNumber: '', phone: '', email: '', contactPerson: '', status: '待入住', gender: '', birthDate: '', idAddress: '', notes: '' });
+// 证件类型默认留空（用户 2026-10-10 要求）：只有真正选择后才记录，合同里也不会凭空出现「证件类型：身份证」
+const emptyForm = () => ({ name: '', idType: '', idNumber: '', phone: '', email: '', contactPerson: '', status: '待入住', gender: '', birthDate: '', idAddress: '', notes: '' });
 const form = ref<any>(emptyForm());
+// 仅姓名必填；证件类型/证件号/手机号均为选填（用户 2026-10-10 要求，可自行决定是否添加）
 const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  idType: [{ required: true, message: '请选择证件类型', trigger: 'change' }],
-  idNumber: [{ required: true, message: '请输入证件号', trigger: 'blur' }],
-  phone: [{ required: true, message: '请输入手机号', trigger: 'blur' }],
 };
 
 watch(() => props.modelValue, (open) => { if (open) form.value = props.tenant ? { ...emptyForm(), ...props.tenant } : emptyForm(); });

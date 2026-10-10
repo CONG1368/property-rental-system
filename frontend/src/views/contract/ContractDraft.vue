@@ -24,11 +24,59 @@
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="8"><el-form-item label="月租金"><el-input-number v-model="form.rentAmount" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="押金"><el-input-number v-model="form.depositAmount" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="8">
+          <el-col :span="6"><el-form-item label="月租金"><el-input-number v-model="form.rentAmount" :min="0" :precision="2" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="6">
+            <el-form-item label="押金">
+              <div class="amount-row">
+                <el-input-number v-model="form.depositAmount" :min="0" :precision="2" style="width:100%" />
+              </div>
+              <div class="quick-row">
+                <span class="quick-label">＝</span>
+                <el-input-number v-model="quickMonths.deposit" :min="0" :step="0.5" :precision="2" :controls="false" size="small" style="width:64px" />
+                <span class="quick-label">个月租金</span>
+                <el-button size="small" text type="primary" @click="fillAmountByRent('deposit')">填入</el-button>
+              </div>
+              <div v-if="rentMonthsHint(form.depositAmount)" class="amount-months">相当于 {{ rentMonthsHint(form.depositAmount) }} 个月租金（¥{{ Number(form.rentAmount || 0).toFixed(2) }}/月）</div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="履约违约金">
+              <div class="amount-row">
+                <el-input-number v-model="form.performancePenalty" :min="0" :precision="2" style="width:100%" />
+              </div>
+              <div class="quick-row">
+                <span class="quick-label">＝</span>
+                <el-input-number v-model="quickMonths.penalty" :min="0" :step="0.5" :precision="2" :controls="false" size="small" style="width:64px" />
+                <span class="quick-label">个月租金</span>
+                <el-button size="small" text type="primary" @click="fillAmountByRent('penalty')">填入</el-button>
+              </div>
+              <div v-if="rentMonthsHint(form.performancePenalty)" class="amount-months">相当于 {{ rentMonthsHint(form.performancePenalty) }} 个月租金（¥{{ Number(form.rentAmount || 0).toFixed(2) }}/月）</div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
             <el-form-item label="计费模式">
               <el-select v-model="form.billingMode" style="width:100%"><el-option label="固定" value="固定" /><el-option label="阶梯" value="阶梯" /><el-option label="抽成" value="抽成" /></el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="8">
+            <el-form-item label="首期应交租金">
+              <el-input-number v-model="form.firstPeriodRent" :min="0" :precision="2" style="width:100%" />
+              <div class="quick-row">
+                <span class="quick-label">＝</span>
+                <el-input-number v-model="quickMonths.period" :min="0" :step="1" :precision="2" :controls="false" size="small" style="width:64px" />
+                <span class="quick-label">个月租金</span>
+                <el-button size="small" text type="primary" @click="fillAmountByRent('period')">填入</el-button>
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="16">
+            <el-form-item label=" ">
+              <span style="font-size:12px;color:var(--n-600);line-height:1.6">
+                填 0 即自动按「月租金 × 付款周期」＝ ¥{{ autoPeriodRent.toFixed(2) }}；
+                几年一起交的可直接填实际金额，或用左侧「N 个月租金」一键填入（月数自己定）。
+              </span>
             </el-form-item>
           </el-col>
         </el-row>
@@ -38,6 +86,16 @@
           <el-col :span="8">
             <el-form-item label="付款周期">
               <el-select v-model="form.paymentCycle" style="width:100%"><el-option label="月付" value="月" /><el-option label="季付" value="季" /><el-option label="半年付" value="半年" /><el-option label="年付" value="年" /><el-option label="两年付" value="两年" /><el-option label="三年付" value="三年" /><el-option label="五年付" value="五年" /></el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="24">
+            <el-form-item label="乙方证件信息">
+              <el-switch v-model="writeTenantContact" active-text="写入合同" inactive-text="不写入" />
+              <span style="margin-left:10px;font-size:12px;color:var(--n-600)">
+                选填：开启后打印合同会在乙方栏写入租客登记的电话与证件信息；租客档案里没登记的项目留空。
+              </span>
             </el-form-item>
           </el-col>
         </el-row>
@@ -73,7 +131,7 @@
           <el-option label="其他费用" value="其他费用" />
         </el-select>
         <el-input-number v-model="item.amount" :min="0" :precision="2" style="width:160px" placeholder="金额" />
-        <el-select v-model="item.unit" style="width:120px">
+        <el-select v-model="item.unit" style="width:120px" @change="onFeeUnitChange(item)">
           <el-option label="元/月" value="元/月" />
           <el-option label="元/㎡/月" value="元/㎡/月" />
           <el-option label="元/吨" value="元/吨" />
@@ -83,6 +141,8 @@
           <el-option label="元/季" value="元/季" />
           <el-option label="一次性" value="一次性" />
         </el-select>
+        <el-input-number v-if="item.unit === '元/㎡/月'" v-model="item.area" :min="0" :precision="2" style="width:150px" placeholder="计费面积" />
+        <span v-if="item.unit === '元/㎡/月'" style="font-size:12px;color:var(--n-600)">㎡（默认房源面积，可改）</span>
         <el-button size="small" type="danger" :icon="Delete" circle @click="feeItems.splice(index, 1)" />
       </div>
       <div v-if="selectedProperty" style="font-size:12px;color:var(--n-600);margin-top:4px">
@@ -150,12 +210,6 @@
     <el-card style="margin-bottom:16px">
       <template #header><span>合同细则</span></template>
       <el-row :gutter="16">
-        <el-col :span="8">
-          <el-form-item label="违约金比例">
-            <el-input-number v-model="lateFeeRate" :min="0" :max="1" :precision="3" :step="0.01" style="width:70%" />
-            <span style="margin-left:4px;font-size:12px;color:var(--n-600)">/月</span>
-          </el-form-item>
-        </el-col>
         <el-col :span="8">
           <el-form-item label="维修责任">
             <el-select v-model="maintenanceParty" style="width:100%">
@@ -380,12 +434,20 @@ const form = reactive({
   tenantId: null as number | null,
   templateId: null as number | null,
   rentAmount: 0, depositAmount: 0,
+  // 履约违约金：与押金一样完全自定义，不写死（用户 2026-10-10 要求）
+  performancePenalty: 0,
+  // 首期应交租金：0＝自动按「月租金 × 付款周期」；可自定义填实际一次性收取的租金（几年一起交）
+  firstPeriodRent: 0,
   billingMode: '固定', paymentCycle: '月',
   startDate: new Date().toISOString().split('T')[0],
   endDate: new Date(Date.now() + 365*24*60*60*1000).toISOString().split('T')[0],
 });
 
-interface FeeItem { name: string; amount: number; unit: string; }
+// 押金 / 履约违约金的「按 N 个月租金」快捷换算：月数由用户自定义（用户 2026-10-10 要求），默认 1 个月
+const quickMonths = reactive({ deposit: 1, penalty: 1, period: 12 });
+
+// area：计费面积（仅「元/㎡/月」用，默认取所选房源建筑面积，可手动改——用户 2026-10-10 要求不能写死）
+interface FeeItem { name: string; amount: number; unit: string; area?: number; }
 
 const feeItems = ref<FeeItem[]>([]);
 
@@ -400,13 +462,16 @@ const taxType = ref('含税');
 const taxRate = ref(5);
 const invoiceType = ref('增值税普通发票');
 
-// 合同细则
-const lateFeeRate = ref(0.05);
+// 合同细则（原「违约金比例」已移除，改为基本信息里的「履约违约金」金额，用户 2026-10-10 要求）
 const depositTerms = ref('');
 const maintenanceParty = ref('甲方');
 const terminationNotice = ref(30);
 const renewalNotice = ref(30);
 const subletAllowed = ref(false);
+
+// 乙方证件信息与联系方式是否写入合同（用户 2026-10-10 要求）：
+// 新草稿默认关闭（不写入）；老合同 billingConfig 里没存过该键时按老行为处理（写入）
+const writeTenantContact = ref(false);
 
 // 消防约定
 const fireSafetyClauses = ref<{ title: string; content: string }[]>([]);
@@ -432,10 +497,43 @@ function onPaymentMethodChange(val: string) {
 }
 
 function addFeeItem() {
-  feeItems.value.push({ name: '', amount: 0, unit: '元/月' });
+  feeItems.value.push({ name: '', amount: 0, unit: '元/月', area: 0 });
+}
+
+// 切到「元/㎡/月」时自动带入房源建筑面积作为计费面积（用户可再改）
+function onFeeUnitChange(item: FeeItem) {
+  if (item.unit === '元/㎡/月' && !Number(item.area || 0)) {
+    item.area = Number(selectedProperty.value?.area || 0);
+  }
+}
+
+// 押金 / 履约违约金：按「N 个月租金」一键换算填充，N 由用户自定义（0.5 / 1 / 1.5 / 2 …）；
+// 金额本身始终可以再手动改成任意值——两者都不写死
+function fillAmountByRent(target: 'deposit' | 'penalty' | 'period') {
+  const rent = Number(form.rentAmount || 0);
+  if (!rent) { ElMessage.warning('请先填写月租金'); return; }
+  const months = Number(quickMonths[target] || 0);
+  if (months <= 0) { ElMessage.warning('请填写月数'); return; }
+  const amount = Number((rent * months).toFixed(2));
+  if (target === 'deposit') form.depositAmount = amount;
+  else if (target === 'penalty') form.performancePenalty = amount;
+  else form.firstPeriodRent = amount;
+}
+
+// 金额相当于几个月租金（月租金为 0 或金额为 0 时返回空串）：告诉承租人这两笔各是多少
+function rentMonthsHint(amount: number | null | undefined) {
+  const rent = Number(form.rentAmount || 0);
+  const value = Number(amount || 0);
+  if (!rent || !value) return '';
+  return Number((value / rent).toFixed(2));
 }
 
 const selectedProperty = computed(() => properties.value.find(p => p.id === form.propertyId));
+
+// 付款周期 → 月数（与合同打印模板保持一致），用于首期应交租金的自动值
+const CYCLE_MONTHS: Record<string, number> = { '月': 1, '季': 3, '半年': 6, '年': 12, '两年': 24, '三年': 36, '五年': 60 };
+// 首期应交租金的自动值：留空（0）时按「月租金 × 付款周期月数」计算
+const autoPeriodRent = computed(() => Number(form.rentAmount || 0) * (CYCLE_MONTHS[form.paymentCycle] || 1));
 
 // 监听租客切换 → 自动加载待处理条款（来自条款批量导入）
 watch(() => form.tenantId, () => {
@@ -450,7 +548,7 @@ function onPropertyChange(propId: number | null) {
       if (feeItems.value.length === 0) {
         if (Number(p.waterFeeRate || 0) > 0) feeItems.value.push({ name: '水费', amount: Number(p.waterFeeRate || 0), unit: '元/吨' });
         if (Number(p.electricFeeRate || 0) > 0) feeItems.value.push({ name: '电费', amount: Number(p.electricFeeRate || 0), unit: '元/度' });
-        if (Number(p.propertyFeeRate || 0) > 0) feeItems.value.push({ name: '物业费', amount: Number(p.propertyFeeRate || 0), unit: '元/㎡/月' });
+        if (Number(p.propertyFeeRate || 0) > 0) feeItems.value.push({ name: '物业费', amount: Number(p.propertyFeeRate || 0), unit: '元/㎡/月', area: Number(p.area || 0) });
       }
       // 自动匹配模板类型
       if (!form.templateId && p.type) {
@@ -550,12 +648,13 @@ function buildBillingConfig() {
     taxType: taxType.value,
     taxRate: taxRate.value,
     invoiceType: invoiceType.value,
-    lateFeeRate: lateFeeRate.value,
     depositTerms: depositTerms.value,
     maintenanceParty: maintenanceParty.value,
     terminationNotice: terminationNotice.value,
     renewalNotice: renewalNotice.value,
     subletAllowed: subletAllowed.value,
+    // 乙方证件信息/联系方式是否写入合同（用户 2026-10-10 要求）
+    partyBContact: writeTenantContact.value,
     fireSafety: {
       clauses: fireSafetyClauses.value,
       restrictions: fireSafetyRestrictions.value.filter(r => r.trim()),
@@ -632,8 +731,9 @@ onMounted(async () => {
         contractNo: form.contractNo,
         propertyId: properties.value[0]?.id || 0,
         tenantId: tenants.value[0]?.id || 0,
-        billingConfig: {}, clauses: [],
-        rentAmount: 0, depositAmount: 0,
+        // 新草稿显式落 partyBContact:false（默认不写入乙方证件与联系方式）
+        billingConfig: { partyBContact: false }, clauses: [],
+        rentAmount: 0, depositAmount: 0, performancePenalty: 0, firstPeriodRent: 0,
         paymentCycle: '月', billingMode: '固定',
         startDate: form.startDate, endDate: form.endDate || new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
       });
@@ -655,11 +755,18 @@ onMounted(async () => {
         templateId: d.templateId || null,
         rentAmount: d.rentAmount,
         depositAmount: d.depositAmount,
+        performancePenalty: Number(d.performancePenalty ?? 0),
+        firstPeriodRent: Number(d.firstPeriodRent ?? 0),
         billingMode: d.billingMode,
         paymentCycle: d.paymentCycle,
         startDate: d.startDate,
         endDate: d.endDate,
       });
+      // 快捷月数回显：按已保存金额折算（月租金或金额为 0 时保持 1 个月）
+      const rentForQuick = Number(d.rentAmount || 0);
+      quickMonths.deposit = rentForQuick > 0 && Number(d.depositAmount) > 0 ? Number((Number(d.depositAmount) / rentForQuick).toFixed(2)) : 1;
+      quickMonths.penalty = rentForQuick > 0 && Number(d.performancePenalty) > 0 ? Number((Number(d.performancePenalty) / rentForQuick).toFixed(2)) : 1;
+      quickMonths.period = rentForQuick > 0 && Number(d.firstPeriodRent) > 0 ? Number((Number(d.firstPeriodRent) / rentForQuick).toFixed(2)) : (CYCLE_MONTHS[d.paymentCycle] || 1);
       const bc = d.billingConfig || {};
       // 加载费用项（兼容旧格式和新格式）
       if (bc.feeItems && Array.isArray(bc.feeItems)) {
@@ -685,12 +792,13 @@ onMounted(async () => {
       taxRate.value = bc.taxRate ?? 5;
       invoiceType.value = bc.invoiceType || '增值税普通发票';
       // 加载合同细则
-      lateFeeRate.value = bc.lateFeeRate ?? 0.05;
       depositTerms.value = bc.depositTerms || '';
       maintenanceParty.value = bc.maintenanceParty || '甲方';
       terminationNotice.value = bc.terminationNotice ?? 30;
       renewalNotice.value = bc.renewalNotice ?? 30;
       subletAllowed.value = bc.subletAllowed ?? false;
+      // partyBContact 没存过（老合同）→ 保持原有行为：仍然写入乙方证件与联系方式
+      writeTenantContact.value = bc.partyBContact === undefined ? true : bc.partyBContact === true;
       // 加载消防约定
       if (bc.fireSafety) {
         const fs = bc.fireSafety;
@@ -721,4 +829,8 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .page-title { font-size: 18px; font-weight: 700; color: $n-900; margin-bottom: 16px; }
+.amount-row { display: flex; align-items: center; gap: 6px; width: 100%; }
+.quick-row { display: flex; align-items: center; gap: 4px; margin-top: 2px; line-height: 1; }
+.quick-label { font-size: 12px; color: $n-600; }
+.amount-months { font-size: 12px; color: $n-600; line-height: 1.6; margin-top: 2px; }
 </style>

@@ -3,7 +3,8 @@ import { BaseModel } from './BaseModel.js';
 import { sequelize } from '../config/database.js';
 
 interface TenantAttributes {
-  id: number; name: string; idType: '身份证'|'营业执照'|'护照'; idNumber: string;
+  // 证件类型/证件号/手机号为选填（用户 2026-10-10 要求）：不填即空串
+  id: number; name: string; idType: string; idNumber: string;
   phone: string; email: string; wechat: string; contactPerson: string;
   creditScore: number; creditGrade: 'A'|'B'|'C'|'D';
   status: '待入住'|'在租中'|'已退租'; attachments: object; notes: string;
@@ -24,8 +25,9 @@ class Tenant extends BaseModel<TenantAttributes, TenantCreationAttributes> {
 Tenant.init({
   id: { type: DataTypes.INTEGER.UNSIGNED, autoIncrement: true, primaryKey: true },
   name: { type: DataTypes.STRING(100), allowNull: false },
-  idType: { type: DataTypes.ENUM('身份证','营业执照','护照'), allowNull: false },
-  idNumber: { type: DataTypes.STRING(50), allowNull: false },
+  // 证件类型改为普通字符串：允许留空（默认空串），不再强绑「身份证」枚举与 NOT NULL
+  idType: { type: DataTypes.STRING(20), defaultValue: '' },
+  idNumber: { type: DataTypes.STRING(50), defaultValue: '' },
   phone: { type: DataTypes.STRING(20), defaultValue: '' },
   email: { type: DataTypes.STRING(100), defaultValue: '' },
   wechat: { type: DataTypes.STRING(50), defaultValue: '' },

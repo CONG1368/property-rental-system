@@ -40,8 +40,12 @@ router.get('/', async (req: AuthRequest, res) => {
 // POST /api/tenants — 创建租客
 router.post('/', requirePermission('rent', 'create'), async (req: AuthRequest, res) => {
   try {
-    // 检查身份证号是否重复（先清理 NUL 等控制字符，避免内联 SQL 被截断）
-    if (req.body.idNumber) req.body.idNumber = sanitizeIdNumber(req.body.idNumber);
+    // 证件信息与联系方式均为选填（用户 2026-10-10 要求）：缺省统一落空串，兼容旧库的 NOT NULL 列，
+    // 同时清理 NUL 等控制字符，避免 Sequelize 内联 SQL（SQLite 把 NUL 当字符串结束）被截断
+    req.body.idType = req.body.idType || '';
+    req.body.idNumber = sanitizeIdNumber(req.body.idNumber);
+    req.body.phone = req.body.phone || '';
+    // 只在填了证件号时才做重复校验
     if (req.body.idNumber) {
       const dupCheck = await checkDuplicateIdNumber(req.body.idNumber);
       if (dupCheck.duplicate) {
@@ -105,7 +109,12 @@ router.put('/:id', requirePermission('rent', 'update'), async (req: AuthRequest,
   try {
     const tenant = await Tenant.findByPk(req.params.id);
     if (!tenant) return res.status(404).json({ code: 404, message: '租客不存在' });
-    await tenant.update(req.body);
+    // 选填字段归一化：允许用户后续清空已登记的证件信息/联系方式
+    const patch: any = { ...req.body };
+    if ('idType' in patch) patch.idType = patch.idType || '';
+    if ('idNumber' in patch) patch.idNumber = sanitizeIdNumber(patch.idNumber);
+    if ('phone' in patch) patch.phone = patch.phone || '';
+    await tenant.update(patch);
     res.json({ code: 200, data: tenant, message: '租客更新成功' });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });

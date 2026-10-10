@@ -29,9 +29,18 @@
         <el-form-item label="姓名" required><el-input v-model="form.name" /></el-form-item>
         <el-form-item label="类型"><el-select v-model="form.type" style="width:100%"><el-option label="业主" value="业主" /><el-option label="住户" value="住户" /><el-option label="家属" value="家属" /></el-select></el-form-item>
         <el-form-item label="关联房源"><el-select v-model="form.propertyId" filterable clearable style="width:100%"><el-option v-for="p in properties" :key="p.id" :label="p.name" :value="p.id" /></el-select></el-form-item>
-        <el-form-item label="手机号"><el-input v-model="form.phone" /></el-form-item>
-        <el-form-item label="证件类型"><el-select v-model="form.idType" style="width:100%"><el-option label="身份证" value="身份证" /><el-option label="护照" value="护照" /><el-option label="营业执照" value="营业执照" /></el-select></el-form-item>
-        <el-form-item label="证件号" required><el-input v-model="form.idNumber" /></el-form-item>
+        <el-form-item label="手机号"><el-input v-model="form.phone" placeholder="选填，可留空" /></el-form-item>
+        <el-form-item label="证件类型">
+          <el-select v-model="form.idType" style="width:100%" clearable placeholder="选填，不填则不采集">
+            <el-option label="身份证" value="身份证" /><el-option label="护照" value="护照" /><el-option label="营业执照" value="营业执照" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="证件号"><el-input v-model="form.idNumber" placeholder="选填，可留空" /></el-form-item>
+        <el-form-item label=" ">
+          <span style="font-size:12px;color:var(--n-600);line-height:1.6">
+            证件信息与联系方式均为选填：留空不影响保存，后续可随时补登记。
+          </span>
+        </el-form-item>
         <el-form-item label="是否业主"><el-switch v-model="form.isOwner" /></el-form-item>
         <el-form-item label="关系"><el-input v-model="form.relation" /></el-form-item>
         <el-form-item label="公司"><el-input v-model="form.company" /></el-form-item>
@@ -70,7 +79,9 @@ const searchKeyword = ref(''); const filterType = ref(''); const filterStatus = 
 const stats = ref({ total: 0, owners: 0, residents: 0, moved: 0 });
 const properties = ref<any[]>([]);
 const dialogVisible = ref(false); const editId = ref<number | null>(null);
-const form = ref({ name: '', type: '业主', propertyId: null, phone: '', idType: '身份证', idNumber: '', isOwner: true, relation: '', company: '', moveInDate: '', status: '在住', notes: '' });
+// 证件类型默认留空（与租客档案口径一致）：只有真正选择后才记录
+const emptyForm = () => ({ name: '', type: '业主', propertyId: null, phone: '', idType: '', idNumber: '', isOwner: true, relation: '', company: '', moveInDate: '', status: '在住', notes: '' });
+const form = ref(emptyForm());
 
 async function fetchData() {
   loading.value = true;
@@ -87,12 +98,12 @@ async function fetchData() {
 async function loadProps() {
   try { const res = await request.get('/properties', { params: { pageSize: 200 } }); properties.value = res.data?.list || []; } catch { /* 静默 */ }
 }
-function resetForm() { editId.value = null; form.value = { name: '', type: '业主', propertyId: null, phone: '', idType: '身份证', idNumber: '', isOwner: true, relation: '', company: '', moveInDate: '', status: '在住', notes: '' }; }
+function resetForm() { editId.value = null; form.value = emptyForm(); }
 function showCreate() { resetForm(); dialogVisible.value = true; }
-function showEdit(row: any) { editId.value = row.id; form.value = { name: row.name, type: row.type, propertyId: row.propertyId, phone: row.phone || '', idType: row.idType, idNumber: row.idNumber, isOwner: row.isOwner, relation: row.relation || '', company: row.company || '', moveInDate: row.moveInDate || '', status: row.status, notes: row.notes || '' }; dialogVisible.value = true; }
+function showEdit(row: any) { editId.value = row.id; form.value = { name: row.name, type: row.type, propertyId: row.propertyId, phone: row.phone || '', idType: row.idType || '', idNumber: row.idNumber || '', isOwner: row.isOwner, relation: row.relation || '', company: row.company || '', moveInDate: row.moveInDate || '', status: row.status, notes: row.notes || '' }; dialogVisible.value = true; }
 async function handleSubmit() {
+  // 仅姓名必填；证件类型/证件号/手机号均为选填（用户 2026-10-10 要求，可自行决定是否添加）
   if (!form.value.name) return ElMessage.warning('请输入姓名');
-  if (!form.value.idNumber) return ElMessage.warning('请输入证件号');
   try {
     if (editId.value) { await request.put(`/residents/${editId.value}`, form.value); ElMessage.success('更新成功'); }
     else { await request.post('/residents', form.value); ElMessage.success('创建成功'); }

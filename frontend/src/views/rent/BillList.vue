@@ -67,6 +67,34 @@
       <template #footer><el-button @click="payDialogVisible = false">取消</el-button><el-button type="primary" :loading="paying" @click="handlePay">确认收款</el-button></template>
     </el-dialog>
 
+    <el-dialog title="编辑费用明细" v-model="feeEditVisible" width="900px">
+      <div class="fee-row fee-head">
+        <span style="width:150px">费用名称</span><span style="width:130px">单价</span><span style="width:110px">数量</span>
+        <span style="width:130px">单位</span><span style="width:100px">月数</span>
+        <span style="width:110px;text-align:right">金额</span><span style="width:56px"></span>
+      </div>
+      <div v-for="(f, i) in feeRows" :key="i" class="fee-row">
+        <el-input v-model="f.name" size="small" style="width:150px" placeholder="如：物业费" />
+        <el-input-number v-model="f.unitPrice" :min="0" :precision="2" :controls="false" size="small" style="width:130px" />
+        <el-input-number v-model="f.quantity" :min="0" :precision="2" :controls="false" size="small" style="width:110px" />
+        <el-select v-model="f.unit" size="small" style="width:130px">
+          <el-option v-for="u in FEE_UNITS" :key="u" :label="u" :value="u" />
+        </el-select>
+        <el-input-number v-model="f.months" :min="0" :precision="0" :controls="false" size="small" style="width:100px" />
+        <span class="fee-amount">¥{{ rowAmount(f).toFixed(2) }}</span>
+        <el-button size="small" text type="danger" @click="feeRows.splice(i, 1)">删除</el-button>
+      </div>
+      <el-button size="small" style="margin-top:8px" @click="feeRows.push({ name: '', unit: '元/月', unitPrice: 0, quantity: 0, months: 0 })">+ 添加费用行</el-button>
+      <p class="fee-tip">
+        单行金额 ＝ 单价 × 数量 ×（月数，留 0 视为 1）。元/月：数量填月数；元/㎡/月：数量填计费面积、月数填覆盖月数；
+        元/吨、元/度：数量填用量。保存后按明细重算账单的租金/水费/电费/物业费/其他与合计。
+      </p>
+      <template #footer>
+        <el-button @click="feeEditVisible = false">取消</el-button>
+        <el-button type="primary" :loading="feeSaving" @click="saveFeeItems">保存明细</el-button>
+      </template>
+    </el-dialog>
+
     <el-drawer title="账单详情" v-model="detailVisible" size="520px">
       <template v-if="billDetail">
         <BillLifecycle :bill="billDetail" class="bill-lc" />
@@ -74,6 +102,13 @@
           <el-descriptions-item v-for="d in detailRows" :key="d.label" :label="d.label">{{ d.value }}</el-descriptions-item>
           <el-descriptions-item label="状态"><StatusTag :value="billDetail.status" :map="BILL_STATUS" /></el-descriptions-item>
         </el-descriptions>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:20px">
+          <h4 style="margin:0">费用明细</h4>
+          <el-button size="small" type="primary" plain @click="showFeeEdit">编辑明细</el-button>
+        </div>
+        <DataTable :data="billDetail.items || []" :columns="FEE_COLUMNS" density="compact" row-key="id"
+          empty-title="暂无费用明细" empty-description="老账单没有明细，点「编辑明细」可按现有金额补出明细行" />
+
         <h4 style="margin-top:20px">收款记录</h4>
         <DataTable :data="billDetail.paymentRecords || []" :columns="PAY_COLUMNS" density="compact" empty-title="暂无收款记录" />
       </template>
@@ -109,6 +144,16 @@ const COLUMNS: TableColumn[] = [
   { prop: 'status', label: '状态', width: 100, type: 'status', statusMap: BILL_STATUS },
   { label: '操作', width: 260, fixed: 'right', slot: 'ops' },
 ];
+const FEE_UNITS = ['元/月', '元/㎡/月', '元/吨', '元/度', '元/次', '元/年', '元/季', '一次性', '手工'];
+const FEE_COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '费用项目', width: 120 },
+  { prop: 'unitPrice', label: '单价', width: 100, type: 'money' },
+  { prop: 'quantity', label: '数量', width: 80 },
+  { prop: 'unit', label: '单位', width: 100 },
+  { prop: 'months', label: '月数', width: 70 },
+  { prop: 'amount', label: '金额', width: 110, type: 'money' },
+  { prop: 'remark', label: '说明', minWidth: 140, tooltip: true },
+];
 const PAY_COLUMNS: TableColumn[] = [
   { prop: 'amount', label: '金额', width: 120, type: 'money' }, { prop: 'channel', label: '渠道', width: 100 },
   { prop: 'transactionNo', label: '交易号', width: 160, tooltip: true }, { prop: 'paidAt', label: '收款时间', width: 160, type: 'date', dateFormat: 'datetime' },
@@ -137,6 +182,47 @@ const detailRows = computed(() => {
   ];
 });
 
+// ===== 费用明细编辑（用户 2026-10-10，方案 B）=====
+const feeEditVisible = ref(false); const feeSaving = ref(false); const feeRows = ref<any[]>([]);
+/** 单行金额 = 单价 × 数量 ×（月数，留 0 视为 1） */
+function rowAmount(f: any) {
+  const m = Number(f?.months || 0) > 0 ? Number(f.months) : 1;
+  return Number((Number(f?.unitPrice || 0) * Number(f?.quantity || 0) * m).toFixed(2));
+}
+function showFeeEdit() {
+  const items = billDetail.value?.items || [];
+  const b = billDetail.value || {};
+  // 老账单没有明细：按现有固定金额先补出明细行，改成正确的再保存
+  const fallback = [
+    { name: '租金', amount: b.rentAmount }, { name: '水费', amount: b.waterFee },
+    { name: '电费', amount: b.electricFee }, { name: '物业费', amount: b.propertyFee },
+    { name: '其他费用', amount: b.otherAmount },
+  ].filter(x => Number(x.amount || 0) > 0)
+    .map(x => ({ name: x.name, unit: '元/月', unitPrice: Number(x.amount), quantity: 1, months: 0 }));
+  const src = items.length > 0
+    ? items.map((it: any) => ({ name: it.name, unit: it.unit || '元/月', unitPrice: Number(it.unitPrice || 0), quantity: Number(it.quantity || 0), months: Number(it.months || 0) }))
+    : fallback;
+  feeRows.value = src.length > 0 ? src : [{ name: '', unit: '元/月', unitPrice: 0, quantity: 0, months: 0 }];
+  feeEditVisible.value = true;
+}
+async function saveFeeItems() {
+  const items = feeRows.value
+    .filter(f => String(f.name || '').trim())
+    .map((f, i) => ({
+      name: String(f.name).trim(), unit: f.unit || '', unitPrice: Number(f.unitPrice || 0),
+      quantity: Number(f.quantity || 0), months: Number(f.months || 0), amount: rowAmount(f), sortOrder: i,
+    }));
+  if (items.length === 0) return ElMessage.warning('至少保留一行费用');
+  feeSaving.value = true;
+  try {
+    const res = await request.put('/bills/' + billDetail.value.id, { items });
+    billDetail.value = res.data;
+    ElMessage.success('费用明细已保存');
+    feeEditVisible.value = false;
+    fetchData();
+  } catch { /* 拦截器已提示 */ } finally { feeSaving.value = false; }
+}
+
 function onReset() { page.value = 1; }
 async function fetchData() {
   loading.value = true;
@@ -158,8 +244,13 @@ async function showDetail(row: any) {
   try { const res = await getBill(row.id); billDetail.value = res.data; } catch { billDetail.value = row; }
 }
 async function handlePrint(row: any, mode: string) {
-  try { await printBillDocument(row, mode as 'native' | 'pdf'); ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功'); }
-  catch (e: any) { ElMessage.error(e?.message || '打印失败'); }
+  try {
+    // 列表数据不含费用明细，打印前先取详情，让票面按明细出
+    let bill = row;
+    try { const res = await getBill(row.id); bill = res.data; } catch { /* 退回列表行数据 */ }
+    await printBillDocument(bill, mode as 'native' | 'pdf');
+    ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
+  } catch (e: any) { ElMessage.error(e?.message || '打印失败'); }
 }
 async function handleGenerate() { try { await generateBills(); ElMessage.success('账单生成已触发'); fetchData(); } catch {} }
 async function onCreateOpen() {
@@ -190,4 +281,8 @@ onMounted(() => fetchData());
 .bill-sub { font-size: 11px; color: $n-600; margin-top: 2px; }
 h4 { margin: 0 0 8px; color: $n-900; font-size: 14px; }
 .bill-lc { margin-bottom: 14px; }
+.fee-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.fee-head { font-size: 12px; color: $n-600; }
+.fee-amount { width: 110px; text-align: right; font-variant-numeric: tabular-nums; }
+.fee-tip { margin: 12px 0 0; font-size: 12px; color: $n-600; line-height: 1.7; }
 </style>

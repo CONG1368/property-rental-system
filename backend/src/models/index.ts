@@ -3,6 +3,7 @@ import Property from './Property.js';
 import Tenant from './Tenant.js';
 import Contract from './Contract.js';
 import Bill from './Bill.js';
+import BillItem from './BillItem.js';
 import PaymentRecord from './PaymentRecord.js';
 import Voucher from './Voucher.js';
 import VoucherEntry from './VoucherEntry.js';
@@ -72,6 +73,10 @@ Contract.belongsTo(Tenant, { foreignKey: 'tenantId', as: 'tenant' });
 // ====== 合同 <-> 账单 ======
 Contract.hasMany(Bill, { foreignKey: 'contractId', as: 'bills' });
 Bill.belongsTo(Contract, { foreignKey: 'contractId', as: 'contract' });
+
+// ====== 账单 <-> 费用明细（用户 2026-10-10 要求）======
+Bill.hasMany(BillItem, { foreignKey: 'billId', as: 'items' });
+BillItem.belongsTo(Bill, { foreignKey: 'billId', as: 'bill' });
 
 // ====== 账单 <-> 收款记录 ======
 Bill.hasMany(PaymentRecord, { foreignKey: 'billId', as: 'paymentRecords' });
@@ -304,7 +309,7 @@ Facility.hasMany(MaintenancePlan, { foreignKey: 'facilityId', as: 'maintenancePl
 MaintenancePlan.belongsTo(Facility, { foreignKey: 'facilityId', as: 'facility' });
 
 export {
-  User, Property, Tenant, Contract, Bill, PaymentRecord,
+  User, Property, Tenant, Contract, Bill, BillItem, PaymentRecord,
   Voucher, VoucherEntry, AccountBook, ChartOfAccount,
   Budget, Expense, FixedAsset, ContractTemplate, ContractClause,
   ContractChange, ContractLog, Approval, DunningTask,

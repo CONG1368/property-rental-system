@@ -52,11 +52,11 @@ export function buildTenantInfoHTML(data: TenantPrintData): string {
           <td style="padding:6px 10px;border:1px solid #e0e0e0;background:#f9fafb;width:120px">状态</td>
           <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.status}</td></tr>
       <tr><td style="padding:6px 10px;border:1px solid #e0e0e0;background:#f9fafb">证件类型</td>
-          <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.idType}</td>
+          <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.idType || '未登记'}</td>
           <td style="padding:6px 10px;border:1px solid #e0e0e0;background:#f9fafb">证件号码</td>
-          <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.idNumber}</td></tr>
+          <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.idNumber || '未登记'}</td></tr>
       <tr><td style="padding:6px 10px;border:1px solid #e0e0e0;background:#f9fafb">电话</td>
-          <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.phone}</td>
+          <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.phone || '未登记'}</td>
           <td style="padding:6px 10px;border:1px solid #e0e0e0;background:#f9fafb">邮箱</td>
           <td style="padding:6px 10px;border:1px solid #e0e0e0">${data.email || '-'}</td></tr>
       <tr><td style="padding:6px 10px;border:1px solid #e0e0e0;background:#f9fafb">微信</td>

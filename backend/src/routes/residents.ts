@@ -36,13 +36,21 @@ router.get('/stats', async (_req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
+// 证件信息与联系方式均为选填（用户 2026-10-10 要求）：缺省统一落空串，兼容旧库的 NOT NULL 列
+function normalizeContactFields(body: any) {
+  if ('idType' in body) body.idType = body.idType || '';
+  if ('idNumber' in body) body.idNumber = String(body.idNumber ?? '').trim();
+  if ('phone' in body) body.phone = body.phone || '';
+  return body;
+}
+
 router.post('/', async (req: AuthRequest, res) => {
-  try { const r = await Resident.create(req.body as any); res.json({ code: 200, data: r, message: '住户档案已创建' }); }
+  try { const r = await Resident.create(normalizeContactFields({ ...req.body }) as any); res.json({ code: 200, data: r, message: '住户档案已创建' }); }
   catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
 router.put('/:id', async (req: AuthRequest, res) => {
-  try { const r = await Resident.findByPk(req.params.id); if (!r) return res.status(404).json({ code: 404, message: '住户不存在' }); await r.update(req.body); res.json({ code: 200, data: r, message: '已更新' }); }
+  try { const r = await Resident.findByPk(req.params.id); if (!r) return res.status(404).json({ code: 404, message: '住户不存在' }); await r.update(normalizeContactFields({ ...req.body })); res.json({ code: 200, data: r, message: '已更新' }); }
   catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 

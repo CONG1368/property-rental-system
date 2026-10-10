@@ -21,6 +21,10 @@ const MIGRATION_DEFINITIONS: ColumnMigration[] = [
     tableName: 'contracts',
     columns: [
       { name: 'clauses', sqliteType: 'TEXT', defaultValue: "'[]'" },
+      // 履约违约金（用户 2026-10-10 要求）：老合同默认 0，用户可在起草页自定义
+      { name: 'performancePenalty', sqliteType: 'DECIMAL(12,2)', defaultValue: '0' },
+      // 首期应交租金（用户 2026-10-10 要求）：0＝自动按付款周期计算
+      { name: 'firstPeriodRent', sqliteType: 'DECIMAL(12,2)', defaultValue: '0' },
     ],
   },
   {

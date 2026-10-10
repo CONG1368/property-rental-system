@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Bill from '../models/Bill.js';
+import BillItem from '../models/BillItem.js';
 import Contract from '../models/Contract.js';
 import Tenant from '../models/Tenant.js';
 import Property from '../models/Property.js';
@@ -11,6 +12,28 @@ import { reconcilePayment } from '../services/payment-reconciler.js';
 import { requirePermission } from '../middleware/rbac.js';
 
 const router = Router();
+
+// 账单明细行归一化：没给金额时按「单价 × 数量 × (月数 || 1)」算出来（用户 2026-10-10，方案 B）
+function normalizeItemLines(raw: any[]): any[] {
+  return (Array.isArray(raw) ? raw : []).map((it: any, i: number) => {
+    const unitPrice = Number(it?.unitPrice || 0);
+    const quantity = Number(it?.quantity || 0);
+    const months = Number(it?.months || 0);
+    const hasAmount = it?.amount !== undefined && it?.amount !== null && it?.amount !== '';
+    const amount = hasAmount ? Number(it.amount) : lineAmount(unitPrice, quantity, months);
+    return {
+      name: String(it?.name || '').trim() || `费用${i + 1}`,
+      unit: String(it?.unit || ''),
+      unitPrice,
+      quantity,
+      months,
+      amount: Number(Number(amount || 0).toFixed(2)),
+      source: String(it?.source || '手工'),
+      remark: String(it?.remark || ''),
+      sortOrder: Number(it?.sortOrder ?? i),
+    };
+  }).filter((l: any) => l.amount > 0 || l.unitPrice > 0);
+}
 
 // GET /api/bills — 账单列表
 router.get('/', async (req: AuthRequest, res) => {
@@ -48,6 +71,7 @@ router.get('/', async (req: AuthRequest, res) => {
 });
 
 import { generateBills } from '../services/bill-generator.js';
+import { buildManualBillItems, summarizeItems, lineAmount } from '../services/bill-items.js';
 
 // POST /api/bills — 手动创建账单
 router.post('/', requirePermission('rent', 'create'), async (req: AuthRequest, res) => {
@@ -64,26 +88,39 @@ router.post('/', requirePermission('rent', 'create'), async (req: AuthRequest, r
     const elec = Number(electricFee || 0);
     const prop = Number(propertyFee || 0);
     const other = Number(otherAmount || 0);
-    const total = rent + water + elec + prop + other;
+
+    // 明细行：前端可直接传 items；不传就按四个金额字段自动拼行，保证每张账单都有明细
+    let lines = normalizeItemLines(req.body.items);
+    if (lines.length === 0) {
+      lines = buildManualBillItems({
+        rentAmount: rent, waterFee: water, electricFee: elec, propertyFee: prop, otherAmount: other,
+        months: Number(req.body.periodMonths || 1),
+      });
+    }
+    // 明细 → 账单固定费用列与合计（老报表/凭证/列表继续可用）
+    const cols = summarizeItems(lines);
 
     const billNo = `BL-${contract.contractNo}-${period}-M`;
     const bill = await Bill.create({
       contractId: Number(contractId),
       billNo,
       period,
-      rentAmount: rent,
-      waterFee: water,
-      electricFee: elec,
-      utilityAmount: water + elec,
-      propertyFee: prop,
-      otherAmount: other,
+      rentAmount: cols.rentAmount,
+      waterFee: cols.waterFee,
+      electricFee: cols.electricFee,
+      utilityAmount: cols.utilityAmount,
+      propertyFee: cols.propertyFee,
+      otherAmount: cols.otherAmount,
       lateFee: 0,
-      totalAmount: total,
+      totalAmount: cols.totalAmount,
       dueDate: new Date(dueDate),
       status: '未缴',
-      periodMonths: 1,
+      periodMonths: Number(req.body.periodMonths || 1),
     } as any);
-    res.json({ code: 200, data: bill, message: '账单创建成功' });
+    if (lines.length > 0) {
+      await BillItem.bulkCreate(lines.map((l) => ({ ...l, billId: (bill as any).id })) as any);
+    }
+    res.json({ code: 200, data: { ...(bill as any).toJSON(), items: lines }, message: '账单创建成功' });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });
   }
@@ -160,6 +197,7 @@ router.get('/:id', async (req: AuthRequest, res) => {
   try {
     const bill = await Bill.findByPk(req.params.id, {
       include: [
+        { model: BillItem, as: 'items' },
         { model: Contract, as: 'contract', include: [
           { model: Tenant, as: 'tenant', attributes: ['id', 'name'] },
           { model: Property, as: 'property', attributes: ['id', 'name'] },
@@ -169,7 +207,10 @@ router.get('/:id', async (req: AuthRequest, res) => {
     });
     if (!bill) return res.status(404).json({ code: 404, message: '账单不存在' });
     if (!(await recordInScope(bill, req.userId, 'bill'))) return res.status(403).json({ code: 403, message: '权限不足' });
-    res.json({ code: 200, data: bill });
+    // 明细按 sortOrder 返回，保证展示顺序稳定
+    const data: any = (bill as any).toJSON();
+    if (Array.isArray(data.items)) data.items.sort((x: any, y: any) => (Number(x.sortOrder) || 0) - (Number(y.sortOrder) || 0));
+    res.json({ code: 200, data });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });
   }
@@ -180,7 +221,25 @@ router.put('/:id', requirePermission('rent', 'update'), async (req: AuthRequest,
   try {
     const bill = await Bill.findByPk(req.params.id);
     if (!bill) return res.status(404).json({ code: 404, message: '账单不存在' });
-    await bill.update(req.body);
+
+    // 传了 items 就整表替换账单明细，并按明细重算固定费用列与合计（用户 2026-10-10，方案 B）
+    if (req.body?.items !== undefined) {
+      if (!Array.isArray(req.body.items)) return res.status(400).json({ code: 400, message: '明细格式不正确' });
+      const lines = normalizeItemLines(req.body.items);
+      await BillItem.destroy({ where: { billId: bill.id } });
+      if (lines.length > 0) {
+        await BillItem.bulkCreate(lines.map((l) => ({ ...l, billId: bill.id })) as any);
+      }
+      const { items, ...rest } = req.body;
+      const lateFee = rest.lateFee !== undefined ? Number(rest.lateFee) : Number((bill as any).lateFee || 0);
+      const cols = summarizeItems(lines, lateFee);
+      await bill.update({ ...rest, ...cols, lateFee } as any);
+      res.json({ code: 200, data: { ...(bill as any).toJSON(), items: lines }, message: '账单明细已更新' });
+      return;
+    }
+
+    const { items, ...rest } = req.body || {};
+    await bill.update(rest);
     res.json({ code: 200, data: bill, message: '账单更新成功' });
   } catch (err: any) {
     res.status(500).json({ code: 500, message: err.message });

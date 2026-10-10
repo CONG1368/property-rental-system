@@ -7,6 +7,7 @@ import Property from '../models/Property.js';
 import Tenant from '../models/Tenant.js';
 import Contract from '../models/Contract.js';
 import Bill from '../models/Bill.js';
+import BillItem from '../models/BillItem.js';
 import { sequelize } from '../config/database.js';
 
 const router = Router();
@@ -113,7 +114,7 @@ router.post('/readings/generate-bills', async (req: AuthRequest, res) => {
         const exists = await Bill.findOne({ where: { billNo }, transaction });
         if (exists) { skipped++; continue; }
 
-        await Bill.create({
+        const bill = await Bill.create({
           contractId: (contract as any).id,
           billNo, period,
           rentAmount: 0,
@@ -125,6 +126,20 @@ router.post('/readings/generate-bills', async (req: AuthRequest, res) => {
           dueDate: new Date(period + '-15'),
           status: '未缴',
           periodMonths: 1,
+        } as any, { transaction });
+
+        // 抄表费用同样落一条明细行（用户 2026-10-10 要求，方案 B）：账单明细里能看到用量与单价
+        await BillItem.create({
+          billId: (bill as any).id,
+          name: type === '水' ? '水费' : '电费',
+          unit: type === '水' ? '元/吨' : '元/度',
+          unitPrice: Number((r as any).pricePerUnit || 0),
+          quantity: Number((r as any).usage || 0),
+          months: 0,
+          amount,
+          source: '抄表',
+          remark: `用量 ${Number((r as any).usage || 0)} ${type === '水' ? '吨' : '度'}`,
+          sortOrder: 1,
         } as any, { transaction });
 
         await r.update({ billed: '已生成' } as any, { transaction });

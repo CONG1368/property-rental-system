@@ -23,9 +23,9 @@
       </template>
       <el-descriptions :column="3" v-if="tenant">
         <el-descriptions-item label="姓名">{{ tenant.name }}</el-descriptions-item>
-        <el-descriptions-item label="证件类型">{{ tenant.idType }}</el-descriptions-item>
-        <el-descriptions-item label="证件号码">{{ tenant.idNumber }}</el-descriptions-item>
-        <el-descriptions-item label="电话">{{ tenant.phone }}</el-descriptions-item>
+        <el-descriptions-item label="证件类型">{{ tenant.idType || '未登记' }}</el-descriptions-item>
+        <el-descriptions-item label="证件号码">{{ tenant.idNumber || '未登记' }}</el-descriptions-item>
+        <el-descriptions-item label="电话">{{ tenant.phone || '未登记' }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ tenant.email }}</el-descriptions-item>
         <el-descriptions-item label="微信">{{ tenant.wechat }}</el-descriptions-item>
         <el-descriptions-item label="信用评分">{{ tenant.creditScore }}分 ({{ tenant.creditGrade }}级)</el-descriptions-item>

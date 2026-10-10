@@ -34,7 +34,10 @@ export async function printBillDocument(row: any, mode: 'native' | 'pdf') {
         propertyFee: Number(row.propertyFee || 0), otherAmount: Number(row.otherAmount || 0),
         lateFee: Number(row.lateFee || 0), totalAmount: Number(row.totalAmount || 0),
         dueDate: row.dueDate, status: row.status,
-        paidDate: row.paidDate || null, paymentChannel: row.paymentChannel || null, ...info,
+        paidDate: row.paidDate || null, paymentChannel: row.paymentChannel || null,
+        // 有费用明细就按明细出票（用户 2026-10-10，方案 B）
+        items: Array.isArray(row.items) ? row.items : undefined,
+        ...info,
       });
   await printDocument({
     title: (isPaid ? '收据_' : '账单_') + row.billNo,

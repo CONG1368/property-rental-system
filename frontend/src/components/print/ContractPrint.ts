@@ -11,10 +11,17 @@ interface ContractPrintData {
   tenantIdType: string;
   tenantIdNumber: string;
   tenantPhone: string;
+  // 是否把乙方（承租方）证件信息与联系方式写入合同（用户 2026-10-10 要求）：
+  // 由合同起草页的开关决定；未显式传值时按老合同处理，保持原有输出
+  showTenantContact?: boolean;
   startDate: string;
   endDate: string;
   rentAmount: number;
   depositAmount: number;
+  // 履约违约金（用户 2026-10-10 要求）：替代原「违约金比例」，与押金并列的可自定义金额
+  performancePenalty?: number;
+  // 首期应交租金（用户 2026-10-10 要求）：0/缺省＝自动按「月租金 × 付款周期月数」，>0 为自定义金额（几年一起交）
+  firstPeriodRent?: number;
   paymentCycle: string;
   status: string;
   notes: string;
@@ -133,9 +140,22 @@ function buildFireSafetyHTML(data: ContractPrintData): string {
   return html;
 }
 
+// 金额相当于几个月租金：让承租人一眼看清押金 / 履约违约金各是「几个月」、各是多少钱（用户 2026-10-10 要求）
+function rentMonthsNote(amount: number, rentAmount: number): string {
+  const rent = Number(rentAmount || 0);
+  const value = Number(amount || 0);
+  if (!rent || !value) return '';
+  return `　相当于 ${Number((value / rent).toFixed(2))} 个月租金（月租金 ¥${rent.toFixed(2)}）`;
+}
+
 export function buildContractHTML(data: ContractPrintData): string {
   const months = CYCLE_MONTHS[data.paymentCycle] || 1;
-  const periodRent = data.rentAmount * months;
+  // 首期应交租金：默认自动（月租金 × 付款周期月数），也允许自定义（几年一起交，用户 2026-10-10 要求）
+  const autoPeriodRent = data.rentAmount * months;
+  const customPeriodRent = Number(data.firstPeriodRent || 0);
+  const periodRent = customPeriodRent > 0 ? customPeriodRent : autoPeriodRent;
+  // 实际首期月数：自定义时按「金额 ÷ 月租金」折算，让按月计的费用与税额跟着一起缩放
+  const effMonths = customPeriodRent > 0 && data.rentAmount > 0 ? customPeriodRent / data.rentAmount : months;
   const paymentCycleText = CYCLE_LABEL[data.paymentCycle] || data.paymentCycle;
   const cycleTerm = CYCLE_TERM[data.paymentCycle] || '首期';
 
@@ -145,10 +165,16 @@ export function buildContractHTML(data: ContractPrintData): string {
   if (data.companyIdNumber) lessorDetail.push(`证件号码：${data.companyIdNumber}`);
   if (data.companyPhone) lessorDetail.push(`联系电话：${data.companyPhone}`);
 
+  // 乙方证件信息为选填：开关关闭时整段不输出；证件类型单独存在（没有证件号）时也不输出，避免出现孤立的「证件类型：身份证」
   const tenantDetail: string[] = [];
-  if (data.tenantIdType) tenantDetail.push(`证件类型：${data.tenantIdType}`);
-  if (data.tenantIdNumber) tenantDetail.push(`证件号码：${data.tenantIdNumber}`);
-  if (data.tenantPhone) tenantDetail.push(`联系电话：${data.tenantPhone}`);
+  if (data.showTenantContact !== false) {
+    // 证件类型只有和证件号一起才打印：避免出现「证件类型：身份证」这种没有号码支撑的孤立声明
+    if (data.tenantIdNumber) {
+      if (data.tenantIdType) tenantDetail.push(`证件类型：${data.tenantIdType}`);
+      tenantDetail.push(`证件号码：${data.tenantIdNumber}`);
+    }
+    if (data.tenantPhone) tenantDetail.push(`联系电话：${data.tenantPhone}`);
+  }
 
   // === 费用明细 ===
   const feeItems = data.feeItems || [];
@@ -161,7 +187,7 @@ export function buildContractHTML(data: ContractPrintData): string {
 
   const periodicFeeTotal = feeItems.reduce((sum, fi) => {
     if (fi.unit === '元/月' || fi.unit === '元/吨' || fi.unit === '元/度' || fi.unit === '元/㎡/月') {
-      return sum + Number(fi.amount) * months;
+      return sum + Number(fi.amount) * effMonths;
     }
     return sum + Number(fi.amount);
   }, 0);
@@ -184,7 +210,7 @@ export function buildContractHTML(data: ContractPrintData): string {
   // === 增值税行 ===
   let taxRow = '';
   if (data.taxType === '不含税' && data.taxRate) {
-    const taxAmount = data.rentAmount * months * (data.taxRate || 0) / 100;
+    const taxAmount = data.rentAmount * effMonths * (data.taxRate || 0) / 100;
     taxRow = td(`增值税额（${data.taxRate}%）`, `¥${taxAmount.toFixed(2)}（${toChineseAmount(taxAmount)}），由承租方另行支付`, { highlight: true });
   }
 
@@ -303,8 +329,9 @@ export function buildContractHTML(data: ContractPrintData): string {
     <table>
       ${td('月租金', `¥${data.rentAmount.toFixed(2)}　（${toChineseAmount(data.rentAmount)}）` + (data.taxType === '不含税' ? ' <span style="color:#e74c3c;font-size:11px">[不含税]</span>' : ' <span style="color:#27ae60;font-size:11px">[含税]</span>'))}
       ${td('付款周期', paymentCycleText)}
-      ${td(cycleTerm + '应交租金', `¥${periodRent.toFixed(2)}　（${toChineseAmount(periodRent)}）`, { highlight: true })}
-      ${td('押金', `¥${data.depositAmount.toFixed(2)}　（${toChineseAmount(data.depositAmount)}）`)}
+      ${td(customPeriodRent > 0 ? '首期应交租金' : cycleTerm + '应交租金', `¥${periodRent.toFixed(2)}　（${toChineseAmount(periodRent)}）${rentMonthsNote(periodRent, data.rentAmount)}`, { highlight: true })}
+      ${td('押金', `¥${data.depositAmount.toFixed(2)}　（${toChineseAmount(data.depositAmount)}）${rentMonthsNote(data.depositAmount, data.rentAmount)}`)}
+      ${(data.performancePenalty ?? 0) > 0 ? td('履约违约金', `¥${Number(data.performancePenalty).toFixed(2)}　（${toChineseAmount(Number(data.performancePenalty))}）${rentMonthsNote(Number(data.performancePenalty), data.rentAmount)}`) : ''}
       ${taxRow}
       ${feeRows}
       ${feeItems.length > 0 ? td(cycleTerm + '费用合计', `¥${periodTotal.toFixed(2)}　（${toChineseAmount(periodTotal)}）`, { highlight: true }) : ''}
@@ -317,7 +344,7 @@ export function buildContractHTML(data: ContractPrintData): string {
   <div class="section">
     <h3>${sn()}、合同细则</h3>
     <table>
-      ${td('违约金', `逾期未缴租金按 ${((data.lateFeeRate ?? 0.05) * 100).toFixed(1)}% / 月 计收违约金`)}
+      ${data.lateFeeRate !== undefined && !((data.performancePenalty ?? 0) > 0) ? td('违约金', `逾期未缴租金按 ${(data.lateFeeRate * 100).toFixed(1)}% / 月 计收违约金`) : ''}
       ${td('押金退还', data.depositTerms || '租赁期满且无违约欠费，押金全额无息退还')}
       ${td('日常维修', data.maintenanceParty === '乙方' ? '乙方负责租赁期间的日常维修' : data.maintenanceParty === '按约定' ? '双方按约定承担维修责任' : '甲方负责房屋主体及设施的自然损耗维修')}
       ${td('转租', data.subletAllowed ? '经甲方书面同意，乙方可将房屋转租' : '乙方不得将房屋转租给第三方')}

@@ -24,6 +24,7 @@
         <el-descriptions-item label="合同编号">{{ contract.contractNo }}</el-descriptions-item>
         <el-descriptions-item label="月租金">{{ contract.rentAmount }}</el-descriptions-item>
         <el-descriptions-item label="押金">{{ contract.depositAmount }}</el-descriptions-item>
+        <el-descriptions-item label="履约违约金">{{ Number(contract.performancePenalty || 0).toFixed(2) }}</el-descriptions-item>
         <el-descriptions-item label="开始日期">{{ contract.startDate }}</el-descriptions-item>
         <el-descriptions-item label="结束日期">{{ contract.endDate }}</el-descriptions-item>
         <el-descriptions-item label="付款周期">{{ paymentCycleLabel }}</el-descriptions-item>
@@ -34,6 +35,7 @@
 
       <el-descriptions :column="1" border style="margin-top:16px" v-if="contract.tenant || contract.property">
         <el-descriptions-item label="租客">{{ contract.tenant?.name || '--' }}</el-descriptions-item>
+        <el-descriptions-item label="乙方证件/联系方式">{{ showTenantContact ? '写入合同' : '不写入合同' }}</el-descriptions-item>
         <el-descriptions-item label="房源">{{ contract.property?.name || '--' }} — {{ contract.property?.address || '' }}</el-descriptions-item>
       </el-descriptions>
 
@@ -92,9 +94,19 @@
         <el-descriptions-item label="付款周期">{{ paymentCycleLabel }}</el-descriptions-item>
         <el-descriptions-item label="首期应交租金" :span="1">
           <span style="font-weight:bold;color:var(--n-900);font-size:16px">¥{{ periodRent.toFixed(2) }}</span>
+          <span v-if="monthsOfRent(periodRent)" style="font-size:12px;color:var(--n-600)">　相当于 {{ monthsOfRent(periodRent) }} 个月租金</span>
+          <el-tag v-if="Number(contract.firstPeriodRent || 0) > 0" size="small" type="warning" style="margin-left:6px">自定义</el-tag>
+          <el-tag v-else size="small" type="info" style="margin-left:6px">自动</el-tag>
           <span style="font-size:12px;color:var(--n-600)">（大写：{{ chinesePeriodRent }}）</span>
         </el-descriptions-item>
-        <el-descriptions-item label="押金">¥{{ Number(contract.depositAmount || 0).toFixed(2) }}</el-descriptions-item>
+        <el-descriptions-item label="押金">
+          ¥{{ Number(contract.depositAmount || 0).toFixed(2) }}
+          <span v-if="monthsOfRent(contract.depositAmount)" style="font-size:12px;color:var(--n-600)">　相当于 {{ monthsOfRent(contract.depositAmount) }} 个月租金</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="履约违约金">
+          ¥{{ Number(contract.performancePenalty || 0).toFixed(2) }}
+          <span v-if="monthsOfRent(contract.performancePenalty)" style="font-size:12px;color:var(--n-600)">　相当于 {{ monthsOfRent(contract.performancePenalty) }} 个月租金</span>
+        </el-descriptions-item>
         <template v-if="feeItemList.length > 0">
           <el-descriptions-item v-for="fi in feeItemList" :key="fi.name" :label="fi.name">
             ¥{{ Number(fi.amount).toFixed(2) }} {{ fi.unit || '' }}
@@ -125,7 +137,7 @@
     <el-card style="margin-top:16px" v-if="contract">
       <template #header><span>合同细则</span></template>
       <el-descriptions :column="2" border size="small">
-        <el-descriptions-item label="违约金">{{ ((bcDetail.lateFeeRate ?? 0.05) * 100).toFixed(1) }}% / 月</el-descriptions-item>
+        <el-descriptions-item v-if="bcDetail.lateFeeRate !== undefined" label="违约金">{{ (bcDetail.lateFeeRate * 100).toFixed(1) }}% / 月</el-descriptions-item>
         <el-descriptions-item label="维修责任">
           {{ bcDetail.maintenanceParty === '乙方' ? '乙方负责' : bcDetail.maintenanceParty === '按约定' ? '双方按约定' : '甲方负责' }}
         </el-descriptions-item>
@@ -260,7 +272,31 @@ const CYCLE_MONTHS: Record<string, number> = {
 };
 
 const cycleMonths = computed(() => CYCLE_MONTHS[contract.value?.paymentCycle] || 1);
-const periodRent = computed(() => Number(contract.value?.rentAmount || 0) * cycleMonths.value);
+// 首期应交租金：默认自动（月租金 × 付款周期），合同可自定义（几年一起交，用户 2026-10-10 要求）
+const periodRent = computed(() => {
+  const custom = Number(contract.value?.firstPeriodRent || 0);
+  if (custom > 0) return custom;
+  return Number(contract.value?.rentAmount || 0) * cycleMonths.value;
+});
+// 实际首期月数：自定义时按「金额 ÷ 月租金」折算，按月计的费用跟着缩放
+const periodMonths = computed(() => {
+  const rent = Number(contract.value?.rentAmount || 0);
+  const custom = Number(contract.value?.firstPeriodRent || 0);
+  if (custom > 0 && rent > 0) return custom / rent;
+  return cycleMonths.value;
+});
+
+// 乙方证件/联系方式是否写入合同（用户 2026-10-10 要求）：只有 billingConfig.partyBContact 显式为 false 才不写入，
+// 老合同没存过该键时沿用原有输出，避免已签合同打印内容突变
+const showTenantContact = computed(() => (contract.value?.billingConfig || {}).partyBContact !== false);
+
+// 金额相当于几个月租金（月租金为 0 或金额为 0 时返回空串）：让承租人看清押金/履约违约金各是几个月、各多少钱
+function monthsOfRent(amount: number | string | null | undefined) {
+  const rent = Number(contract.value?.rentAmount || 0);
+  const value = Number(amount || 0);
+  if (!rent || !value) return '';
+  return Number((value / rent).toFixed(2));
+}
 
 // 费用项列表（兼容新旧格式）
 const feeItemList = computed(() => {
@@ -277,7 +313,7 @@ const feeItemList = computed(() => {
 const periodFeeTotal = computed(() => {
   return feeItemList.value.reduce((sum: number, fi: { name: string; amount: number; unit: string }) => {
     if (fi.unit === '元/月' || fi.unit === '元/吨' || fi.unit === '元/度' || fi.unit === '元/㎡/月') {
-      return sum + Number(fi.amount) * cycleMonths.value;
+      return sum + Number(fi.amount) * periodMonths.value;
     }
     return sum + Number(fi.amount);
   }, 0);
@@ -411,10 +447,13 @@ async function handlePrint(mode: string) {
       tenantIdType: contract.value.tenant?.idType || '',
       tenantIdNumber: contract.value.tenant?.idNumber || '',
       tenantPhone: contract.value.tenant?.phone || '',
+      showTenantContact: showTenantContact.value,
       startDate: contract.value.startDate,
       endDate: contract.value.endDate,
       rentAmount: Number(contract.value.rentAmount || 0),
       depositAmount: Number(contract.value.depositAmount || 0),
+      performancePenalty: Number(contract.value.performancePenalty || 0),
+      firstPeriodRent: Number(contract.value.firstPeriodRent || 0),
       paymentCycle: contract.value.paymentCycle || '-',
       feeItems: feeItemList.value,
       status: contract.value.status || '',
@@ -427,7 +466,7 @@ async function handlePrint(mode: string) {
       taxType: bc.taxType || '含税',
       taxRate: bc.taxRate ?? 5,
       invoiceType: bc.invoiceType || '增值税普通发票',
-      lateFeeRate: bc.lateFeeRate ?? 0.05,
+      lateFeeRate: bc.lateFeeRate,
       depositTerms: bc.depositTerms || '',
       maintenanceParty: bc.maintenanceParty || '甲方',
       terminationNotice: bc.terminationNotice ?? 30,
