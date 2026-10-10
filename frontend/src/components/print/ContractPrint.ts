@@ -115,34 +115,30 @@ function buildFireSafetyHTML(data: ContractPrintData): string {
   const fs = data.fireSafety;
   if (!fs) return '';
 
-  let html = '<div class="section"><h3>消防安全约定</h3>';
-  html += '<table>';
-
-  if (fs.responsibilityParty) {
-    html += td('消防责任方', fs.responsibilityParty);
-  }
-  if (fs.inspectionFrequency) {
-    html += td('检查频率', fs.inspectionFrequency);
-  }
+  // 用户 2026-10-10 要求：**消防责任方 / 检查频率不再打印在合同上**（内部管理口径），
+  // 消防条款、禁止事项、配备器材、违规处罚等文字约定全部保留。
+  const rows: string[] = [];
   if (fs.violationPenalty) {
-    html += td('违规处罚', fs.violationPenalty);
+    rows.push(td('违规处罚', fs.violationPenalty));
   }
-
   if (fs.equipment && fs.equipment.length > 0) {
-    html += `<tr><td style="padding:6px 8px;border:1px solid #999;background:#f7f7f7;font-size:12px;text-align:right">配备器材</td>
-      <td style="padding:6px 10px;border:1px solid #999;font-size:13px">${fs.equipment.join('；')}</td></tr>`;
+    rows.push(`<tr><td style="padding:6px 8px;border:1px solid #999;background:#f7f7f7;font-size:12px;text-align:right">配备器材</td>
+      <td style="padding:6px 10px;border:1px solid #999;font-size:13px">${fs.equipment.join('；')}</td></tr>`);
   }
-
   if (fs.restrictions && fs.restrictions.length > 0) {
-    html += `<tr><td style="padding:6px 8px;border:1px solid #999;background:#f7f7f7;font-size:12px;text-align:right">禁止事项</td>
-      <td style="padding:6px 10px;border:1px solid #999;font-size:13px">${fs.restrictions.map((r, i) => `${i + 1}. ${r}`).join('<br>')}</td></tr>`;
+    rows.push(`<tr><td style="padding:6px 8px;border:1px solid #999;background:#f7f7f7;font-size:12px;text-align:right">禁止事项</td>
+      <td style="padding:6px 10px;border:1px solid #999;font-size:13px">${fs.restrictions.map((r, i) => `${i + 1}. ${r}`).join('<br>')}</td></tr>`);
   }
+  const hasClauses = !!(fs.clauses && fs.clauses.length > 0);
+  // 只配了责任方/检查频率（参数已不打印）又没有条款文字时，整段不出，避免合同上留一个空标题
+  if (rows.length === 0 && !hasClauses) return '';
 
-  html += '</table>';
+  let html = '<div class="section"><h3>消防安全约定</h3>';
+  if (rows.length > 0) html += `<table>${rows.join('')}</table>`;
 
-  if (fs.clauses && fs.clauses.length > 0) {
-    for (let i = 0; i < fs.clauses.length; i++) {
-      const c = fs.clauses[i];
+  if (hasClauses) {
+    for (let i = 0; i < fs.clauses!.length; i++) {
+      const c = fs.clauses![i];
       html += `<p style="margin:8px 0 2px;font-weight:bold">${i + 1}. ${c.title}</p>`;
       html += wrapTextAsParagraphs(c.content, 'margin-left:16px;color:#333');
     }

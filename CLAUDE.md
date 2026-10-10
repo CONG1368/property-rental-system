@@ -465,6 +465,8 @@ fireSafety: {
 
 **同步位置**：ContractDraft.vue（表单+`buildBillingConfig`+编辑回填+模板加载）、ContractDetail.vue（展示+`handlePrint` 传参）、ContractPrint.ts（`buildFireSafetyHTML` 渲染）。
 
+**打印裁剪（用户 2026-10-10 要求）**：`buildFireSafetyHTML` **只打印合同约定性质的文字**——消防条款、禁止事项、配备器材、违规处罚；**`responsibilityParty`（消防责任方）与 `inspectionFrequency`（检查频率）属于内部管理口径，不再上纸**。若一份合同只配了这两项（没有任何条款/限制/器材/处罚），该区块**整段不输出**，避免合同上留一个空标题。起草页与合同详情页仍照常显示这两个字段（内部可见），只是不进打印模板。改这里别把 `frontend/tests/unit.test.ts` 的「合同消防安全约定区块」2 条用例改红。
+
 ### 条款批量导入
 
 **后端端点**：

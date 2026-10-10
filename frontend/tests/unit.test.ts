@@ -258,6 +258,41 @@ describe('合同底部签章区（甲乙双方签约信息，用户 2026-10-10 �
   });
 });
 
+describe('合同消防安全约定区块（用户 2026-10-10 要求）', () => {
+  const base: any = {
+    contractNo: 'HT-FIRE-001', propertyName: 'A栋101', propertyAddress: '示例路1号', propertyArea: 88,
+    tenantName: '张三', tenantIdType: '身份证', tenantIdNumber: '320102199001011234', tenantPhone: '13800138000',
+    startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 3000, depositAmount: 3000,
+    paymentCycle: '月', status: '已签订', notes: '', companyName: '回归测试物业公司',
+  };
+
+  it('消防责任方 / 检查频率不再打印；只配这两项时整段标题也不出', () => {
+    const html = buildContractHTML({ ...base, fireSafety: { responsibilityParty: '双方', inspectionFrequency: '每季' } });
+    expect(html).not.toContain('消防责任方');
+    expect(html).not.toContain('检查频率');
+    expect(html).not.toContain('每季');
+    expect(html).not.toContain('消防安全约定');
+  });
+
+  it('消防条款 / 禁止事项 / 配备器材 / 违规处罚仍照常打印', () => {
+    const html = buildContractHTML({
+      ...base,
+      fireSafety: {
+        responsibilityParty: '双方', inspectionFrequency: '每季',
+        violationPenalty: '违规用电罚款 200 元',
+        equipment: ['灭火器', '烟感探测器'],
+        restrictions: ['禁止堵塞消防通道'],
+        clauses: [{ title: '消防责任', content: '乙方应配合甲方开展消防检查。' }],
+      },
+    });
+    for (const v of ['消防安全约定', '违规处罚', '违规用电罚款 200 元', '配备器材', '灭火器', '禁止事项', '禁止堵塞消防通道', '消防责任', '乙方应配合甲方开展消防检查']) {
+      expect(html).toContain(v);
+    }
+    expect(html).not.toContain('消防责任方');
+    expect(html).not.toContain('检查频率');
+  });
+});
+
 describe('日期格式化', () => {
   it('标准化为 YYYY-MM-DD 可读形式', () => {
     const s = formatDate('2026-09-01');
