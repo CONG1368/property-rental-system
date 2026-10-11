@@ -20,6 +20,9 @@ import { readSheetAsObjects } from '../utils/excel.js';
 import ContractTemplate from '../models/ContractTemplate.js';
 import ContractClause from '../models/ContractClause.js';
 import mammoth from 'mammoth';
+import ContractClauseRevision from '../models/ContractClauseRevision.js';
+import { splitClausesFromText, diffClauseLists } from '../services/clause-diff.js';
+import { auditLog } from '../middleware/audit-log.js';
 
 function decodeFilename(name: string): string {
   const buf = Buffer.from(name, 'latin1');
@@ -47,6 +50,63 @@ const importUpload = multer({
     else cb(new Error('仅支持 .xlsx / Word / PDF；老版 .xls 请另存为 .xlsx 后重试'));
   },
 });
+// 条款修订版上传（用户 2026-10-11 要求）：只收 Word/PDF，20MB
+const revisionUpload = multer({
+  dest: importUploadDir,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowed = ['.docx', '.doc', '.pdf'];
+    if (allowed.includes(ext)) cb(null, true);
+    else cb(new Error('仅支持 Word(.docx/.doc) 或 PDF 格式的合同修订版'));
+  },
+});
+
+/** 从上传的 Word/PDF 中提取纯文本（提取端点与条款修订比对共用） */
+async function extractUploadText(filePath: string, ext: string): Promise<string> {
+  let text = '';
+  if (ext === '.docx') {
+    try {
+      const result = await mammoth.extractRawText({ path: filePath });
+      text = result.value;
+      if (!text || text.trim().length === 0) text = '(此 .docx 文件无法提取文本内容，可能为空文档或加密文件)';
+    } catch {
+      text = '(此 .docx 文件解析失败，请检查文件是否损坏或为加密文档，建议用 Word 另存后重试)';
+    }
+  } else if (ext === '.doc') {
+    try {
+      const WordExtractor = (await import('word-extractor')).default;
+      const extractor = new WordExtractor();
+      const doc = await extractor.extract(filePath);
+      text = doc.getBody();
+    } catch {
+      try {
+        const result = await mammoth.extractRawText({ path: filePath });
+        text = result.value;
+      } catch {
+        text = '(此 .doc 文件无法解析，建议用 Word 另存为 .docx 格式后重试)';
+      }
+    }
+  } else if (ext === '.pdf') {
+    try {
+      const { PDFParse } = await import('pdf-parse');
+      const dataBuffer = fs.readFileSync(filePath);
+      const buf = new Uint8Array(dataBuffer.buffer, dataBuffer.byteOffset, dataBuffer.byteLength);
+      const parser = new PDFParse(buf);
+      const result = await parser.getText();
+      text = result.text || '';
+      // 移除 pdf-parse v2 的页面分隔符（如 "-- 1 of 5 --"），避免纯图片 PDF 误判为有文本
+      const contentText = text.replace(/^\s*--\s*\d+\s+of\s+\d+\s*--\s*$/gm, '').trim();
+      if (contentText.length < 50) text = '(此PDF为扫描件或图片格式，文本量过少，请使用OCR工具转换后重试)';
+    } catch {
+      text = '(PDF解析失败，可能为扫描件或加密文档，请使用OCR工具转换后重试)';
+    }
+  } else {
+    text = '(不支持的文件格式，仅支持 .docx、.doc 和 .pdf)';
+  }
+  return text.trim();
+}
+
 const contractUpload = multer({
   dest: contractUploadDir,
   fileFilter: (_req, file, cb) => {
@@ -524,53 +584,148 @@ router.post('/extract-clause-text', importUpload.single('file'), async (req: Aut
     const file = (req as any).file;
     if (!file) return res.status(400).json({ code: 400, message: '请上传文件' });
     const ext = path.extname(file.originalname).toLowerCase();
-    let text = '';
-
-    if (ext === '.docx') {
-      try {
-        const result = await mammoth.extractRawText({ path: file.path });
-        text = result.value;
-        if (!text || text.trim().length === 0) text = '(此 .docx 文件无法提取文本内容，可能为空文档或加密文件)';
-      } catch {
-        text = '(此 .docx 文件解析失败，请检查文件是否损坏或为加密文档，建议用 Word 另存后重试)';
-      }
-    } else if (ext === '.doc') {
-      try {
-        const WordExtractor = (await import('word-extractor')).default;
-        const extractor = new WordExtractor();
-        const doc = await extractor.extract(file.path);
-        text = doc.getBody();
-      } catch {
-        try {
-          const result = await mammoth.extractRawText({ path: file.path });
-          text = result.value;
-        } catch {
-          text = '(此 .doc 文件无法解析，建议用 Word 另存为 .docx 格式后重试)';
-        }
-      }
-    } else if (ext === '.pdf') {
-      try {
-        const { PDFParse } = await import('pdf-parse');
-        const dataBuffer = fs.readFileSync(file.path);
-        const buf = new Uint8Array(dataBuffer.buffer, dataBuffer.byteOffset, dataBuffer.byteLength);
-        const parser = new PDFParse(buf);
-        const result = await parser.getText();
-        text = result.text || '';
-        // 移除 pdf-parse v2 的页面分隔符（如 "-- 1 of 5 --"），避免纯图片 PDF 误判为有文本
-        const contentText = text.replace(/^\s*--\s*\d+\s+of\s+\d+\s*--\s*$/gm, '').trim();
-        if (contentText.length < 50) text = '(此PDF为扫描件或图片格式，文本量过少，请使用OCR工具转换后重试)';
-      } catch {
-        text = '(PDF解析失败，可能为扫描件或加密文档，请使用OCR工具转换后重试)';
-      }
-    } else {
-      try { fs.unlinkSync(file.path); } catch {}
+    // 提取逻辑统一走 extractUploadText()，与条款修订比对共用一份实现
+    const text = await extractUploadText(file.path, ext);
+    try { fs.unlinkSync(file.path); } catch {}
+    if (!['.docx', '.doc', '.pdf'].includes(ext)) {
       return res.status(400).json({ code: 400, message: '仅支持 .docx、.doc 和 .pdf 格式' });
     }
-
-    try { fs.unlinkSync(file.path); } catch {}
-    res.json({ code: 200, data: { text: text.trim(), fileName: decodeFilename(file.originalname), size: file.size } });
+    res.json({ code: 200, data: { text, fileName: decodeFilename(file.originalname), size: file.size } });
   } catch (err: any) {
+    const file = (req as any).file;
+    if (file?.path) { try { fs.unlinkSync(file.path); } catch {} }
     res.status(500).json({ code: 500, message: err.message || '文本提取失败' });
+  }
+});
+
+// ===== 合同条款修订（用户 2026-10-11 要求）=====
+// 场景：租户在合同上改了条款后把文件回传。用户上传即可自动拆条、与现有条款比对，
+// 系统明确提示「改了哪些内容」，用户逐条查看差异后一键写回合同条款。
+const parseClauses = (raw: any): any[] => {
+  if (Array.isArray(raw)) return raw;
+  try { return JSON.parse(raw || '[]'); } catch { return []; }
+};
+
+// POST /:id/clause-diff — 上传租户修订版，自动比对并生成「待处理」记录
+router.post('/:id/clause-diff', requirePermission('contract', 'update'), auditLog('合同', '条款修订比对'), revisionUpload.single('file'), async (req: AuthRequest, res) => {
+  try {
+    const file = (req as any).file;
+    if (!file) return res.status(400).json({ code: 400, message: '请上传租户修订后的合同文件（Word 或 PDF）' });
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) {
+      try { fs.unlinkSync(file.path); } catch {}
+      return res.status(404).json({ code: 404, message: '合同不存在' });
+    }
+
+    const ext = path.extname(file.originalname).toLowerCase();
+    const text = await extractUploadText(file.path, ext);
+    try { fs.unlinkSync(file.path); } catch {}
+    if (!text) return res.status(400).json({ code: 400, message: '未能从文件中提取到文本' });
+    if (text.startsWith('(') && text.endsWith(')')) {
+      return res.status(400).json({ code: 400, message: text.slice(1, -1) });
+    }
+
+    const parsedClauses = splitClausesFromText(text);
+    if (parsedClauses.length === 0) {
+      return res.status(400).json({ code: 400, message: '未能从上传的文件中识别出条款，请确认文件内容完整' });
+    }
+
+    const diff = diffClauseLists(parseClauses((contract as any).clauses), parsedClauses);
+    const revision = await ContractClauseRevision.create({
+      contractId: Number(req.params.id),
+      sourceFileName: decodeFilename(file.originalname),
+      sourceType: ext.replace('.', ''),
+      clauseCount: parsedClauses.length,
+      addedCount: diff.counts.added,
+      removedCount: diff.counts.removed,
+      modifiedCount: diff.counts.modified,
+      summary: diff.summary,
+      details: diff.details,
+      diff,
+      parsedClauses,
+      status: '待处理',
+      uploadedBy: (req as any).user?.userId ?? null,
+    } as any);
+
+    res.json({
+      code: 200,
+      data: {
+        revision: { id: revision.id, contractId: revision.contractId, sourceFileName: revision.sourceFileName, summary: revision.summary, status: revision.status, clauseCount: revision.clauseCount },
+        diff,
+      },
+    });
+  } catch (err: any) {
+    const file = (req as any).file;
+    if (file?.path) { try { fs.unlinkSync(file.path); } catch {} }
+    res.status(500).json({ code: 500, message: err.message || '条款比对失败' });
+  }
+});
+
+// GET /:id/clause-revisions — 修订记录列表（不含 diff/parsedClauses 大字段）
+router.get('/:id/clause-revisions', requirePermission('contract', 'read'), async (req: AuthRequest, res) => {
+  try {
+    const list = await ContractClauseRevision.findAll({
+      where: { contractId: req.params.id },
+      attributes: { exclude: ['diff', 'parsedClauses'] },
+      order: [['createdAt', 'DESC']],
+    });
+    res.json({ code: 200, data: list });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '加载修订记录失败' });
+  }
+});
+
+// GET /:id/clause-revisions/:revId — 单条修订详情（含片段级差异）
+router.get('/:id/clause-revisions/:revId', requirePermission('contract', 'read'), async (req: AuthRequest, res) => {
+  try {
+    const rev = await ContractClauseRevision.findOne({ where: { id: req.params.revId, contractId: req.params.id } });
+    if (!rev) return res.status(404).json({ code: 404, message: '修订记录不存在' });
+    res.json({ code: 200, data: rev });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '加载修订详情失败' });
+  }
+});
+
+// POST /:id/clause-revisions/:revId/apply — 把修订版条款写回合同
+router.post('/:id/clause-revisions/:revId/apply', requirePermission('contract', 'update'), auditLog('合同', '应用条款修订'), async (req: AuthRequest, res) => {
+  try {
+    const rev = await ContractClauseRevision.findOne({ where: { id: req.params.revId, contractId: req.params.id } });
+    if (!rev) return res.status(404).json({ code: 404, message: '修订记录不存在' });
+    if (rev.status === '已应用') return res.status(400).json({ code: 400, message: '该修订已应用，无需重复操作' });
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+
+    const clauses = Array.isArray(rev.parsedClauses) ? rev.parsedClauses : [];
+    if (clauses.length === 0) return res.status(400).json({ code: 400, message: '该修订没有可用的条款内容' });
+    // SQLite 上 Sequelize 检测不到 JSON 字段变更，必须显式 changed()（见 CLAUDE.md）
+    (contract as any).clauses = clauses;
+    (contract as any).changed('clauses', true);
+    await contract.save();
+
+    rev.status = '已应用';
+    (rev as any).appliedBy = (req as any).user?.userId ?? null;
+    (rev as any).appliedAt = new Date();
+    if (req.body?.notes) (rev as any).notes = String(req.body.notes);
+    await rev.save();
+
+    broadcast('contract:clauses-updated', { contractId: Number(req.params.id), revisionId: rev.id, clauseCount: clauses.length });
+    res.json({ code: 200, data: { contractId: Number(req.params.id), clauseCount: clauses.length, status: rev.status } });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '应用修订失败' });
+  }
+});
+
+// POST /:id/clause-revisions/:revId/ignore — 忽略该修订
+router.post('/:id/clause-revisions/:revId/ignore', requirePermission('contract', 'update'), auditLog('合同', '忽略条款修订'), async (req: AuthRequest, res) => {
+  try {
+    const rev = await ContractClauseRevision.findOne({ where: { id: req.params.revId, contractId: req.params.id } });
+    if (!rev) return res.status(404).json({ code: 404, message: '修订记录不存在' });
+    rev.status = '已忽略';
+    if (req.body?.notes) (rev as any).notes = String(req.body.notes);
+    await rev.save();
+    res.json({ code: 200, data: { id: rev.id, status: rev.status } });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '忽略修订失败' });
   }
 });
 

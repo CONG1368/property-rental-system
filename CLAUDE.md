@@ -468,6 +468,18 @@ fireSafety: {
 
 **打印裁剪（用户 2026-10-10 要求）**：`buildFireSafetyHTML` **只打印合同约定性质的文字**——消防条款、禁止事项、配备器材、违规处罚；**`responsibilityParty`（消防责任方）与 `inspectionFrequency`（检查频率）属于内部管理口径，不再上纸**。若一份合同只配了这两项（没有任何条款/限制/器材/处罚），该区块**整段不输出**，避免合同上留一个空标题。起草页与合同详情页仍照常显示这两个字段（内部可见），只是不进打印模板。改这里别把 `frontend/tests/unit.test.ts` 的「合同消防安全约定区块」2 条用例改红。
 
+### 合同条款修订比对（用户 2026-10-11 要求）
+
+**需求**：租户把改过的合同回传后，用户上传即可自动导入并提示「改了哪些内容」，方便逐条查看与采纳。
+
+**实现**：
+- 纯函数服务 `services/clause-diff.ts`：`splitClausesFromText()` 四级拆条（第X条 → 中文数字 → 阿拉伯数字 → 自然段），**且只取「合同条款」章节范围**（否则整份合同里的当事人表/金额表/签章区会被当成条款正文）；`diffClauseLists()` 先按「去编号后的标题」配对，再按正文句子重合度 ≥50% 配对，剩下的判为新增/删除；正文差异走 LCS 句子级 `diffFragments()`，产出 same/add/remove 片段供前端高亮。
+- 模型 `models/ContractClauseRevision.ts`（新表 `contract_clause_revisions`，由 `sync()` 直接创建，**不需要迁移条目**）：文件名/类型/条款数/增删改计数/摘要/逐条提示/完整 diff/解析出的条款/状态（待处理·已应用·已忽略）/上传人/应用人/应用时间。
+- 路由 `routes/contracts.ts`：`POST /:id/clause-diff`（上传即解析+比对+建「待处理」记录；multer 实例 `revisionUpload` 只收 .docx/.doc/.pdf 且带 fileFilter，满足 R5）、`GET /:id/clause-revisions`（列表，`attributes.exclude` 掉 diff/parsedClauses 大字段）、`GET /:id/clause-revisions/:revId`（详情含差异）、`POST …/apply`、`POST …/ignore`；三个写操作均挂 `auditLog('合同', …)`。
+- **JSON 字段更新必须走 `.changed('clauses', true)` 再 save**（SQLite 上 `update()` 检测不到 JSON 变更，见上文陷阱），应用修订时即用此模式写回合同条款。
+- 文本提取统一走 `extractUploadText()`（mammoth / word-extractor / pdf-parse），与既有 `extract-clause-text` 端点共用同一份实现。
+- 前端 `components/modules/contract/ClauseRevisionPanel.vue`（挂在合同详情页「合同条款」卡片下方）：el-upload 直传（`apiBaseURL` + Bearer 头）→ 黄色告警提示待确认修订与摘要 → 差异对话框（新增绿色/删除红色删除线，颜色取 `--el-color-*` 令牌，符合 R2）→ 应用/忽略；应用后 emit `applied` 触发详情页刷新。
+- **验证手法**：后端单测 9 条（拆条、标题归一化、新增/修改/删除、标题改动仍能配对、片段差异、章节作用域）；端到端实测（临时后端 3002 + 真实接口）：上传修订版 docx → 返回「新增 1 条、修改 1 条」与片段 `same:仅用于居住。 add:可自住。` → 应用后合同条款变为 3 条 → 复原并清理 `contract_clause_revisions`（表归零，演示库不留痕）。
 ### 条款批量导入
 
 **后端端点**：

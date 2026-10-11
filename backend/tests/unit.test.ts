@@ -7,6 +7,7 @@ import { canTransition } from '../src/services/voucher-status-machine.js';
 import { readSheetAsObjects, buildWorkbookBuffer, writeWorkbookFile } from '../src/utils/excel.js';
 import { nextBillPeriod, firstPeriodMonths } from '../src/services/bill-generator.js';
 import { buildBillItemsFromContract, buildManualBillItems, summarizeItems, mapItemToColumn, lineAmount } from '../src/services/bill-items.js';
+import { splitClausesFromText, diffClauseLists, diffFragments, titleKey } from '../src/services/clause-diff.js';
 
 describe('身份证校验（ISO 7064:1983 MOD 11-2）', () => {
   it('接受校验位正确的号码', () => {
@@ -199,5 +200,91 @@ describe('账单费用明细折算（用户 2026-10-10，方案 B）', () => {
     expect(lines[0].source).toBe('合同');
     expect(lineAmount(2.5, 88.5, 12)).toBe(2655);
     expect(lineAmount(200, 12, 0)).toBe(2400);      // 月数为 0 视为 1
+  });
+});
+
+
+describe('合同条款比对（用户 2026-10-11 要求：上传租户修订版，自动提示改了哪些条款）', () => {
+  it('按「第X条」拆条，标题保留用户原文（含编号），正文归入该条', () => {
+    const items = splitClausesFromText('甲方：某某物业公司\n第一条　房屋用途\n仅用于居住，不得改作他用。\n第二条　转租限制\n未经书面同意不得转租。\n不得分租。');
+    // 编号之前的抬头文字作为「无标题条款」保留（打印时只出正文段落）
+    expect(items[0].title).toBe('');
+    expect(items[0].content).toBe('甲方：某某物业公司');
+    expect(items[1].title).toBe('第一条　房屋用途');
+    expect(items[1].content).toBe('仅用于居住，不得改作他用。');
+    expect(items[2].title).toBe('第二条　转租限制');
+    expect(items[2].content).toBe('未经书面同意不得转租。\n不得分租。');
+  });
+
+  it('整份合同上传时只取「合同条款」章节，签章区与其它章节不算条款', () => {
+    const full = [
+      '物业租赁合同', '合同编号：HT-001', '一、合同当事人', '出租方（甲方）', '名称：某某物业公司',
+      '五、合同条款', '第1条　房屋用途', '仅用于居住。', '第2条　转租限制', '不得转租。',
+      '六、消防安全约定', '禁止电动车入户充电。', '日期：＿＿＿＿年＿＿月＿＿日', '甲方：＿',
+    ].join('\n');
+    const items = splitClausesFromText(full);
+    expect(items.map((i) => i.title)).toEqual(['第1条　房屋用途', '第2条　转租限制']);
+    expect(items[1].content).toBe('不得转租。');
+    expect(items.some((i) => i.content.includes('禁止电动车'))).toBe(false);
+  });
+
+  it('没有编号时按自然段拆条，标题留空', () => {
+    const items = splitClausesFromText('第一段内容。\n\n第二段内容。');
+    expect(items.map((i) => i.title)).toEqual(['', '']);
+    expect(items.map((i) => i.content)).toEqual(['第一段内容。', '第二段内容。']);
+  });
+
+  it('中文数字与阿拉伯数字编号都能识别', () => {
+    expect(splitClausesFromText('一、房屋用途\n居住。').map((i) => i.title)).toEqual(['一、房屋用途']);
+    expect(splitClausesFromText('1. 房屋用途\n居住。').map((i) => i.title)).toEqual(['1. 房屋用途']);
+  });
+
+  it('标题归一化忽略编号与标点（第一条/一、/1. 视作同一条）', () => {
+    expect(titleKey('第一条　房屋用途')).toBe(titleKey('1. 房屋用途'));
+    expect(titleKey('一、转租限制')).toBe('转租限制');
+  });
+
+  it('新增 / 修改 / 删除 三类变化都能识别，并给出中文提示', () => {
+    const oldList = [
+      { title: '第一条　房屋用途', content: '仅用于居住。', sortOrder: 0 },
+      { title: '第二条　转租限制', content: '不得转租。', sortOrder: 1 },
+    ];
+    const newList = [
+      { title: '第一条　房屋用途', content: '仅用于居住。可自住。', sortOrder: 0 },
+      { title: '第三条　消防补充', content: '禁止电动车入户充电。', sortOrder: 1 },
+    ];
+    const d = diffClauseLists(oldList, newList);
+    expect(d.counts).toEqual({ added: 1, removed: 1, modified: 1, unchanged: 0 });
+    expect(d.summary).toBe('新增 1 条、修改 1 条、删除 1 条');
+    expect(d.details.join(' | ')).toContain('房屋用途');
+    expect(d.details.join(' | ')).toContain('消防补充');
+    const modified = d.items.find((i) => i.status === 'modified')!;
+    expect(modified.fragments.some((f) => f.type === 'add' && f.text.includes('可自住'))).toBe(true);
+    expect(d.items.find((i) => i.status === 'removed')!.oldTitle).toContain('转租限制');
+  });
+
+  it('标题改了但正文没改：仍按同一条处理（不会误报成新增+删除）', () => {
+    const d = diffClauseLists(
+      [{ title: '第二条　转租限制', content: '不得转租。', sortOrder: 0 }],
+      [{ title: '第二条　转租与分租限制', content: '不得转租。', sortOrder: 0 }],
+    );
+    expect(d.counts).toEqual({ added: 0, removed: 0, modified: 1, unchanged: 0 });
+    expect(d.items[0].titleChanged).toBe(true);
+    expect(d.items[0].note).toContain('标题由');
+  });
+
+  it('条款完全一致时提示「未检测到条款变化」', () => {
+    const list = [{ title: '第一条　房屋用途', content: '仅用于居住。', sortOrder: 0 }];
+    const d = diffClauseLists(list, list);
+    expect(d.summary).toBe('未检测到条款变化');
+    expect(d.counts).toEqual({ added: 0, removed: 0, modified: 0, unchanged: 1 });
+  });
+
+  it('句子级差异能定位到具体增删的句子', () => {
+    expect(diffFragments('甲。乙。', '甲。丙。')).toEqual([
+      { type: 'same', text: '甲。' },
+      { type: 'remove', text: '乙。' },
+      { type: 'add', text: '丙。' },
+    ]);
   });
 });

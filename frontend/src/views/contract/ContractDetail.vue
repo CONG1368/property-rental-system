@@ -229,8 +229,11 @@
           </el-card>
         </el-timeline-item>
       </el-timeline>
-      <el-empty v-else description="本合同暂无条款约定" :image-size="40" />
+      <el-empty v-else description="本合同暂无条款约定（留空则合同不打印条款章节）" :image-size="40" />
     </el-card>
+
+    <!-- 租户条款修订：上传回传文件 → 自动比对 → 提示改了哪些 → 一键应用 -->
+    <ClauseRevisionPanel v-if="contract?.id" :contract-id="contract.id" style="margin-top:16px" @applied="fetchContract" />
 
     <!-- 续约对话框 -->
     <el-dialog title="合同续约" v-model="renewVisible" width="450px">
@@ -247,6 +250,7 @@
 
 <script setup lang="ts">
 import DataTable from '@/components/base/DataTable.vue';
+import ClauseRevisionPanel from '@/components/modules/contract/ClauseRevisionPanel.vue';
 import type { TableColumn } from '@/components/base/types';
 
 const COLUMNS: TableColumn[] = [
