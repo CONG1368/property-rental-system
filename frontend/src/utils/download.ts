@@ -43,11 +43,18 @@ export async function downloadWithAuth(
   const fnMatch = cd.match(/filename*?=(?:UTF-8'')?"?([^";]+)"?/i);
   const name = fnMatch ? decodeURIComponent(fnMatch[1]).replace(/"/g, '') : filename;
 
-  const blob = await resp.blob();
+  saveBlob(await resp.blob(), name);
+}
+
+/**
+ * 把本地生成的 Blob 存成本地文件（开发与 Electron 生产走同一套逻辑：触发浏览器下载）。
+ * 用途：前端本地生成的 Word(.docx) 等文件导出。
+ */
+export function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = name;
+  a.download = filename;
   a.style.display = 'none';
   document.body.appendChild(a);
   a.click();

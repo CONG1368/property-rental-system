@@ -228,6 +228,18 @@ export function buildContractHTML(data: ContractPrintData): string {
   // === 条款 ===
   const rawClauses = data.clauses && Array.isArray(data.clauses) ? data.clauses : [];
   const uniqueClauses = deduplicateClauses(rawClauses).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  // 条款排版规则（用户 2026-10-11 要求：条款完全由用户自定义排版，系统不再自动生成条款、也不再强行编号）
+  // ① 只要有一条条款标题自带编号（第一条 / 一、 / 1. /（一）…），就认为整体用用户自己的编号体系 → 全部原样打印
+  // ② 标题为空时只打印内容段落（可当纯文本条款）
+  // ③ 用户没编号时，系统才补「第N条」，保持旧观感
+  const CLAUSE_NUM_RE = /^\s*(第[0-9一二三四五六七八九十百零〇两]+[条章节款项]|[0-9]+\s*[.、．)）]|[（(]\s*[0-9一二三四五六七八九十]+\s*[)）]|[一二三四五六七八九十]+\s*[、.．])/;
+  const userNumbered = uniqueClauses.some((c) => CLAUSE_NUM_RE.test((c.title || '').trim()));
+  const clauseHeading = (c: { title: string; content: string }, index: number): string => {
+    const title = (c.title || '').trim();
+    if (!title) return '';
+    if (userNumbered || CLAUSE_NUM_RE.test(title)) return title;
+    return `第${index + 1}条　${title}`;
+  };
 
   // === 章节计数器 ===
   const CN = '一二三四五六七八九十';
@@ -363,22 +375,16 @@ export function buildContractHTML(data: ContractPrintData): string {
     ${wrapTextAsParagraphs(data.notes, 'line-height:2')}
   </div>` : ''}
 
-  <!-- ====== 合同条款 ====== -->
+  <!-- ====== 条款区（用户 2026-10-11 要求：不再自动生成兜底条款，条款为空时整段不出）====== -->
+  ${uniqueClauses.length > 0 ? `
   <div class="section">
     <h3>${sn()}、合同条款</h3>
-    ${uniqueClauses.length > 0 ? uniqueClauses.map((c, i) => `
+    ${uniqueClauses.map((c, i) => `
     <div style="margin:6px 0 18px">
-      <p style="font-weight:bold;margin:0 0 4px">第${i + 1}条　${c.title}</p>
+      ${clauseHeading(c, i) ? `<p style="font-weight:bold;margin:0 0 4px">${clauseHeading(c, i)}</p>` : ''}
       ${wrapTextAsParagraphs(c.content, 'color:#333')}
-    </div>`).join('') : `
-    <div style="margin:4px 0">
-      <p style="text-indent:2em;margin:8px 0">1. 乙方应按约定时间及时缴纳租金及相关费用，逾期甲方有权按合同约定收取违约金。</p>
-      <p style="text-indent:2em;margin:8px 0">2. 乙方不得擅自改变房屋用途或转租，如需变更应征得甲方书面同意。</p>
-      <p style="text-indent:2em;margin:8px 0">3. 租赁期满，乙方如需续租应提前${data.renewalNotice ?? 30}日书面通知甲方。</p>
-      <p style="text-indent:2em;margin:8px 0">4. 本合同一式两份，甲乙双方各执一份，具有同等法律效力。</p>
-      <p style="text-indent:2em;margin:8px 0">5. 本合同自双方签章之日起生效。</p>
-    </div>`}
-  </div>
+    </div>`).join('')}
+  </div>` : ''}
 
   ${buildFireSafetyHTML(data)}
 

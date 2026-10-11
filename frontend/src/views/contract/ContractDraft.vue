@@ -337,7 +337,7 @@
         </div>
         <el-input v-model="clause.content" type="textarea" :rows="3" placeholder="条款内容" />
       </div>
-      <el-empty v-if="clauses.length === 0" description="暂无条款，请选择模板或手动添加" :image-size="40" />
+      <el-empty v-if="clauses.length === 0" description="暂无条款：可手动添加、选模板或导入条款文档；留空则合同不打印条款章节（系统不会再自动补条款）" :image-size="40" />
     </el-card>
 
     <!-- 合同附件（保存后可用） -->

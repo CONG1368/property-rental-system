@@ -10,6 +10,7 @@
             <el-dropdown-menu>
               <el-dropdown-item command="native"><el-icon><Printer /></el-icon> 直接打印</el-dropdown-item>
               <el-dropdown-item command="pdf"><el-icon><Document /></el-icon> 导出PDF</el-dropdown-item>
+          <el-dropdown-item command="docx"><el-icon><Document /></el-icon> 导出Word</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -260,6 +261,8 @@ import { ElMessage } from 'element-plus';
 import { Printer, ArrowDown, Document } from '@element-plus/icons-vue';
 import request, { apiBaseURL } from '@/api/request';
 import { printDocument, isElectron, formatDate } from '@/utils/print-service';
+import { saveBlob } from '@/utils/download';
+import { buildDocxBlob } from '@/utils/docx';
 import { buildContractHTML } from '@/components/print/ContractPrint';
 
 const route = useRoute();
@@ -437,12 +440,11 @@ async function getCompanyInfo() {
   return { companyName, companyLogo, companySeal, companyIdType, companyIdNumber, companyPhone, companyAddress, companyPostcode, companySigner };
 }
 
-async function handlePrint(mode: string) {
-  if (!contract.value) return;
-  try {
-    const info = await getCompanyInfo();
-	    const bc = contract.value?.billingConfig || {};
-    const html = buildContractHTML({
+/** 组装合同打印数据：直接打印 / 导出PDF / 导出Word 共用同一份数据，三种输出内容完全一致 */
+async function buildPrintData() {
+  const info = await getCompanyInfo();
+  const bc: any = contract.value?.billingConfig || {};
+  return {
       contractNo: contract.value.contractNo,
       propertyName: contract.value.property?.name || '-',
       propertyAddress: contract.value.property?.address || '',
@@ -483,10 +485,23 @@ async function handlePrint(mode: string) {
       terminationNotice: bc.terminationNotice ?? 30,
       renewalNotice: bc.renewalNotice ?? 30,
       subletAllowed: bc.subletAllowed ?? false,
-      fireSafety: fireSafety.value,
-      ...info,
-    });
-    await printDocument({ title: `租赁合同_${contract.value.contractNo}`, paperSize: 'A4', htmlContent: html, mode: mode as any });
+    fireSafety: fireSafety.value,
+    ...info,
+  };
+}
+
+async function handlePrint(mode: string) {
+  if (!contract.value) return;
+  try {
+    const html = buildContractHTML(await buildPrintData() as any);
+    const fileName = `租赁合同_${contract.value.contractNo}`;
+    if (mode === 'docx') {
+      // Word 导出（用户 2026-10-11 要求）：由打印 HTML 转成标准 .docx，中文字体显式声明，文字清晰不乱码
+      saveBlob(await buildDocxBlob(html, { title: fileName }), `${fileName}.docx`);
+      ElMessage.success('Word 已导出（保存在默认下载目录）');
+      return;
+    }
+    await printDocument({ title: fileName, paperSize: 'A4', htmlContent: html, mode: mode as any });
     ElMessage.success(mode === 'native' ? '已发送到打印机' : 'PDF导出成功');
   } catch (e: any) { ElMessage.error(e.message || '打印失败'); }
 }

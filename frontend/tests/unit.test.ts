@@ -3,6 +3,8 @@ import { toChineseAmount, formatDate } from '@/utils/print-service';
 import { buildBillHTML } from '@/components/print/BillPrint';
 import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 import { buildContractHTML } from '@/components/print/ContractPrint';
+import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
+import JSZip from 'jszip';
 import { readSheetAsObjects, buildWorkbookBlob } from '@/utils/excel';
 
 describe('金额大写（打印/收据的法律要件）', () => {
@@ -211,6 +213,120 @@ describe('首期应交租金可自定义（用户 2026-10-10 要求）', () => {
     expect(withFees({})).toContain('42000.00');
     expect(withFees({ firstPeriodRent: 108000 })).toContain('126000.00');
     expect(withFees({ firstPeriodRent: 108000 })).not.toContain('114000.00');
+  });
+});
+
+describe('合同 Word 导出（用户 2026-10-11 要求：字体清晰、绝不能模糊或乱字符）', () => {
+  const base: any = {
+    contractNo: 'HT-DOCX-001', propertyName: '翡翠湾A座101', propertyAddress: '示例路1号', propertyArea: 88.5,
+    tenantName: '张三', tenantIdType: '身份证', tenantIdNumber: '320102199001011234', tenantPhone: '13800138000',
+    tenantLegalPerson: '李四', tenantSignAddress: '南京市玄武区示例路1号', tenantPostcode: '210008',
+    tenantBankName: '招商银行示例支行', tenantBankAccount: '6214830200112233',
+    startDate: '2026-01-01', endDate: '2027-12-31', rentAmount: 3000, depositAmount: 4500, performancePenalty: 3000,
+    firstPeriodRent: 9000, paymentCycle: '季', status: '已签订', notes: '双方另约定：物业费由乙方承担。',
+    companyName: '回归测试物业公司', companyPhone: '025-88880000', companySigner: '张经理',
+    companyAddress: '南京市建邺区示例大道9号', companyPostcode: '210019',
+    bankName: '中国工商银行示例支行', bankAccountName: '回归测试物业公司', bankAccountNumber: '6222020200112233',
+    clauses: [{ title: '第一条　房屋用途', content: '仅用于居住 & 经营，不得转租 <含转租>。', sortOrder: 1 }],
+  };
+  const readDoc = async (html: string) => {
+    const blob = await buildDocxBlob(html, { title: '物业租赁合同' });
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    return { blob, zip, doc: await zip.file('word/document.xml')!.async('string') };
+  };
+  const plain = (xml: string) => xml.replace(/<[^>]+>/g, '');
+
+  it('产出的是合法 docx 包：ZIP 结构与 8 个必需部件齐全', async () => {
+    const { blob, zip } = await readDoc(buildContractHTML(base));
+    expect(blob.type).toBe(DOCX_MIME);
+    for (const part of ['[Content_Types].xml', '_rels/.rels', 'word/document.xml', 'word/styles.xml', 'word/settings.xml', 'word/_rels/document.xml.rels', 'docProps/core.xml', 'docProps/app.xml']) {
+      expect(await zip.file(part)?.async('string')).toBeTruthy();
+    }
+  });
+
+  it('中文字体显式声明（宋体 eastAsia + Times New Roman），正文是文字不是位图', async () => {
+    const { zip, doc } = await readDoc(buildContractHTML(base));
+    expect(doc).toContain('w:eastAsia="宋体"');
+    expect(doc).toContain('w:ascii="Times New Roman"');
+    expect(doc).toContain('w:eastAsia="黑体"');
+    expect(await zip.file('word/styles.xml')!.async('string')).toContain('w:eastAsia="宋体"');
+    expect(doc).not.toContain('<w:drawing');
+  });
+
+  it('文本全部走 XML 转义：& < > 不会破坏文档结构', async () => {
+    const { doc } = await readDoc(buildContractHTML(base));
+    expect(doc).toContain('仅用于居住 &amp; 经营，不得转租 &lt;含转租&gt;。');
+    expect(doc).not.toContain('不得转租 <含转租>');
+  });
+
+  it('Word 正文与打印 HTML 同源：标题/编号/金额/条款/签章字段都在', async () => {
+    const { doc } = await readDoc(buildContractHTML(base));
+    const text = plain(doc);
+    for (const s of ['物业租赁合同', '合同编号：HT-DOCX-001', '出租方（甲方）', '回归测试物业公司', '承租方（乙方）', '张三',
+                     '翡翠湾A座101', '第一条　房屋用途', '双方另约定：物业费由乙方承担', '履约违约金', '首期应交租金',
+                     '招商银行示例支行', '6214830200112233', '日期：']) {
+      expect(text).toContain(s);
+    }
+  });
+
+  it('没有条款时 Word 同样不出现兜底条款与条款章节', async () => {
+    const { doc } = await readDoc(buildContractHTML({ ...base, clauses: [] }));
+    const text = plain(doc);
+    expect(text).not.toContain('乙方应按约定时间及时缴纳租金');
+    expect(text).not.toContain('合同条款');
+  });
+});
+
+describe('合同条款排版（用户 2026-10-11 要求：取消系统兜底、条款完全由用户自定义）', () => {
+  const base: any = {
+    contractNo: 'HT-CLAUSE-001', propertyName: 'A栋101', propertyAddress: '示例路1号', propertyArea: 88,
+    tenantName: '张三', startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 3000, depositAmount: 3000,
+    paymentCycle: '月', status: '已签订', notes: '', companyName: '回归测试物业公司', renewalNotice: 30,
+  };
+
+  it('没有任何条款时，合同不再自动补兜底条款，且不出现「合同条款」章节', () => {
+    for (const html of [buildContractHTML({ ...base, clauses: [] }), buildContractHTML(base)]) {
+      expect(html).not.toContain('合同条款');
+      expect(html).not.toContain('乙方应按约定时间及时缴纳租金');
+      expect(html).not.toContain('本合同一式两份');
+    }
+  });
+
+  it('用户自带编号时原样打印，不再叠加系统「第N条」', () => {
+    const html = buildContractHTML({
+      ...base,
+      clauses: [
+        { title: '第一条　房屋用途', content: '仅用于居住，不得改作他用。', sortOrder: 1 },
+        { title: '二、转租限制', content: '未经甲方书面同意不得转租。', sortOrder: 2 },
+      ],
+    });
+    expect(html).toContain('第一条　房屋用途');
+    expect(html).toContain('二、转租限制');
+    expect(html).not.toContain('第1条　第一条');
+    expect(html).not.toContain('第2条　二、');
+    expect(html).toContain('仅用于居住，不得改作他用。');
+  });
+
+  it('用户没编号时仍按顺序补「第N条」', () => {
+    const html = buildContractHTML({
+      ...base,
+      clauses: [
+        { title: '房屋用途', content: '仅用于居住。', sortOrder: 1 },
+        { title: '转租限制', content: '不得转租。', sortOrder: 2 },
+      ],
+    });
+    expect(html).toContain('第1条　房屋用途');
+    expect(html).toContain('第2条　转租限制');
+  });
+
+  it('标题留空时只打印内容段落（可当纯文本条款用）', () => {
+    const html = buildContractHTML({
+      ...base,
+      clauses: [{ title: '', content: '双方另行约定：租期内甲方不得随意涨租。', sortOrder: 1 }],
+    });
+    expect(html).toContain('双方另行约定：租期内甲方不得随意涨租。');
+    expect(html).toContain('合同条款');
+    expect(html).not.toContain('第1条　');
   });
 });
 

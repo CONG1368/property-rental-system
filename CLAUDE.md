@@ -85,6 +85,7 @@ node scripts/generate-proposal-pdf.js
 | PDF 导出 | Electron printToPDF（文字PDF，主路径）+ html2canvas/jspdf（截图回退） | 打印/导出 |
 | 文档解析 | mammoth (.docx) + word-extractor (.doc) + pdf-parse v2 (.pdf) | 条款文本提取 |
 | Excel 读写 | **exceljs**（前后端统一，已彻底移除 xlsx；仅支持 .xlsx） | 导入/导出 |
+| Word 导出 | **jszip** 手工拼标准 OOXML(.docx)：`frontend/src/utils/docx.ts`（打印 HTML → Word），字体显式声明宋体/Times New Roman | 3.10 |
 | 状态管理 | Pinia | 2.1 |
 | 路由 | Vue Router 4 (hash 模式) | 4.3 |
 | HTTP 客户端 | Axios (拦截器自动附加 Bearer token + 401 自动刷新) | - |
@@ -533,6 +534,10 @@ window.electronAPI.printHTML(html: string, title: string): Promise<{ success: bo
 
 **ContractPrint.ts**（合同打印模板）采用正式法律合同排版：双横线装饰标题、双方当事人两列表格对比、统一表格边框 `#999` 实线、底部**甲乙双方签约信息栏**（两列字段表：甲方 名称/签约代表人/地址/电话/邮编/开户银行/帐户名/帐号，乙方 名称/法定代表人/（授权代表）/身份证号码/地址/电话/邮编/开户银行/帐号，各自带签署日期；有值带出、无值留空划线）、章节中文数字编号（一~七）、页脚含合同编号和签订日期。**抬头只印合同编号、不打印合同状态**（用户 2026-10-10 要求：给租户正式签署的合同上不能出现「起草中」这类状态提示，已由 `frontend/tests/unit.test.ts` 锁定；`status` 字段仍传入但不再上纸）。`billingConfig.fireSafety` 消防约定通过 `buildFireSafetyHTML()` 渲染为独立区块。
 
+**条款排版规则（用户 2026-10-11 要求：不写死、不兜底）**：① **删除了原先"条款为空时自动补 5 条通用条款"的兜底**——条款为空则整个条款章节不出（`uniqueClauses.length > 0` 才渲染，注意因此 `sn()` 章节号会顺延，不要把它挪到模板外提前求值，否则章节编号会错位）；② `clauseHeading()` 决定条款标题：只要**任一条**标题自带编号（第一条 / 一、 / 1. /（一）…，正则 `CLAUSE_NUM_RE`）就整体沿用用户编号、**系统不再叠加「第N条」**；标题留空只打印正文段落；用户没编号时才补「第N条」。改这里别把 `frontend/tests/unit.test.ts` 的「合同条款排版」4 条用例改红。
+
+**Word 导出（用户 2026-10-11 要求：除 PDF 外要 Word 版，字必须清晰、不能模糊或乱字符）**：`frontend/src/utils/docx.ts` 的 `buildDocxBlob(html)` 把**打印模板产出的 HTML**（唯一数据源，保证 Word 与 PDF 内容一致）用 DOMParser 走成 OOXML：`[Content_Types].xml` / `_rels/.rels` / `word/document.xml` / `word/styles.xml` / `word/settings.xml` / `word/document.xml.rels` / `docProps/*`，再用 **jszip** 打包成真正的 .docx（**不是 HTML 改扩展名**，不会触发 Word「文件格式与扩展名不符」）。要点：① 字体**显式声明** `w:eastAsia="宋体"`（h1 用黑体）+ `w:ascii/w:hAnsi="Times New Roman"`，避免 Word 字体替换导致中文变方框/乱码；② 正文全部是文字（**不嵌 Logo/签章图片**，避免位图放大发虚，`w:drawing` 计数为 0）；③ 文本经 `esc()` 做 XML 转义并剔除 XML 1.0 非法控制字符；④ `.sign-area` 特判成两列表格，左右不串行；⑤ px→半点按 `px*1.5` 换算。**验证手法**：`backend/package.json` 已有 mammoth（Word 解析器）与 @xmldom/xmldom，用 `mammoth.extractRawText({buffer})` 读回导出的 docx 检查中文是否完整、`U+FFFD` 乱码字符数为 0、解析告警 0，再用 xmldom 严格解析 `word/document.xml` 确认 XML 合法（合法 Word 才不会提示修复）。前端保存走 `utils/download.ts` 的 `saveBlob()`（Electron 与浏览器同一套 <a download> 逻辑，落默认下载目录）。
+
 **打印模板多行文本处理（重要）**：HTML 中 `\n` 换行符会被折叠为空格，导致多段落文本挤在一起。`ContractPrint.ts` 提供了两个工具函数：
 
 ```typescript
@@ -697,7 +702,7 @@ off('room:status-changed', callback);
 
 **打印模板**：`frontend/src/components/print/` 下 6 个纯函数（数据→HTML 字符串，内联 CSS）：`ContractPrint`（合同，法律格式+Logo+底部甲乙双方签约信息栏）、`TenantInfoPrint`（租客信息表+合同列表）、`BillPrint`（账单，含金额大写）、`ReceiptPrint`（80mm 热敏收据）、`ContractBatchPrint`（批量汇总表）、`BriefingPrint`（月度经营简报）。
 
-**打印入口**：合同详情页（头部打印下拉：直接打印 / 导出PDF）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
+**打印入口**：合同详情页（头部打印下拉：直接打印 / 导出PDF / **导出Word**）、租客详情页（头部打印按钮）、收租管理列表（每行操作列，已缴→收据、未缴→账单）、合同管理列表（批量操作栏，勾选后一键批量打印）。
 
 **打印设置**：`PrintSettings.vue`（`/system/print-settings`）— 配置公司全称/Logo/电子签章/证件类型/证件号码/联系电话 + **公司地址/公司邮编/签约代表人**（共 9 个 system_configs key，后三项用于合同底部**甲方**签约信息栏），右侧实时预览合同抬头与签章区字段表。Base64 存储图片。
 
