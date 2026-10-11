@@ -13,6 +13,7 @@ declare module 'vue' {
     Breadcrumb: typeof import('./src/components/layout/Breadcrumb.vue')['default']
     BuildingFloorSelector: typeof import('./src/components/BuildingFloorSelector.vue')['default']
     ClausePreview: typeof import('./src/components/modules/contract/ClausePreview.vue')['default']
+    ClauseRevisionPanel: typeof import('./src/components/modules/contract/ClauseRevisionPanel.vue')['default']
     DashboardShell: typeof import('./src/components/surfaces/DashboardShell.vue')['default']
     DataTable: typeof import('./src/components/base/DataTable.vue')['default']
     DateText: typeof import('./src/components/base/DateText.vue')['default']
