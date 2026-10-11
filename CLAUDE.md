@@ -468,6 +468,18 @@ fireSafety: {
 
 **打印裁剪（用户 2026-10-10 要求）**：`buildFireSafetyHTML` **只打印合同约定性质的文字**——消防条款、禁止事项、配备器材、违规处罚；**`responsibilityParty`（消防责任方）与 `inspectionFrequency`（检查频率）属于内部管理口径，不再上纸**。若一份合同只配了这两项（没有任何条款/限制/器材/处罚），该区块**整段不输出**，避免合同上留一个空标题。起草页与合同详情页仍照常显示这两个字段（内部可见），只是不进打印模板。改这里别把 `frontend/tests/unit.test.ts` 的「合同消防安全约定区块」2 条用例改红。
 
+### 催缴策略可配置（审计第 2 项；原实现的策略弹窗是空壳）
+
+**背景（两个问题）**：① 催缴节奏写死在 `dunning-engine.ts`（到期前 3 天；逾期 7 天站内信 / 30 天短信 / 60 天书面）；② 更严重——前端 `DunningCenter.vue` 的「催缴策略配置」弹窗调用的 `PUT /dunning/strategy` **只是把 body 原样回显**（既不落库也不生效），UI 默认值（提醒 7 天、一级 15 天）与引擎实际（3 天、7 天）还对不上；文档里"策略可独立配置""可通过短信/邮件发出"也是过度声明。
+
+**实现**：
+- `services/dunning-config.ts`（新）：`DunningStrategy`（autoDunning / remindBefore / levels[{days, channels[]}] / maxDailySends）+ `DUNNING_DEFAULTS`（**＝原写死节奏，老库行为零变化**）+ `DUNNING_CHANNELS`（站内信/短信/邮件/微信/书面）+ 纯函数 `parseDunningStrategy()`（坏 JSON/空阶梯/非法渠道一律回退）、`buildDunningLevels()`（策略→可执行阶梯：第 1 级为到期前提醒，逾期级标题固定从 `DUNNING_TITLES[1]`「租金催缴通知」起，**没有提醒级时第一级逾期也不会叫"到期提醒"**）、`validateDunningStrategy()`（区间与渠道校验、中文报错）+ `getDunningStrategy()`（读库回退默认）+ `ensureDunningConfig()`（幂等补 `system_configs.dunning_strategy`，`configGroup=催缴`）。
+- `services/dunning-engine.ts` 重写为**按策略循环执行**：`autoDunning=false` 直接返回 0；按 level 匹配（`daysBefore` 精确到期日 / `daysAfter` 用 `Op.lte`），`maxDailySends` 为 0 时不限制；**同一账单同一级别去重**（原实现的"到期前提醒"没有去重、会每天重复推送，已修正）；逾期则把账单标记为「逾期」。
+- **渠道真正外发**：站内信 → `broadcastNotification` + `notification:new`；短信 → `sendDunningSms(tenant.phone…)`（需 `isSmsConfigured()`）；邮件 → `sendMail(tenant.email…)`（需 `isMailerConfigured()`）；微信/书面仅记录渠道。**每个渠道独立 try/catch，发送失败只打日志，绝不中断催缴**（通知不是主流程）。催缴任务 `channel` 存所选渠道拼接，`dunning:new` 广播带 `channels`。
+- 路由 `routes/dunning.ts`：新增 `GET /dunning/strategy`（strategy/defaults/channels），**把原来的空壳 `PUT /dunning/strategy` 换成真实保存**（`validateDunningStrategy` 校验 → upsert `system_configs` → `auditLog('催缴','修改催缴策略')` + `requireConfirmPassword('修改催缴策略')`）。
+- 前端 `views/rent/DunningCenter.vue`：弹窗打开时从接口回填当前策略（原先不加载）、三级都补上渠道多选（新增「邮件」，并补上原先缺失的三级渠道）、`maxDailySends` 允许 0（不限）、保存走 `confirmWithPassword`；`api/dunning.ts` 增加 `getDunningStrategy()`。
+- 启动：`index.ts` Phase 3 调 `ensureDunningConfig()`。
+- **验证**：后端单测 4 条（默认＝原节奏、解析回退、阶梯构建与标题规则、校验报错）；端到端实测（临时后端 3002）：默认策略 = `3 / 7站内信 / 30短信 / 60书面 / 上限0`；保存新策略后**回读一致**（证明真落库，而非原来的回显）；非法阶梯 400、错误密码 403；**`autoDunning=false` 时手动跑 `POST /system-ops/cron/run/dunning` 派发 0 条且催缴任务总数 19→19 不变**（证明引擎真的按配置执行、且不产生副作用）；最后还原默认策略。
 ### 合同条款修订比对（用户 2026-10-11 要求）
 
 **需求**：租户把改过的合同回传后，用户上传即可自动导入并提示「改了哪些内容」，方便逐条查看与采纳。

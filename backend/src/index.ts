@@ -147,6 +147,8 @@ async function start() {
     await ensureIdCardConfig();
     const { ensureMeterPlatformConfig } = await import('./services/meter-platform.js');
     await ensureMeterPlatformConfig();
+  const { ensureDunningConfig } = await import('./services/dunning-config.js');
+  await ensureDunningConfig();   // 催缴策略（审计第 2 项：原前端策略弹窗是空壳，现真实落库并由引擎执行）
   const { ensureTaxRateConfigs } = await import('./services/tax-rates.js');
   await ensureTaxRateConfigs();   // 税务费率参数（用户 2026-10-11：税率不写死，首次运行补齐 6 个内置配置项）
     const demoState = await getDemoSeedState();

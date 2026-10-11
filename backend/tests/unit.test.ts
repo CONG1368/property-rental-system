@@ -9,6 +9,7 @@ import { nextBillPeriod, firstPeriodMonths } from '../src/services/bill-generato
 import { buildBillItemsFromContract, buildManualBillItems, summarizeItems, mapItemToColumn, lineAmount } from '../src/services/bill-items.js';
 import { splitClausesFromText, diffClauseLists, diffFragments, titleKey } from '../src/services/clause-diff.js';
 import { computeTaxAmounts, parseTaxRates, validateTaxRates, TAX_RATE_DEFAULTS } from '../src/services/tax-rates.js';
+import { parseDunningStrategy, buildDunningLevels, validateDunningStrategy, DUNNING_DEFAULTS } from '../src/services/dunning-config.js';
 
 describe('身份证校验（ISO 7064:1983 MOD 11-2）', () => {
   it('接受校验位正确的号码', () => {
@@ -325,5 +326,52 @@ describe('税务费率可配置（用户 2026-10-11 要求：税率不写死）'
   it('销项/进项导出税率也可配（默认 9% / 6%）', () => {
     expect(TAX_RATE_DEFAULTS.outputRate).toBe(0.09);
     expect(TAX_RATE_DEFAULTS.inputRate).toBe(0.06);
+  });
+});
+
+describe('催缴策略可配置（审计第 2 项：原前端策略弹窗只回显、不落库也不生效）', () => {
+  it('默认策略与改造前写死的节奏一致（老库行为零变化）', () => {
+    expect(DUNNING_DEFAULTS.remindBefore).toBe(3);
+    expect(DUNNING_DEFAULTS.levels.map((l) => l.days)).toEqual([7, 30, 60]);
+    expect(DUNNING_DEFAULTS.levels.map((l) => l.channels.join('/'))).toEqual(['站内信', '短信', '书面']);
+    expect(DUNNING_DEFAULTS.maxDailySends).toBe(0);
+  });
+
+  it('parseDunningStrategy：合法值保留，坏 JSON/空阶梯/非法渠道回退默认', () => {
+    const p = parseDunningStrategy('{"autoDunning":false,"remindBefore":7,"levels":[{"days":15,"channels":["站内信","短信"]}],"maxDailySends":100}');
+    expect(p.autoDunning).toBe(false);
+    expect(p.remindBefore).toBe(7);
+    expect(p.levels).toEqual([{ days: 15, channels: ['站内信', '短信'] }]);
+    expect(p.maxDailySends).toBe(100);
+    expect(parseDunningStrategy('坏 JSON').remindBefore).toBe(3);
+    expect(parseDunningStrategy({ levels: [] }).levels.map((l) => l.days)).toEqual([7, 30, 60]);
+    expect(parseDunningStrategy({ levels: [{ days: 0 }] }).levels.map((l) => l.days)).toEqual([7, 30, 60]);
+    expect(parseDunningStrategy({ levels: [{ days: 10, channels: ['不存在的渠道'] }] }).levels[0].channels).toEqual(['站内信']);
+  });
+
+  it('buildDunningLevels：第 1 级是到期前提醒，其后按逾期天数升序编号并带标题', () => {
+    const levels = buildDunningLevels(DUNNING_DEFAULTS);
+    expect(levels.map((l) => l.level)).toEqual([1, 2, 3, 4]);
+    expect(levels[0]).toMatchObject({ daysBefore: 3, title: '租金到期提醒' });
+    expect(levels[3]).toMatchObject({ daysAfter: 60, channels: ['书面'], title: '最后催缴通知' });
+
+    const noRemind = buildDunningLevels({ ...DUNNING_DEFAULTS, remindBefore: 0 });
+    expect(noRemind[0].level).toBe(1);
+    expect(noRemind[0].daysAfter).toBe(7);
+    expect(noRemind[0].title).toBe('租金催缴通知');
+
+    const many = buildDunningLevels({ ...DUNNING_DEFAULTS, remindBefore: 0, levels: [{ days: 5, channels: ['站内信'] }, { days: 10, channels: ['短信'] }, { days: 20, channels: ['邮件'] }, { days: 40, channels: ['书面'] }, { days: 90, channels: ['站内信'] }] });
+    expect(many.map((l) => l.level)).toEqual([1, 2, 3, 4, 5]);
+    expect(many[4].title).toContain('逾期 90 天');
+  });
+
+  it('validateDunningStrategy：拦截空渠道、超范围天数与上限并给中文提示', () => {
+    expect(validateDunningStrategy(DUNNING_DEFAULTS).ok).toBe(true);
+    const bad = validateDunningStrategy({ levels: [{ days: 0, channels: [] }], remindBefore: 200, maxDailySends: -5 });
+    expect(bad.ok).toBe(false);
+    expect(bad.errors.join(' | ')).toContain('逾期天数');
+    expect(bad.errors.join(' | ')).toContain('至少选择一个催缴渠道');
+    expect(bad.errors.join(' | ')).toContain('到期前提醒天数');
+    expect(bad.errors.join(' | ')).toContain('每日最大发送量');
   });
 });

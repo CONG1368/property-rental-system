@@ -65,7 +65,7 @@
         </el-form-item>
         <el-form-item label="一级催缴-渠道">
           <el-checkbox-group v-model="strategyForm.level1Channels">
-            <el-checkbox label="站内信" /><el-checkbox label="短信" /><el-checkbox label="微信" />
+            <el-checkbox label="站内信" /><el-checkbox label="短信" /><el-checkbox label="邮件" /><el-checkbox label="微信" /><el-checkbox label="书面" />
           </el-checkbox-group>
         </el-form-item>
         <el-form-item label="二级催缴(逾期天数)">
@@ -73,14 +73,26 @@
         </el-form-item>
         <el-form-item label="二级催缴-渠道">
           <el-checkbox-group v-model="strategyForm.level2Channels">
-            <el-checkbox label="站内信" /><el-checkbox label="短信" /><el-checkbox label="微信" />
+            <el-checkbox label="站内信" /><el-checkbox label="短信" /><el-checkbox label="邮件" /><el-checkbox label="微信" /><el-checkbox label="书面" />
           </el-checkbox-group>
         </el-form-item>
         <el-form-item label="三级催缴(逾期天数)">
-          <el-input-number v-model="strategyForm.level3Days" :min="1" :max="90" style="width:100%" />
+          <el-input-number v-model="strategyForm.level3Days" :min="1" :max="365" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="三级催缴-渠道">
+          <el-checkbox-group v-model="strategyForm.level3Channels">
+            <el-checkbox label="站内信" /><el-checkbox label="短信" /><el-checkbox label="邮件" /><el-checkbox label="微信" /><el-checkbox label="书面" />
+          </el-checkbox-group>
         </el-form-item>
         <el-form-item label="每日最大发送量">
-          <el-input-number v-model="strategyForm.maxDailySends" :min="10" :max="1000" style="width:100%" />
+          <el-input-number v-model="strategyForm.maxDailySends" :min="0" :max="100000" style="width:100%" />
+          <span style="font-size:12px;color:var(--n-600)">0 = 不限制；超出上限的账单顺延到下次任务</span>
+        </el-form-item>
+        <el-form-item label=" ">
+          <span style="font-size:12px;color:var(--n-600);line-height:1.6">
+            保存后由「催缴升级」定时任务按此策略执行：站内信 / 短信 / 邮件会真实外发（短信、邮件需先在外部服务里配置密钥，未配置自动跳过）；
+            微信（需 openid）与书面（纸质邮寄）暂只记录渠道。同一账单同一级别只催一次。
+          </span>
         </el-form-item>
       </el-form>
       <template #footer><el-button @click="strategyVisible = false">取消</el-button><el-button type="primary" @click="saveStrategy">保存策略</el-button></template>
@@ -108,7 +120,8 @@ import { tokens } from '@/styles/tokens';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { getDunningTasks, dispatchDunning as apiDispatch, updateDunningStrategy, getArrearsAging } from '@/api/dunning';
+import { getDunningTasks, dispatchDunning as apiDispatch, getDunningStrategy, updateDunningStrategy, getArrearsAging } from '@/api/dunning';
+import { confirmWithPassword } from '@/utils/confirm-password';
 import { useWebSocket } from '@/composables/useWebSocket';
 
 const router = useRouter();
@@ -120,21 +133,58 @@ const filteredTasks = computed(() => tasks.value.filter((t: any) => String(t.lev
 
 // 策略配置
 const strategyVisible = ref(false);
+// 催缴策略：真实读写 /dunning/strategy。原先的 PUT 只是把 body 原样回显（既不落库也不生效），
+// 用户 2026-10-11 要求修好——现在保存后由「催缴升级」定时任务按策略执行，渠道真正外发。
 const strategyForm = ref({
   autoDunning: true,
-  remindBefore: 7,
-  level1Days: 15, level1Channels: ['站内信'],
-  level2Days: 30, level2Channels: ['站内信', '短信'],
-  level3Days: 60, level3Channels: ['站内信', '短信', '微信'],
-  maxDailySends: 200,
+  remindBefore: 3,
+  level1Days: 7, level1Channels: ['站内信'],
+  level2Days: 30, level2Channels: ['短信'],
+  level3Days: 60, level3Channels: ['书面'],
+  maxDailySends: 0,
 });
 
-function showStrategyDialog() { strategyVisible.value = true; }
-
-async function saveStrategy() {
+async function showStrategyDialog(): Promise<void> {
+  strategyVisible.value = true;
   try {
-    await updateDunningStrategy(strategyForm.value);
-    ElMessage.success('催缴策略已保存');
+    const res = await getDunningStrategy();
+    const s: any = res.data?.strategy || {};
+    const levels: any[] = Array.isArray(s.levels) ? s.levels : [];
+    const pick = (i: number, days: number, channels: string[]) => ({
+      days: Number(levels[i]?.days ?? days),
+      channels: Array.isArray(levels[i]?.channels) && levels[i].channels.length > 0 ? levels[i].channels : channels,
+    });
+    const l1 = pick(0, 7, ['站内信']);
+    const l2 = pick(1, 30, ['短信']);
+    const l3 = pick(2, 60, ['书面']);
+    strategyForm.value = {
+      autoDunning: s.autoDunning !== false,
+      remindBefore: Number(s.remindBefore ?? 3),
+      level1Days: l1.days, level1Channels: l1.channels,
+      level2Days: l2.days, level2Channels: l2.channels,
+      level3Days: l3.days, level3Channels: l3.channels,
+      maxDailySends: Number(s.maxDailySends ?? 0),
+    };
+  } catch { /* 拦截器已提示 */ }
+}
+
+async function saveStrategy(): Promise<void> {
+  const pwd = await confirmWithPassword('修改催缴策略会影响后续所有催缴动作，请输入当前登录密码确认');
+  if (!pwd) return;
+  const payload = {
+    autoDunning: strategyForm.value.autoDunning,
+    remindBefore: strategyForm.value.remindBefore,
+    maxDailySends: strategyForm.value.maxDailySends,
+    levels: [
+      { days: strategyForm.value.level1Days, channels: strategyForm.value.level1Channels },
+      { days: strategyForm.value.level2Days, channels: strategyForm.value.level2Channels },
+      { days: strategyForm.value.level3Days, channels: strategyForm.value.level3Channels },
+    ].filter((l) => Number(l.days) > 0),
+    confirmPassword: pwd,
+  };
+  try {
+    await updateDunningStrategy(payload);
+    ElMessage.success('催缴策略已保存，下次催缴任务按新策略执行');
     strategyVisible.value = false;
   } catch (err: any) { ElMessage.error(err?.response?.data?.message || '保存失败'); }
 }

@@ -6,105 +6,116 @@ import Contract from '../models/Contract.js';
 import dayjs from 'dayjs';
 import { broadcastNotification } from './notification.js';
 import { broadcast } from '../websocket/index.js';
+import { getDunningStrategy, buildDunningLevels, EffectiveDunningLevel } from './dunning-config.js';
+import { sendDunningSms, isSmsConfigured } from './sms-service.js';
+import { sendMail, isMailerConfigured } from './mailer.js';
 
-const DUNNING_LEVELS = [
-  { level: 1, daysBefore: 3, channel: '站内信' as const, title: '租金到期提醒' as const },
-  { level: 2, daysAfter: 7, channel: '站内信' as const, title: '租金催缴通知' as const },
-  { level: 3, daysAfter: 30, channel: '短信' as const, title: '租金逾期催缴' as const },
-  { level: 4, daysAfter: 60, channel: '书面' as const, title: '最后催缴通知' as const },
-];
-
+/**
+ * 催缴引擎（用户 2026-10-11：催缴阶梯/渠道/上限不再写死，按 system_configs.dunning_strategy 执行）。
+ * 默认策略与改造前写死的节奏一致（到期前 3 天提醒；逾期 7 天站内信、30 天短信、60 天书面），老库行为不变。
+ */
 export async function runDunningCheck(): Promise<number> {
+  const strategy = await getDunningStrategy();
+  if (!strategy.autoDunning) {
+    console.log('[Dunning] autoDunning=false，跳过本次催缴');
+    return 0;
+  }
+
+  const levels = buildDunningLevels(strategy);
+  const cap = strategy.maxDailySends > 0 ? strategy.maxDailySends : Number.MAX_SAFE_INTEGER;
   const today = dayjs().startOf('day');
   let dispatched = 0;
 
-  // Level 1: bills due in 3 days
-  const upcoming = await Bill.findAll({
-    where: {
-      status: '未缴',
-      dueDate: today.add(DUNNING_LEVELS[0].daysBefore!, 'day').format('YYYY-MM-DD'),
-    },
-  });
-  for (const bill of upcoming) {
-    dispatched += await createDunningTask(bill, DUNNING_LEVELS[0]);
-  }
+  for (const level of levels) {
+    if (dispatched >= cap) break;
 
-  // Levels 2-4: overdue bills
-  for (let i = 1; i < DUNNING_LEVELS.length; i++) {
-    const cfg = DUNNING_LEVELS[i];
-    const overdueBills = await Bill.findAll({
-      where: {
-        status: { [Op.in]: ['未缴', '部分缴'] },
-        dueDate: { [Op.lte]: today.subtract(cfg.daysAfter!, 'day').format('YYYY-MM-DD') },
-      },
-    });
-    for (const bill of overdueBills) {
-      // Check if we already sent this level
-      const existing = await DunningTask.findOne({
-        where: { billId: bill.id, level: cfg.level },
-      });
+    const bills = level.daysBefore
+      ? await Bill.findAll({ where: { status: '未缴', dueDate: today.add(level.daysBefore, 'day').format('YYYY-MM-DD') } })
+      : await Bill.findAll({
+          where: {
+            status: { [Op.in]: ['未缴', '部分缴'] },
+            dueDate: { [Op.lte]: today.subtract(level.daysAfter!, 'day').format('YYYY-MM-DD') },
+          },
+        });
+
+    for (const bill of bills) {
+      if (dispatched >= cap) break;
+      // 同一账单同一级别只发一次（原实现的「到期前提醒」没有去重、会每天重复推送，这里一并修正）
+      const existing = await DunningTask.findOne({ where: { billId: bill.id, level: level.level } });
       if (existing) continue;
-      dispatched += await createDunningTask(bill, cfg);
-      // Mark bill as overdue
-      if (bill.status === '未缴') {
+
+      dispatched += await createDunningTask(bill, level);
+      if (!level.daysBefore && bill.status === '未缴') {
         await bill.update({ status: '逾期' });
       }
     }
   }
 
   if (dispatched > 0) {
-    console.log(`[Dunning] Dispatched ${dispatched} dunning tasks`);
+    console.log('[Dunning] Dispatched ' + dispatched + ' dunning tasks');
   }
   return dispatched;
 }
 
-async function createDunningTask(
-  bill: any,
-  cfg: { level: number; channel: string; title: string }
-): Promise<number> {
+async function createDunningTask(bill: any, cfg: EffectiveDunningLevel): Promise<number> {
+  const channels = cfg.channels && cfg.channels.length > 0 ? cfg.channels : ['站内信'];
+  const amount = Number(bill.totalAmount || 0);
+  const content = '账单' + bill.billNo + '（金额¥' + amount.toFixed(2) + '）' + cfg.title + '，请尽快缴纳';
+
   const task = await DunningTask.create({
     billId: bill.id,
     level: cfg.level,
-    channel: cfg.channel,
+    channel: channels.join('、'),
     title: cfg.title,
-    content: `账单${bill.billNo}，金额${bill.totalAmount}元，请尽快缴纳`,
+    content: '账单' + bill.billNo + '，金额' + bill.totalAmount + '元，请尽快缴纳',
     status: '已发送',
     sentAt: new Date(),
     response: '',
   } as any);
 
-  // 查询关联的租户信息
+  // 关联租户（用于通知跳转与短信/邮件收件人）
   const contract = await Contract.findByPk(bill.contractId, { include: [{ model: Tenant, as: 'tenant' }] });
   const tenant = (contract as any)?.tenant;
   const tenantId = tenant?.id || null;
   const tenantName = tenant?.name || '未知租户';
 
-  // 发送系统广播通知（所有用户可见，点击可跳转租户详情）
-  await broadcastNotification(
-    cfg.title,
-    `账单${bill.billNo}（金额¥${Number(bill.totalAmount || 0).toFixed(2)}）${cfg.title}，请尽快缴纳`,
-    'tenant',
-    tenantId,
-  );
+  // 渠道真正外发：每个渠道独立 try/catch，通知/催缴失败绝不中断业务（未配置密钥时 Provider 自动降级 Mock/跳过）
+  for (const ch of channels) {
+    try {
+      if (ch === '站内信') {
+        await broadcastNotification(cfg.title, content, 'tenant', tenantId);
+        broadcast('notification:new', {
+          title: cfg.title,
+          content,
+          linkType: 'tenant',
+          linkId: tenantId,
+          tenantId,
+        });
+      } else if (ch === '短信') {
+        if (tenant?.phone && isSmsConfigured()) {
+          await sendDunningSms(tenant.phone, bill.billNo, amount, bill.dueDate);
+        }
+      } else if (ch === '邮件') {
+        if (tenant?.email && isMailerConfigured()) {
+          await sendMail(tenant.email, cfg.title, '<p>' + content + '</p>');
+        }
+      }
+      // 微信（需 openid）与书面（纸质邮寄）暂不外发，仅在催缴任务里记录渠道
+    } catch (err: any) {
+      console.error('[Dunning] 渠道 ' + ch + ' 发送失败：' + (err?.message || err));
+    }
+  }
 
-  // WebSocket 广播：新催缴任务
+  // WebSocket 广播：新催缴任务（列表实时刷新）
   broadcast('dunning:new', {
     taskId: (task as any).id,
     billId: bill.id,
     level: cfg.level,
     title: cfg.title,
+    channels,
     tenantId,
     tenantName,
-    content: `账单${bill.billNo}，金额¥${Number(bill.totalAmount || 0).toFixed(2)}`,
-  });
-
-  // WebSocket 广播：新通知（消息中心实时更新）
-  broadcast('notification:new', {
-    title: cfg.title,
-    content: `账单${bill.billNo}（金额¥${Number(bill.totalAmount || 0).toFixed(2)}）${cfg.title}，请尽快缴纳`,
-    linkType: 'tenant',
-    linkId: tenantId,
-    tenantId,
+    content: '账单' + bill.billNo + '，金额¥' + amount.toFixed(2),
   });
 
   return 1;

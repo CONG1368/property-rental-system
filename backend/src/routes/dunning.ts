@@ -8,6 +8,13 @@ import Property from '../models/Property.js';
 import { AuthRequest } from '../middleware/auth.js';
 import { broadcastNotification } from '../services/notification.js';
 import { broadcast } from '../websocket/index.js';
+import { auditLog } from '../middleware/audit-log.js';
+import { requireConfirmPassword } from '../middleware/confirm-password.js';
+import SystemConfig from '../models/SystemConfig.js';
+import {
+  getDunningStrategy, ensureDunningConfig, validateDunningStrategy,
+  DUNNING_DEFAULTS, DUNNING_CHANNELS, DUNNING_STRATEGY_KEY,
+} from '../services/dunning-config.js';
 
 const router = Router();
 
@@ -119,12 +126,35 @@ router.post('/dispatch', async (req: AuthRequest, res) => {
   }
 });
 
-// PUT /api/dunning/strategy — 催缴策略配置（简化版）
-router.put('/strategy', async (req: AuthRequest, res) => {
+// ===== 催缴策略（用户 2026-10-11：原实现是空壳——只回显 body、不落库也不生效，现改为真实配置）=====
+
+// GET /api/dunning/strategy — 读取当前策略（含默认值与可选渠道，供界面渲染）
+router.get('/strategy', async (_req: AuthRequest, res) => {
   try {
-    res.json({ code: 200, data: req.body, message: '催缴策略已更新' });
+    await ensureDunningConfig();
+    const strategy = await getDunningStrategy();
+    res.json({ code: 200, data: { strategy, defaults: DUNNING_DEFAULTS, channels: DUNNING_CHANNELS } });
   } catch (err: any) {
-    res.status(500).json({ code: 500, message: err.message });
+    res.status(500).json({ code: 500, message: err.message || '读取催缴策略失败' });
+  }
+});
+
+// PUT /api/dunning/strategy — 保存策略（校验 + 落库 system_configs + 审计 + 管理员密码二次确认）
+router.put('/strategy', auditLog('催缴', '修改催缴策略'), requireConfirmPassword('修改催缴策略'), async (req: AuthRequest, res) => {
+  try {
+    const { ok, errors, strategy } = validateDunningStrategy(req.body || {});
+    if (!ok) return res.status(400).json({ code: 400, message: errors.join('；') });
+
+    const [row] = await SystemConfig.findOrCreate({
+      where: { configKey: DUNNING_STRATEGY_KEY },
+      defaults: { configValue: JSON.stringify(strategy), description: '催缴策略：到期前提醒天数、逾期催缴阶梯（天数+渠道）、每日发送上限', configGroup: '催缴', valueType: 'json', builtIn: 1 } as any,
+    });
+    (row as any).configValue = JSON.stringify(strategy);
+    await row.save();
+
+    res.json({ code: 200, data: { strategy }, message: '催缴策略已保存，下一次催缴任务按新策略执行' });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '保存催缴策略失败' });
   }
 });
 
