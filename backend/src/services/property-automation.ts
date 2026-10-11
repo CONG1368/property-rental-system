@@ -8,8 +8,8 @@ import Bill from '../models/Bill.js';
 import { sendNotification } from './notification.js';
 import dayjs from 'dayjs';
 
-// 工单 SLA（天）：待派单超过该天数则升级
-const WO_SLA_DAYS = 2;
+// 工单 SLA（天）：待派单超过该天数则升级。可配置（审计第 3 项）——读 system_configs.wo_sla_days，默认 2 天
+import { getWorkOrderSlaDays } from './business-config.js';
 
 export interface AutomationResult {
   escalatedOrders: number;
@@ -25,7 +25,8 @@ async function notify(title: string, content: string): Promise<void> {
 
 // 工单 SLA 超时升级
 async function escalateOverdueOrders(): Promise<number> {
-  const cutoff = dayjs().subtract(WO_SLA_DAYS, 'day').toDate();
+  const slaDays = await getWorkOrderSlaDays();
+  const cutoff = dayjs().subtract(slaDays, 'day').toDate();
   const overdue = await WorkOrder.findAll({
     where: { status: { [Op.in]: ['待派单', '已派单', '处理中'] }, createdAt: { [Op.lte]: cutoff } },
   });
@@ -33,7 +34,7 @@ async function escalateOverdueOrders(): Promise<number> {
   for (const wo of overdue) {
     if ((wo as any).priority !== '紧急') {
       await (wo as any).update({ priority: '高' });
-      await notify(`工单 ${wo.ticketNo} 已超时`, `工单「${wo.title}」超过 ${WO_SLA_DAYS} 天未处理，已自动升级优先级。`);
+      await notify(`工单 ${wo.ticketNo} 已超时`, `工单「${wo.title}」超过 ${slaDays} 天未处理，已自动升级优先级。`);
       n++;
     }
   }

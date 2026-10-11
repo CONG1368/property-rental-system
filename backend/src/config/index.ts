@@ -36,8 +36,9 @@ export const config = {
 
   jwt: {
     secret: process.env.JWT_SECRET || 'property-rental-jwt-secret-key-2026',
-    accessExpiry: 14400,   // 4小时（秒）
-    refreshExpiry: 604800,  // 7天（秒）
+    // 有效期可由 .env 覆盖（审计第 7 项：原先写死 4 小时 / 7 天），单位：秒
+    accessExpiry: parseInt(process.env.JWT_ACCESS_EXPIRES_SECONDS || '14400', 10),    // 默认 4 小时
+    refreshExpiry: parseInt(process.env.JWT_REFRESH_EXPIRES_SECONDS || '604800', 10), // 默认 7 天
   },
 
   upload: {

@@ -468,6 +468,18 @@ fireSafety: {
 
 **打印裁剪（用户 2026-10-10 要求）**：`buildFireSafetyHTML` **只打印合同约定性质的文字**——消防条款、禁止事项、配备器材、违规处罚；**`responsibilityParty`（消防责任方）与 `inspectionFrequency`（检查频率）属于内部管理口径，不再上纸**。若一份合同只配了这两项（没有任何条款/限制/器材/处罚），该区块**整段不输出**，避免合同上留一个空标题。起草页与合同详情页仍照常显示这两个字段（内部可见），只是不进打印模板。改这里别把 `frontend/tests/unit.test.ts` 的「合同消防安全约定区块」2 条用例改红。
 
+### 业务规则可配置（审计第 3/4/5/6/7 项）
+
+**背景**：税务费率（第 1 项）与催缴阶梯（第 2 项）修完后，同一批审计还发现：工单 SLA 写死 2 天、信用评分权重/等级线/初始分写死、7 个定时任务时刻写死（界面只能"立即执行/启停"）、默认公司名散落 4 个文件、JWT 时长写死 4h/7d。
+
+**实现**：
+- **第 3 项 工单 SLA**：`services/business-config.ts` 的 `WO_SLA_KEY='wo_sla_days'` + `parseSlaDays()`（纯函数，1~365，非法回退 2）+ `getWorkOrderSlaDays()`；`services/property-automation.ts` 由常量改为读取（升级判定与通知文案都用生效值）。
+- **第 4 项 信用评分**：`credit_rule`（JSON）+ `CREDIT_RULE_DEFAULTS`（paymentWeight 40 / activeContractScore 25 / inactiveContractScore 15 / cooperationBase 10 / perContract 2 / max 20 / latePenaltyWeight 15 / initScore 60 / **initGrade 'C'** / gradeA 80 / gradeB 60 / gradeC 40）+ 纯函数 `parseCreditRule()`、`computeCreditScore(input, rule)`；`services/credit-scorer.ts` 改为取规则后调用纯函数。**注意 `initGrade` 单独可配**：原实现在"无合同/无账单"时固定返回 60 分 + C 等级，而正常路径 60 分按 80/60/40 会算 B —— 为保持零变化才拆出这个字段；该分支**不写回租客档案**（与原实现一致）。
+- **第 5 项 定时任务时刻**：`jobs/scheduler.ts` 新增 `isValidCronExpr()`（纯函数，必须 5 段、字符限于 `0-9 * , - /`）、覆盖读取 `system_configs.cron_<key>`、`effectiveExprs` 记忆生效表达式、`start()` 改为 **async**（逐个读覆盖后再 `cron.schedule`）、`setSchedule(key, expr)`（校验→落库→**重新挂载使新时刻立即生效**）；`list()` 增加 `expr/builtinExpr/custom` 并让 `schedule` 显示「自定义：…」。路由新增 `PUT /system-ops/cron/:key/schedule`（`requireAdmin` + `auditLog('系统运维','修改定时任务时刻')` + `requireConfirmPassword`）；前端系统运维页 cron 行新增「改时刻」（`ElMessageBox.prompt` 预填当前表达式 → 密码二次确认 → PUT → 刷新）。`index.ts` 与 `/cron/toggle` 的调用点改为 `await scheduler.start()`。
+- **第 6 项 默认公司名**：新增 `frontend/src/utils/print-defaults.ts` 导出 `DEFAULT_COMPANY_NAME`，`utils/bill-print.ts`、`ContractList.vue`、`ContractDetail.vue`、`PrintSettings.vue` 共 **7 处字面量全部替换**（真实抬头仍以打印设置的 `company_name_for_print` 为准，该常量仅兜底）；后端 `routes/systemOps.ts` 的 `APP_NAME` 支持 `.env` 的 `APP_NAME` 覆盖。
+- **第 7 项 JWT 时长**：`config/index.ts` 的 `accessExpiry/refreshExpiry` 改为读 `JWT_ACCESS_EXPIRES_SECONDS` / `JWT_REFRESH_EXPIRES_SECONDS`（默认 14400 / 604800，即 4 小时 / 7 天，行为不变），`.env.example` 补说明。
+- 启动：`index.ts` Phase 3 调 `ensureBusinessConfigs()`（幂等补齐 `wo_sla_days`、`credit_rule`）。
+- **验证**：后端单测 41→46 条（SLA 解析与回退、信用评分默认规则复现旧算法 69/B 与 60/C、改规则后重算、规则解析回退、cron 表达式校验）；端到端实测（临时后端 3002）：登录 token 的 `exp-iat=14400` 秒；`wo_sla_days=2`、`credit_rule` 六项默认值均在库；催缴任务默认 `0 8 * * *`（custom=false）→ 改为 `30 6 * * *` 返回 200 且回读 `custom=true`、文案「自定义：30 6 * * *」→ 非法表达式 400（中文提示）、错误密码 403 → 还原为 `0 8 * * *`。
 ### 催缴策略可配置（审计第 2 项；原实现的策略弹窗是空壳）
 
 **背景（两个问题）**：① 催缴节奏写死在 `dunning-engine.ts`（到期前 3 天；逾期 7 天站内信 / 30 天短信 / 60 天书面）；② 更严重——前端 `DunningCenter.vue` 的「催缴策略配置」弹窗调用的 `PUT /dunning/strategy` **只是把 body 原样回显**（既不落库也不生效），UI 默认值（提醒 7 天、一级 15 天）与引擎实际（3 天、7 天）还对不上；文档里"策略可独立配置""可通过短信/邮件发出"也是过度声明。

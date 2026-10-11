@@ -73,9 +73,10 @@
                     <span style="margin-left:6px">{{ formatRunTime(row.lastRun.at) }}</span>
                     <div style="font-size:12px;color:var(--n-600)">{{ row.lastRun.detail }}</div>
                   </span></template>
-        <template #c5="{ row }"><el-button link type="primary" size="small" :loading="runningKey === row.key" @click="runCronTask(row)">
-                    立即执行
-                  </el-button></template>
+        <template #c5="{ row }">
+          <el-button link type="primary" size="small" :loading="runningKey === row.key" @click="runCronTask(row)">立即执行</el-button>
+          <el-button link type="primary" size="small" @click="editCronSchedule(row)">改时刻</el-button>
+        </template>
       </DataTable>
       <div style="margin-top:12px;font-size:12px;color:var(--n-600)">
         调度器随后端启动自动挂载（设 CRON_ENABLED=false 可关闭）。手动执行与定时执行走同一份逻辑；账单生成、折旧计提均已做幂等保护，重复执行不会产生重复数据。
@@ -98,7 +99,7 @@ const COLUMNS: TableColumn[] = [
 
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { confirmWithPassword } from '@/utils/confirm-password';
 import { downloadWithAuth } from '@/utils/download';
 import request from '@/api/request';
@@ -153,6 +154,27 @@ async function runCronTask(row: any) {
     ElMessage.success(res.message || '执行完成');
     await fetchCron();
   } catch { /* 拦截器已提示 */ } finally { runningKey.value = ''; }
+}
+
+// 修改执行时刻（审计第 5 项：原先 7 个 cron 表达式写死，界面改不了）
+async function editCronSchedule(row: any) {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      '按 5 段 cron 表达式填写：分 时 日 月 周。例如 0 8 * * * = 每天 08:00；0 2 1 * * = 每月 1 日 02:00。当前：' + row.expr + (row.custom ? '（自定义）' : '（内置默认）'),
+      '修改「' + row.name + '」执行时刻',
+      { inputValue: row.expr, inputPlaceholder: '分 时 日 月 周，如 0 8 * * *', confirmButtonText: '保存', cancelButtonText: '取消', type: 'warning' },
+    );
+    const expr = String(value || '').trim();
+    if (!expr || expr === row.expr) return;
+    const pwd = await confirmWithPassword('修改定时任务执行时刻会影响自动化运行节奏，请输入当前登录密码确认');
+    if (!pwd) return;
+    const res: any = await request.put('/system-ops/cron/' + row.key + '/schedule', { expr, confirmPassword: pwd });
+    ElMessage.success(res.message || '执行时刻已更新');
+    await fetchCron();
+  } catch (err: any) {
+    if (err === 'cancel' || err === 'close') return;
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
 }
 
 // 启停调度器（不可逆影响自动化，需二次确认）

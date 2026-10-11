@@ -13,7 +13,8 @@ import { fileURLToPath } from 'url';
 
 const router = Router();
 
-const APP_NAME = '物业租赁综合管理系统';
+// 系统名：默认与窗口标题/打包 productName 一致，可用 .env 的 APP_NAME 覆盖（审计第 6 项）
+const APP_NAME = process.env.APP_NAME || '物业租赁综合管理系统';
 
 // 从根 package.json 读取版本（定位到项目根，而非 process.cwd() 可能指向 backend/）
 function readVersion(): string {
@@ -85,11 +86,22 @@ router.post('/cron/run/:key', auditLog('系统运维', '手动触发定时任务
 });
 
 // POST /system-ops/cron/toggle — 运行时启停调度器（二次确认）
+// PUT /cron/:key/schedule — 修改某个定时任务的执行时刻（审计第 5 项：原先 7 个 cron 表达式写死、界面改不了）
+router.put('/cron/:key/schedule', auditLog('系统运维', '修改定时任务时刻'), requireAdmin, requireConfirmPassword('修改定时任务执行时刻'), async (req: AuthRequest, res) => {
+  try {
+    const expr = String(req.body?.expr || '').trim();
+    const result = await scheduler.setSchedule(req.params.key, expr);
+    res.json({ code: 200, data: result, message: '执行时刻已保存并立即生效' });
+  } catch (err: any) {
+    res.status(400).json({ code: 400, message: err.message || '修改执行时刻失败' });
+  }
+});
+
 router.post('/cron/toggle', auditLog('系统运维', '切换定时任务调度器'), requireAdmin, requireConfirmPassword('切换定时任务调度器'), async (req: AuthRequest, res) => {
   try {
     const { enabled } = req.body;
     if (typeof enabled !== 'boolean') return res.status(400).json({ code: 400, message: 'enabled 必须为布尔值' });
-    if (enabled) scheduler.start(); else scheduler.stop();
+    if (enabled) await scheduler.start(); else scheduler.stop();
     res.json({ code: 200, data: { started: scheduler.isStarted() }, message: enabled ? '调度器已启动' : '调度器已停止' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });

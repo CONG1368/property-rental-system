@@ -115,6 +115,7 @@ import request from '@/api/request';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { printDocument } from '@/utils/print-service';
 import { buildBatchContractHTML } from '@/components/print/ContractBatchPrint';
+import { DEFAULT_COMPANY_NAME } from '@/utils/print-defaults';
 
 const router = useRouter();
 const tableData = ref<any[]>([]); const total = ref(0); const page = ref(1); const pageSize = ref(20);
@@ -153,7 +154,7 @@ async function handleBatchPrint(mode: string) {
     return;
   }
   try {
-    let companyName = '物业租赁管理公司'; let companyLogo = '';
+    let companyName = DEFAULT_COMPANY_NAME; let companyLogo = '';
     try {
       const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo' } });
       const map: Record<string, string> = {};

@@ -10,6 +10,8 @@ import { buildBillItemsFromContract, buildManualBillItems, summarizeItems, mapIt
 import { splitClausesFromText, diffClauseLists, diffFragments, titleKey } from '../src/services/clause-diff.js';
 import { computeTaxAmounts, parseTaxRates, validateTaxRates, TAX_RATE_DEFAULTS } from '../src/services/tax-rates.js';
 import { parseDunningStrategy, buildDunningLevels, validateDunningStrategy, DUNNING_DEFAULTS } from '../src/services/dunning-config.js';
+import { parseSlaDays, WO_SLA_DEFAULT, parseCreditRule, computeCreditScore, CREDIT_RULE_DEFAULTS } from '../src/services/business-config.js';
+import { isValidCronExpr } from '../src/jobs/scheduler.js';
 
 describe('身份证校验（ISO 7064:1983 MOD 11-2）', () => {
   it('接受校验位正确的号码', () => {
@@ -373,5 +375,59 @@ describe('催缴策略可配置（审计第 2 项：原前端策略弹窗只回�
     expect(bad.errors.join(' | ')).toContain('至少选择一个催缴渠道');
     expect(bad.errors.join(' | ')).toContain('到期前提醒天数');
     expect(bad.errors.join(' | ')).toContain('每日最大发送量');
+  });
+});
+
+describe('工单 SLA 与信用评分规则可配置（审计第 3、4 项）', () => {
+  it('工单 SLA 默认 2 天，非法/越界值回退默认', () => {
+    expect(WO_SLA_DEFAULT).toBe(2);
+    expect(parseSlaDays('5')).toBe(5);
+    expect(parseSlaDays(3.9)).toBe(3);
+    expect(parseSlaDays('0')).toBe(2);
+    expect(parseSlaDays('abc')).toBe(2);
+    expect(parseSlaDays(999)).toBe(2);
+  });
+
+  it('信用评分默认规则与改造前算法逐项一致', () => {
+    // 旧算法：round(8/10×40)=32 + 25 + min(20,10+2×2)=14 − min(15,round(1/10×15))=2 → 69（B）
+    const r = computeCreditScore({ contractsCount: 2, activeContracts: 1, totalBills: 10, paidOnTime: 8, overdue: 1 }, CREDIT_RULE_DEFAULTS);
+    expect(r.score).toBe(69);
+    expect(r.grade).toBe('B');
+    // 无合同/无账单 → 初始分 60、等级 C（与原实现一致）
+    expect(computeCreditScore({ contractsCount: 0, activeContracts: 0, totalBills: 0, paidOnTime: 0, overdue: 0 }, CREDIT_RULE_DEFAULTS)).toEqual({ score: 60, grade: 'C' });
+    // 无在执行合同 → 用 15 分档
+    // 无在执行合同 → 合同履约档用 15 分：40 + 15 + min(20, 10 + 1×2) − 0 = 67
+    const inactive = computeCreditScore({ contractsCount: 1, activeContracts: 0, totalBills: 4, paidOnTime: 4, overdue: 0 }, CREDIT_RULE_DEFAULTS);
+    expect(inactive.score).toBe(67);
+  });
+
+  it('改规则后按新规则计算（等级线提高 → 同一分数降级；缴费权重提高 → 分数上升）', () => {
+    const strict = { ...CREDIT_RULE_DEFAULTS, gradeA: 95, gradeB: 90 };
+    expect(computeCreditScore({ contractsCount: 2, activeContracts: 1, totalBills: 10, paidOnTime: 8, overdue: 1 }, strict).grade).toBe('C');
+    const lenient = { ...CREDIT_RULE_DEFAULTS, paymentWeight: 100 };
+    expect(computeCreditScore({ contractsCount: 1, activeContracts: 1, totalBills: 4, paidOnTime: 4, overdue: 0 }, lenient).score).toBe(100);
+  });
+
+  it('parseCreditRule：坏 JSON 与越界值逐项回退默认，合法值保留', () => {
+    expect(parseCreditRule('坏 JSON').paymentWeight).toBe(40);
+    expect(parseCreditRule({ paymentWeight: 200 }).paymentWeight).toBe(40);
+    expect(parseCreditRule({ paymentWeight: 50, gradeA: 90 }).paymentWeight).toBe(50);
+    expect(parseCreditRule({ gradeA: 90 }).gradeA).toBe(90);
+    expect(parseCreditRule(null).initScore).toBe(60);
+    expect(parseCreditRule({ initGrade: 'X' }).initGrade).toBe('C');
+    expect(parseCreditRule({ initGrade: 'D' }).initGrade).toBe('D');
+  });
+});
+
+describe('定时任务执行时刻可配置（审计第 5 项）', () => {
+  it('cron 表达式校验：必须是 5 段且字符合法', () => {
+    expect(isValidCronExpr('0 8 * * *')).toBe(true);
+    expect(isValidCronExpr('30 9 1 * *')).toBe(true);
+    expect(isValidCronExpr('*/15 9-17 * * 1-5')).toBe(true);
+    expect(isValidCronExpr('0,30 8 * * *')).toBe(true);
+    expect(isValidCronExpr('0 8 * *')).toBe(false);      // 只有 4 段
+    expect(isValidCronExpr('0 8 * * * *')).toBe(false);  // 6 段
+    expect(isValidCronExpr('每天8点')).toBe(false);
+    expect(isValidCronExpr('')).toBe(false);
   });
 });

@@ -147,6 +147,8 @@ async function start() {
     await ensureIdCardConfig();
     const { ensureMeterPlatformConfig } = await import('./services/meter-platform.js');
     await ensureMeterPlatformConfig();
+  const { ensureBusinessConfigs } = await import('./services/business-config.js');
+  await ensureBusinessConfigs();   // 业务规则（工单 SLA、信用评分规则）
   const { ensureDunningConfig } = await import('./services/dunning-config.js');
   await ensureDunningConfig();   // 催缴策略（审计第 2 项：原前端策略弹窗是空壳，现真实落库并由引擎执行）
   const { ensureTaxRateConfigs } = await import('./services/tax-rates.js');
@@ -190,7 +192,7 @@ async function start() {
   if (cronEnabled) {
     try {
       const { scheduler } = await import('./jobs/scheduler.js');
-      scheduler.start();
+      await scheduler.start();
     } catch (err: any) {
       console.error('[Cron] 调度器启动失败（不影响主服务）:', err.message);
     }

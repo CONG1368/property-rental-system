@@ -268,6 +268,7 @@ import { printDocument, isElectron, formatDate } from '@/utils/print-service';
 import { saveBlob } from '@/utils/download';
 import { buildDocxBlob } from '@/utils/docx';
 import { buildContractHTML } from '@/components/print/ContractPrint';
+import { DEFAULT_COMPANY_NAME } from '@/utils/print-defaults';
 
 const route = useRoute();
 const router = useRouter();
@@ -423,7 +424,7 @@ async function fetchContract() {
 }
 
 async function getCompanyInfo() {
-  let companyName = '物业租赁管理公司';
+  let companyName = DEFAULT_COMPANY_NAME;
   let companyLogo = ''; let companySeal = '';
   let companyIdType = ''; let companyIdNumber = ''; let companyPhone = '';
   let companyAddress = ''; let companyPostcode = ''; let companySigner = '';

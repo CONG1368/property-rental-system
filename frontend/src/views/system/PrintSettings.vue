@@ -94,7 +94,7 @@
               <div style="font-size:16px;font-weight:bold;color:var(--n-900);letter-spacing:3px">物业租赁合同</div>
               <div style="font-size:11px;color:var(--n-600);margin-top:2px">合同编号：CT-2024-001</div>
               <div style="font-size:12px;color:var(--n-900);margin-top:8px">
-                <p style="margin:2px 0">出租方（甲方）：{{ form.companyName || '物业租赁管理公司' }}</p>
+                <p style="margin:2px 0">出租方（甲方）：{{ form.companyName || DEFAULT_COMPANY_NAME }}</p>
                 <p v-if="form.companyIdType || form.companyIdNumber" style="margin:1px 0 1px 12px;font-size:11px;color:var(--n-700)">
                   证件类型/号码：{{ form.companyIdType || '--' }} / {{ form.companyIdNumber || '--' }}
                 </p>
@@ -149,11 +149,12 @@ import { ElMessage } from 'element-plus';
 import request from '@/api/request';
 import { confirmWithPassword } from '@/utils/confirm-password';
 import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
+import { DEFAULT_COMPANY_NAME } from '@/utils/print-defaults';
 
 const saving = ref(false);
 
 const form = reactive({
-  companyName: '物业租赁管理公司',
+  companyName: DEFAULT_COMPANY_NAME,
   companyLogo: '',
   companySeal: '',
   companyIdType: '',
@@ -166,7 +167,7 @@ const form = reactive({
 
 // 合同底部签章区预览：字段与 ContractPrint 的签约信息栏保持一致（甲方侧带出已填值）
 const signPreviewLeft = computed(() => [
-  { label: '甲方', value: form.companyName || '物业租赁管理公司' },
+  { label: '甲方', value: form.companyName || DEFAULT_COMPANY_NAME },
   { label: '签约代表人', value: form.companySigner },
   { label: '地址', value: form.companyAddress },
   { label: '电话', value: form.companyPhone },

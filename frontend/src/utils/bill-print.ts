@@ -4,14 +4,15 @@ import request from '@/api/request';
 import { printDocument } from '@/utils/print-service';
 import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 import { buildBillHTML } from '@/components/print/BillPrint';
+import { DEFAULT_COMPANY_NAME } from '@/utils/print-defaults';
 
 async function getCompanyInfo() {
   try {
     const res = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_logo,company_seal' } });
     const map: Record<string, string> = {};
     (res.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
-    return { companyName: map['company_name_for_print'] || '物业租赁管理公司', companyLogo: map['company_logo'] || '', companySeal: map['company_seal'] || '' };
-  } catch { return { companyName: '物业租赁管理公司', companyLogo: '', companySeal: '' }; }
+    return { companyName: map['company_name_for_print'] || DEFAULT_COMPANY_NAME, companyLogo: map['company_logo'] || '', companySeal: map['company_seal'] || '' };
+  } catch { return { companyName: DEFAULT_COMPANY_NAME, companyLogo: '', companySeal: '' }; }
 }
 
 /** 打印/导出账单：mode = 'native' 直接打印 | 'pdf' 导出 PDF */

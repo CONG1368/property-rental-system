@@ -8,6 +8,7 @@ import { broadcastNotification } from '../services/notification.js';
 import { runPropertyAutomation } from '../services/property-automation.js';
 import { generateMonthlyBriefing } from '../services/briefing-report.js';
 import DoorLockPassword from '../models/DoorLockPassword.js';
+import SystemConfig from '../models/SystemConfig.js';
 
 type ScheduledTask = ReturnType<typeof cron.schedule>;
 
@@ -111,13 +112,68 @@ const lastRuns: Record<string, CronRunRecord> = {};
 let jobs: ScheduledTask[] = [];
 let started = false;
 
+// ===== 执行时刻可配置（审计第 5 项：原先 7 个 cron 表达式写死、界面只能"立即执行/启停"，改不了时刻）=====
+const CRON_KEY_PREFIX = 'cron_';
+/** 生效表达式（未自定义时 = 内置默认），key → expr */
+const effectiveExprs: Record<string, string> = {};
+
+/** 纯函数：校验 5 段 cron 表达式（分 时 日 月 周） */
+export function isValidCronExpr(expr: string): boolean {
+  const parts = String(expr || '').trim().split(/\s+/);
+  if (parts.length !== 5) return false;
+  return parts.every((p) => /^[0-9*,\u002f-]+$/.test(p));
+}
+
+/** 读取某个任务的时刻覆盖值（未设置/非法则返回 null，用内置默认） */
+async function readCronOverride(key: string): Promise<string | null> {
+  try {
+    const row = await SystemConfig.findOne({ where: { configKey: CRON_KEY_PREFIX + key } });
+    const v = String((row as any)?.configValue || '').trim();
+    return v && isValidCronExpr(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 export const scheduler = {
   /** 任务清单 + 最近一次执行结果（供系统运维页展示） */
   list() {
-    return TASKS.map((t) => ({
-      key: t.key, name: t.name, schedule: t.schedule, expr: t.expr, desc: t.desc,
-      lastRun: lastRuns[t.key] || null,
-    }));
+    return TASKS.map((t) => {
+      const expr = effectiveExprs[t.key] || t.expr;
+      return {
+        key: t.key, name: t.name, desc: t.desc,
+        expr,
+        builtinExpr: t.expr,
+        custom: expr !== t.expr,
+        schedule: expr === t.expr ? t.schedule : '自定义：' + expr,
+        lastRun: lastRuns[t.key] || null,
+      };
+    });
+  },
+
+  /** 修改某任务的执行时刻（存 system_configs.cron_<key> 并立即重新挂载生效） */
+  async setSchedule(key: string, expr: string): Promise<{ key: string; expr: string }> {
+    const task = TASKS.find((t) => t.key === key);
+    if (!task) throw new Error('未知的定时任务：' + key);
+    const value = String(expr || '').trim();
+    if (!isValidCronExpr(value)) throw new Error('cron 表达式不合法：需要 5 段（分 时 日 月 周），例如 0 8 * * *');
+    const row = await SystemConfig.findOne({ where: { configKey: CRON_KEY_PREFIX + key } });
+    if (row) {
+      (row as any).configValue = value;
+      await row.save();
+    } else {
+      await SystemConfig.create({
+        configKey: CRON_KEY_PREFIX + key,
+        configValue: value,
+        description: '定时任务「' + task.name + '」执行时刻（cron 表达式，5 段）',
+        configGroup: '定时任务',
+        valueType: 'string',
+        builtIn: 1,
+      } as any);
+    }
+    effectiveExprs[key] = value;
+    if (started) await this.start();   // 重新挂载让新时刻立即生效
+    return { key, expr: value };
   },
 
   isStarted(): boolean { return started; },
@@ -141,11 +197,16 @@ export const scheduler = {
   },
 
   /** 挂载全部定时任务；重复调用安全（先停后起） */
-  start(): number {
+  async start(): Promise<number> {
     if (started) this.stop();
-    jobs = TASKS.map((t) => cron.schedule(t.expr, () => { void scheduler.runTask(t.key, 'cron'); }));
+    // 读取每个任务的时刻覆盖（system_configs.cron_<key>），未自定义则用内置默认
+    for (const t of TASKS) {
+      const override = await readCronOverride(t.key);
+      effectiveExprs[t.key] = override || t.expr;
+    }
+    jobs = TASKS.map((t) => cron.schedule(effectiveExprs[t.key], () => { void scheduler.runTask(t.key, 'cron'); }));
     started = true;
-    console.log('[Cron] 调度器已启动，' + jobs.length + ' 个任务：' + TASKS.map((t) => t.name + '(' + t.schedule + ')').join('、'));
+    console.log('[Cron] 调度器已启动，' + jobs.length + ' 个任务：' + TASKS.map((t) => t.name + '(' + effectiveExprs[t.key] + ')').join('、'));
     return jobs.length;
   },
 
