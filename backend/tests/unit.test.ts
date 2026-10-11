@@ -8,6 +8,7 @@ import { readSheetAsObjects, buildWorkbookBuffer, writeWorkbookFile } from '../s
 import { nextBillPeriod, firstPeriodMonths } from '../src/services/bill-generator.js';
 import { buildBillItemsFromContract, buildManualBillItems, summarizeItems, mapItemToColumn, lineAmount } from '../src/services/bill-items.js';
 import { splitClausesFromText, diffClauseLists, diffFragments, titleKey } from '../src/services/clause-diff.js';
+import { computeTaxAmounts, parseTaxRates, validateTaxRates, TAX_RATE_DEFAULTS } from '../src/services/tax-rates.js';
 
 describe('身份证校验（ISO 7064:1983 MOD 11-2）', () => {
   it('接受校验位正确的号码', () => {
@@ -286,5 +287,43 @@ describe('合同条款比对（用户 2026-10-11 要求：上传租户修订版�
       { type: 'remove', text: '乙。' },
       { type: 'add', text: '丙。' },
     ]);
+  });
+});
+
+describe('税务费率可配置（用户 2026-10-11 要求：税率不写死）', () => {
+  it('默认费率算出的结果与改造前写死的公式完全一致（老库行为零变化）', () => {
+    const r = computeTaxAmounts(10100, 100, TAX_RATE_DEFAULTS);
+    expect(r.vatOutput).toBe(100);      // 10100 / 1.01 × 0.01
+    expect(r.propertyTax).toBe(1212);   // 10100 × 0.12
+    expect(r.urbanLandTax).toBe(150);   // 100 ㎡ × 1.5 元/㎡
+    expect(r.stampTax).toBe(10.1);      // 10100 × 0.001
+  });
+
+  it('改费率后按新费率计算（房产税 12% → 4%）', () => {
+    const r = computeTaxAmounts(10000, 0, { ...TAX_RATE_DEFAULTS, propertyRate: 0.04 });
+    expect(r.propertyTax).toBe(400);
+    expect(r.vatOutput).toBe(99.01);    // 10000 / 1.01 × 0.01 = 99.0099…
+  });
+
+  it('parseTaxRates：配置值覆盖默认，空值/非法值回退默认', () => {
+    const r = parseTaxRates({ tax_property_rate: '0.04', tax_land_unit_price: '', tax_stamp_rate: 'abc', tax_output_rate: '0.06' });
+    expect(r.propertyRate).toBe(0.04);
+    expect(r.landUnitPrice).toBe(TAX_RATE_DEFAULTS.landUnitPrice);
+    expect(r.stampRate).toBe(TAX_RATE_DEFAULTS.stampRate);
+    expect(r.outputRate).toBe(0.06);
+  });
+
+  it('validateTaxRates：区间与数字校验并给出中文提示', () => {
+    expect(validateTaxRates({ propertyRate: 0.04 }).ok).toBe(true);
+    const bad = validateTaxRates({ propertyRate: 12 });   // 误填 12 而不是 0.12
+    expect(bad.ok).toBe(false);
+    expect(bad.errors[0]).toContain('房产税税率');
+    expect(validateTaxRates({ vatRate: -1 }).ok).toBe(false);
+    expect(validateTaxRates({ landUnitPrice: 'abc' }).ok).toBe(false);
+  });
+
+  it('销项/进项导出税率也可配（默认 9% / 6%）', () => {
+    expect(TAX_RATE_DEFAULTS.outputRate).toBe(0.09);
+    expect(TAX_RATE_DEFAULTS.inputRate).toBe(0.06);
   });
 });

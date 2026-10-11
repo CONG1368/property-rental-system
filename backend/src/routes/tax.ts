@@ -4,7 +4,9 @@ import { requirePermission } from '../middleware/rbac.js';
 import { auditLog } from '../middleware/audit-log.js';
 import AuditLog from '../models/AuditLog.js';
 import { calculateTaxes, getCachedTaxes, invalidateTaxCache } from '../services/tax-calculator.js';
-import { exportTaxData } from '../services/tax-exporter.js';
+import { exportTaxData } from '../services/tax-exporter.js';import SystemConfig from '../models/SystemConfig.js';
+import { requireConfirmPassword } from '../middleware/confirm-password.js';
+import { getTaxRates, ensureTaxRateConfigs, validateTaxRates, TAX_RATE_DEFAULTS, TAX_RATE_META } from '../services/tax-rates.js';
 
 const router = Router();
 
@@ -104,6 +106,47 @@ router.get('/reports', requirePermission('finance', 'read'), async (_req: AuthRe
     }
     res.json({ code: 200, data: { list: reports } });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '获取报告失败' }); }
+});
+
+// ===== 税率参数（用户 2026-10-11 要求：税率不写死，可按当地/本企业口径修改）=====
+
+// GET /tax/rates — 当前生效费率 + 默认值 + 字段元数据（供「税务管理」页渲染表单）
+router.get('/rates', requirePermission('finance', 'read'), async (_req: AuthRequest, res) => {
+  try {
+    await ensureTaxRateConfigs();
+    const rates = await getTaxRates();
+    res.json({ code: 200, data: { rates, defaults: TAX_RATE_DEFAULTS, meta: TAX_RATE_META } });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '读取税率参数失败' });
+  }
+});
+
+// PUT /tax/rates — 保存费率（管理员密码二次确认 + 审计日志；保存后清掉税务计算结果缓存）
+router.put('/rates', requirePermission('finance', 'update'), auditLog('税务', '修改税率参数'), requireConfirmPassword('修改税务费率'), async (req: AuthRequest, res) => {
+  try {
+    const { ok, errors, values } = validateTaxRates((req.body || {}) as Record<string, unknown>);
+    if (!ok) return res.status(400).json({ code: 400, message: errors.join('；') });
+    if (Object.keys(values).length === 0) return res.status(400).json({ code: 400, message: '没有需要保存的税率' });
+
+    for (const m of TAX_RATE_META) {
+      const val = values[m.field];
+      if (val === undefined) continue;
+      const [row] = await SystemConfig.findOrCreate({
+        where: { configKey: m.key },
+        defaults: { configValue: String(val), description: m.desc, configGroup: '税务', valueType: 'number', builtIn: 1 } as any,
+      });
+      if (row && String((row as any).configValue) !== String(val)) {
+        (row as any).configValue = String(val);
+        await row.save();
+      }
+    }
+
+    invalidateTaxCache();
+    const rates = await getTaxRates();
+    res.json({ code: 200, data: { rates } });
+  } catch (err: any) {
+    res.status(500).json({ code: 500, message: err.message || '保存税率参数失败' });
+  }
 });
 
 export default router;

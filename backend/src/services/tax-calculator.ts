@@ -3,6 +3,7 @@ import Contract from '../models/Contract.js';
 import { Op } from 'sequelize';
 import dayjs from 'dayjs';
 import { createTTLCache } from './ttl-cache.js';
+import { getTaxRates, computeTaxAmounts } from './tax-rates.js';
 
 interface TaxResult {
   vat: { output: number; input: number; payable: number };
@@ -21,12 +22,8 @@ export async function calculateTaxes(period?: string): Promise<TaxResult> {
   });
   const totalRevenue = paidBills.reduce((s: number, b: any) => s + Number(b.totalAmount), 0);
 
-  // 增值税（小规模纳税人 1%）
-  const vatOutput = Math.round(totalRevenue / 1.01 * 0.01 * 100) / 100;
-  const vatPayable = vatOutput; // 简化：假设无进项抵扣
-
-  // 房产税（从租计征 12%）
-  const propertyTax = Math.round(totalRevenue * 0.12 * 100) / 100;
+  // 税率全部可配置（用户 2026-10-11 要求）：读 system_configs，未配置则用默认值（= 改造前写死的费率）
+  const rates = await getTaxRates();
 
   // 城镇土地使用税（简化：按房源面积估算）
   const contracts = await Contract.findAll({
@@ -36,10 +33,7 @@ export async function calculateTaxes(period?: string): Promise<TaxResult> {
   const totalArea = contracts.reduce((s: number, c: any) => {
     return s + Number(c.property?.area || 0);
   }, 0);
-  const urbanLandTax = Math.round(totalArea * 1.5 * 100) / 100; // 简化：1.5元/㎡
-
-  // 印花税（租金收入的 0.1%）
-  const stampTax = Math.round(totalRevenue * 0.001 * 100) / 100;
+  const { vatOutput, vatPayable, propertyTax, urbanLandTax, stampTax } = computeTaxAmounts(totalRevenue, totalArea, rates);
 
   return {
     vat: { output: vatOutput, input: 0, payable: vatPayable },

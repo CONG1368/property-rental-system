@@ -147,6 +147,8 @@ async function start() {
     await ensureIdCardConfig();
     const { ensureMeterPlatformConfig } = await import('./services/meter-platform.js');
     await ensureMeterPlatformConfig();
+  const { ensureTaxRateConfigs } = await import('./services/tax-rates.js');
+  await ensureTaxRateConfigs();   // 税务费率参数（用户 2026-10-11：税率不写死，首次运行补齐 6 个内置配置项）
     const demoState = await getDemoSeedState();
     const demoEnabled = await isDemoEnabled();
     const { seedChartOfAccounts, seedAllDemoData, seedDoorLocks, seedContractTemplates, seedIdCardReaders, seedFireSafety } = await import('./services/seed-data.js');

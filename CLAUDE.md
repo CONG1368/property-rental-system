@@ -765,6 +765,17 @@ off('room:status-changed', callback);
 
 `GET /api/approvals` 返回的合同数据现在包含 `clauses`、`billingConfig` 和 Tenant 关联（`include: [{ model: Tenant, as: 'tenant' }]`），使审批页可直接显示租客名称。
 
+### 税务费率可配置（用户 2026-10-11 要求：税率不能写死）
+
+**背景**：原先 4 个税种费率与 2 个导出税率全部写死在代码里（增值税 1%、房产税 12%、城镇土地使用税 1.5 元/㎡、印花税 0.1%、销项 9%、进项 6%），与实际纳税人身份/地区口径不符——这是全项目审计出的第 1 号"写死的业务功能"。
+
+**实现**：
+- `services/tax-rates.ts`（新）：`TaxRates` 接口 + `TAX_RATE_DEFAULTS`（**默认值＝改造前写死的数值，老库升级后计算结果零变化**）+ `TAX_RATE_META`（6 个 `system_configs` 键的标签/单位/说明/取值区间）+ `parseTaxRates()`（纯函数：空值/非法值回退默认）+ `getTaxRates()`（读库，失败不抛异常）+ `ensureTaxRateConfigs()`（幂等补齐 6 个内置配置项，`configGroup='税务'`、`builtIn=1`）+ `validateTaxRates()`（区间校验、中文报错）+ `computeTaxAmounts(revenue, area, rates)`（**纯函数**，单测直接覆盖）。
+- `services/tax-calculator.ts` 改用 `getTaxRates()` + `computeTaxAmounts()`；`services/tax-exporter.ts` 的销项/进项税额分别改用 `rates.outputRate` / `rates.inputRate`（原先 0.09 / 0.06 也写死）。
+- 路由 `routes/tax.ts`：`GET /tax/rates`（返回 rates/defaults/meta，页面据此渲染表单）、`PUT /tax/rates`（`requirePermission('finance','update')` + `auditLog('税务','修改税率参数')` + `requireConfirmPassword('修改税务费率')`，校验后 upsert，并 **`invalidateTaxCache()`**——不失效的话 5 分钟 TTL 缓存会让人误判"改了不生效"）。
+- 前端 `views/finance/TaxManagement.vue` 新增「税率参数」卡片：按 `meta` 动态渲染 6 个输入（百分比字段界面按 % 填、存库存小数）、「保存税率」走密码二次确认、「恢复默认」只回填表单不落库。
+- 启动：`index.ts` Phase 3 调 `ensureTaxRateConfigs()`（与 `ensureMeterPlatformConfig()` 相邻的动态 import 写法）。
+- **验证**：后端单测 5 条（默认费率复现旧公式、改费率按新值、空/非法值回退、区间校验、导出税率默认值）；端到端实测：土地使用税 1.5→3 元/㎡ 后**立刻** 4406.25 → 8812.5（同时证明缓存失效）；借一张已缴账单（8860 元）把房产税 12%→4%，1063.2 → 354.4（= 8860 × 4%），还原回 1063.2；错误密码 403、越界值 400 均有中文提示；审计留痕「税务/修改税率参数」。
 ### 财务模块安全加固（权限/审计/审批/状态机）
 
 1. **写操作统一防护**：财务全部路由（vouchers/expenses/budgets/accounts/accountBooks/tax/fixedAssets/invoices/bankReconciliation/costAllocation）的每个 POST/PUT/DELETE 都必须同时挂 `requirePermission('finance', 动作)` + `auditLog(模块, 动作)`（已 100% 覆盖）。动作映射：POST=create、PUT=update、DELETE=delete、审批/作废/红冲/折旧=approve、导出=export。

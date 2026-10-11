@@ -8,6 +8,7 @@ import ChartOfAccount from '../models/ChartOfAccount.js';
 import Bill from '../models/Bill.js';
 import Contract from '../models/Contract.js';
 import dayjs from 'dayjs';
+import { getTaxRates } from './tax-rates.js';
 
 /**
  * 税务数据导出服务
@@ -52,14 +53,15 @@ async function exportVat(opts: TaxExportOptions): Promise<string> {
     include: [{ model: Contract, as: 'contract' }],
   });
 
-  const outputTax = bills.reduce((sum, b) => sum + Number(b.totalAmount || 0) * 0.09, 0); // 不动产租赁 9%
+  const rates = await getTaxRates();
+  const outputTax = bills.reduce((sum, b) => sum + Number(b.totalAmount || 0) * rates.outputRate, 0); // 税率可配（用户 2026-10-11 要求）
 
   // 进项税额：从费用凭证中提取
   const expenseEntries = await VoucherEntry.findAll({
     where: { '$voucher.period$': opts.period },
     include: [{ model: Voucher, as: 'voucher', where: { type: '付' } }],
   });
-  const inputTax = expenseEntries.reduce((sum, e) => sum + Number(e.debitAmount || 0), 0) * 0.06;
+  const inputTax = expenseEntries.reduce((sum, e) => sum + Number(e.debitAmount || 0), 0) * rates.inputRate;
 
   const data = [
     { 项目: '销项税额', 金额: outputTax.toFixed(2) },
