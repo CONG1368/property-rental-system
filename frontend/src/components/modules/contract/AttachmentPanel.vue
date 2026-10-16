@@ -4,6 +4,7 @@
       <span>合同附件</span>
       <el-button size="small" type="primary" style="margin-left:12px" :loading="uploading" @click="pickFiles()">上传文件</el-button>
       <el-button size="small" @click="openCamera">拍照上传</el-button>
+      <el-button size="small" @click="scanNow">扫描仪扫描</el-button>
       <el-button size="small" @click="openPhoneUpload('direct')">手机上传</el-button>
       <el-button size="small" @click="openPhoneUpload('review')">租户上传（需审核）</el-button>
       <el-button size="small" @click="openRefs">引用已有资料</el-button>
@@ -498,6 +499,26 @@ async function editTitle(row: any) {
     emit('changed');
   } catch (err: any) {
     if (err === 'cancel' || err === 'close') return;
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+// ===== 扫描仪直传（⑦：接 Windows WIA，扫描件直接入册）=====
+async function scanNow() {
+  try {
+    const probe: any = await request.get('/contracts/' + props.contractId + '/scan-devices');
+    if (!probe.data?.available) {
+      ElMessage.warning(probe.message || '未检测到扫描仪，可改用「拍照上传」或「上传文件」');
+      return;
+    }
+    try {
+      await ElMessageBox.confirm('检测到扫描仪：' + (probe.data.devices || []).join('、') + '。请把纸张放入扫描仪后点「确定」开始扫描。', '扫描仪扫描', { type: 'info', confirmButtonText: '开始扫描' });
+    } catch { return; }
+    const res: any = await request.post('/contracts/' + props.contractId + '/scan', { title: '扫描件' });
+    ElMessage.success(res.message || '已扫描并加入附件');
+    await loadAll();
+    emit('changed');
+  } catch (err: any) {
     if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
   }
 }

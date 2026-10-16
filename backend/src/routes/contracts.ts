@@ -16,6 +16,7 @@ import dayjs from 'dayjs';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
+import { execFile } from 'node:child_process';
 import fs from 'fs';
 import { readSheetAsObjects } from '../utils/excel.js';
 import ContractTemplate from '../models/ContractTemplate.js';
@@ -975,6 +976,91 @@ router.post('/:id/files/attach-ref', requirePermission('contract', 'update'), au
     await contract.save();
     res.json({ code: 200, data: { list: files }, message: '已引用「' + title + '」（不复制文件，打印时列在附件目录里）' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '引用失败' }); }
+});
+
+// ===== 扫描仪直传（用户 2026-10-16 第 ⑦ 项：接 Windows WIA，扫描件直接入册）=====
+
+/**
+ * 调用 Windows WIA（PowerShell COM）扫描一页到 JPEG。
+ * 返回 { devices, savedPath }；未装扫描仪时 devices 为空、savedPath 为空，由调用方给中文提示。
+ * 说明：WIA 是 Windows 内置接口，只要装了扫描仪驱动即可用，无需额外依赖。
+ */
+async function runWiaScan(outPath: string | null): Promise<{ devices: string[]; saved: boolean; error: string }> {
+  const ps = [
+    "$ErrorActionPreference='Stop'",
+    "$dm = New-Object -ComObject WIA.DeviceManager",
+    "$devs = @($dm.DeviceInfos | Where-Object { $_.Type -eq 1 })",
+    "if ($devs.Count -eq 0) { Write-Output 'NO_SCANNER'; exit 0 }",
+    "foreach ($d in $devs) { Write-Output ('DEVICE:' + $d.Properties.Item('Name').Value) }",
+    "if (-not $env:SCAN_OUT) { exit 0 }",
+    "$d0 = $devs[0]",
+    "$item = $d0.Items.Item(1)",
+    "$img = $item.Transfer('{B96B3CAB-0728-11D3-9FD7-00A0C911004F}')",
+    "$img.SaveFile($env:SCAN_OUT)",
+    "Write-Output 'SAVED'",
+  ].join('; ');
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps],
+      { timeout: 120000, env: { ...process.env, SCAN_OUT: outPath || '' }, windowsHide: true },
+      (err: any, stdout: string, stderr: string) => {
+        const out = String(stdout || '');
+        const devices = out.split(/\r?\n/).filter((l) => l.startsWith('DEVICE:')).map((l) => l.slice(7).trim());
+        const saved = out.includes('SAVED');
+        let error = '';
+        if (err) error = String(stderr || err.message || '').slice(0, 300);
+        else if (out.includes('NO_SCANNER')) error = 'NO_SCANNER';
+        resolve({ devices, saved, error });
+      });
+  });
+}
+
+// GET /contracts/:id/scan-devices — 探测本机可用的扫描仪
+router.get('/:id/scan-devices', async (_req: AuthRequest, res) => {
+  try {
+    const r = await runWiaScan(null);
+    res.json({
+      code: 200,
+      data: { devices: r.devices, available: r.devices.length > 0 },
+      message: r.devices.length > 0 ? '已检测到扫描仪：' + r.devices.join('、') : '未检测到扫描仪（请确认已连接扫描仪并安装驱动；也可用「拍照上传」或「上传文件」）',
+    });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '探测扫描仪失败' }); }
+});
+
+// POST /contracts/:id/scan — 扫描一页并直接作为合同附件
+router.post('/:id/scan', requirePermission('contract', 'update'), auditLog('合同', '扫描仪扫描附件'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+
+    const outPath = path.join(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'), 'scan-' + Date.now() + '.jpg');
+    const r = await runWiaScan(outPath);
+    if (r.error === 'NO_SCANNER' || r.devices.length === 0) {
+      return res.status(400).json({ code: 400, message: '未检测到扫描仪：请确认已连接扫描仪并安装驱动；如只想用照片，可点「拍照上传」或「上传文件」' });
+    }
+    if (r.error || !r.saved) {
+      return res.status(400).json({ code: 400, message: '扫描失败：' + (r.error || '扫描仪未返回图像') + '（可检查扫描仪是否被其他程序占用、或改用「上传文件」）' });
+    }
+    if (!fs.existsSync(outPath)) return res.status(400).json({ code: 400, message: '扫描未生成文件（可能扫描仪未放置纸张），请重试' });
+    const size = fs.statSync(outPath).size;
+    if (size <= 0) return res.status(400).json({ code: 400, message: '扫描结果为空（请确认扫描仪里已放好纸张）' });
+
+    const cfg = { ...(((contract as any).billingConfig as any) || {}) };
+    const files: any[] = Array.isArray(cfg.attachments) ? [...cfg.attachments] : [];
+    const entry = {
+      name: '扫描件_' + dayjs().format('YYYYMMDD_HHmmss') + '.jpg',
+      path: outPath, size,
+      title: String(req.body?.title || '扫描件').trim() || '扫描件',
+      group: String(req.body?.group || '').trim(),
+      uploadedAt: new Date().toISOString(),
+      source: '扫描仪',
+    };
+    files.push(entry);
+    cfg.attachments = files;
+    (contract as any).billingConfig = cfg;
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+    res.json({ code: 200, data: { list: files, added: entry, devices: r.devices }, message: '已扫描并加入合同附件（' + entry.name + '）' });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '扫描失败' }); }
 });
 
 export default router;
