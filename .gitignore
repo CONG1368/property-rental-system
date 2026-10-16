@@ -61,3 +61,4 @@ _preview_shots/
 /page-*.yml
 /login*.yml
 /current-page.yml
+.tmp-*
