@@ -15,6 +15,7 @@ import budgetRoutes from './budgets.js';
 import fixedAssetRoutes from './fixedAssets.js';
 import reportRoutes from './reports.js';
 import contractRoutes from './contracts.js';
+import attachmentGroupRoutes from './attachmentGroups.js';
 import contractTemplateRoutes from './contractTemplates.js';
 import approvalRoutes from './approvals.js';
 import complianceRoutes from './compliance.js';
@@ -151,6 +152,8 @@ router.use('/reports', authMiddleware, requireRole('管理员', '总经理', '�
 
 // 合同管理 — 合同主管/法务/管理员/总经理可访问
 router.use('/contracts', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), contractRoutes);
+// 合同附件便捷化（常用附件组 / 待补清单 / 从其他合同继承）
+router.use('/attachment-groups', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), attachmentGroupRoutes);
 router.use('/contract-templates', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), contractTemplateRoutes);
 router.use('/approvals', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), approvalRoutes);
 router.use('/compliance', authMiddleware, requireRole('管理员', '法务', '总经理'), complianceRoutes);
