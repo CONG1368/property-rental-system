@@ -97,7 +97,24 @@
 | DB_HOST / DB_PORT / DB_NAME / DB_USER / DB_PASSWORD | MySQL 连接（仅 DB_DIALECT=mysql 时） | - |
 | REDIS_ENABLED | Redis 缓存 | true（连接失败自动降级，不影响业务） |
 | JWT_SECRET | JWT 签名密钥 | 内置默认（生产请修改） |
+| JWT_ACCESS_EXPIRES_SECONDS | 登录态有效期（秒） | 14400（4 小时） |
+| JWT_REFRESH_EXPIRES_SECONDS | 刷新令牌有效期（秒） | 604800（7 天） |
+| APP_NAME | 系统名（系统信息接口返回） | 物业租赁综合管理系统 |
+| UPLOAD_DIR | 上传目录 | backend/uploads |
 | CRON_ENABLED | 定时任务开关 | true |
+
+> **v1.0.5 起 JWT 时长可配**（原先写死 4 小时 / 7 天）：改这两个变量后重启后端即生效，默认值与旧版一致。
+> 定时任务的**执行时刻**不在这里改——在「系统运维」页用「改时刻」按 5 段 cron 自定义（存 system_configs 的 cron_<key>，保存即重新挂载生效）。
+
+**运行时可配的业务规则**（system_configs，界面直接改；默认值＝旧版写死值，改动带审计、敏感项需密码二次确认）：
+
+| 配置键 | 入口 | 默认 |
+|--------|------|------|
+| tax_vat_rate 等 6 项税率 | 税务管理 →「税率参数」 | 1% / 12% / 1.5 元每㎡ / 0.1% / 9% / 6% |
+| dunning_strategy | 智能催缴 →「催缴策略配置」 | 到期前 3 天；逾期 7 天站内信 / 30 天短信 / 60 天书面 |
+| cron_<key>（7 个） | 系统运维 →「改时刻」 | 各自内置时刻（见 README 定时任务表） |
+| wo_sla_days | 系统参数中心（物业组） | 2 天 |
+| credit_rule | 系统参数中心（收租组） | 40/25/15/10+2/20/15，初始 60 分 C 级，等级线 80/60/40 |
 
 > 生产打包版在 `spawn-backend.ts` 中强制 `REDIS_ENABLED=false`、`DB_DIALECT=sqlite`。
 

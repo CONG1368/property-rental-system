@@ -22,7 +22,7 @@ A full-stack desktop application for property rental management, covering proper
 | State Management | Pinia 2.1 |
 | Backend Framework | Express 4.22 + TypeScript |
 | ORM | Sequelize 6.37 (SQLite by default, MySQL optional) |
-| Authentication | JWT (access 4h + refresh 7d) |
+| Authentication | JWT (access 4h + refresh 7d, **durations configurable via `.env`**) |
 | Scheduled Tasks | node-cron (bill generation / dunning escalation / contract expiry / monthly depreciation / property automation / monthly briefing / door-lock cleanup — 7 jobs) |
 | Real-time Communication | WebSocket (8 event types) |
 | Desktop Packaging | Electron 28 + electron-builder (NSIS installer, compression: normal) |
@@ -182,6 +182,17 @@ DB_NAME=property_rental
 | Print Settings | Company full name / logo / e-signature / certificate info / contact phone, plus company address / postcode / signer (used in the lessor block at the bottom of contracts), real-time preview |
 | ID Card Reader | Reader device registration, driver detection & installation, mock/real mode switching |
 | Audit Log | Full operation audit (success / failure / unauthorized), supports filtering and CSV export |
+
+### Configurable Business Rules (v1.0.5)
+
+All of the following are configuration-driven. **Defaults equal the previously hard-coded values**, so behaviour is unchanged unless you edit them. Every change is audited, and sensitive ones require re-entering your login password:
+
+- **Tax rates** (VAT / property tax / land-use unit price / stamp duty / output / input): Finance → Tax Management → "Tax Rate Parameters"
+- **Dunning strategy** (auto-dunning switch, reminder days before due, overdue tiers with multiple channels, daily cap): Rent → Smart Dunning → "Dunning Strategy"; SMS / e-mail channels really send
+- **Cron schedules** (each of the 7 jobs): System → System Ops → "Change time" (5-field cron, effective immediately)
+- **Work-order SLA / credit-scoring rule**: System Parameter Center (`wo_sla_days` / `credit_rule`)
+- **Token lifetimes**: `.env` → `JWT_ACCESS_EXPIRES_SECONDS` / `JWT_REFRESH_EXPIRES_SECONDS`
+- **Contract attachment list**: printed/exported **after the signatures**; nothing is attached automatically except the fire-safety agreement (always Annex 1); each attachment can have a custom title, which is preferred in the list
 
 ## Scheduled Tasks
 

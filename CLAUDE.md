@@ -91,8 +91,8 @@ node scripts/generate-proposal-pdf.js
 | HTTP 客户端 | Axios (拦截器自动附加 Bearer token + 401 自动刷新) | - |
 | 后端框架 | Express | 4.22 |
 | ORM | Sequelize 6 (SQLite 默认 / MySQL 可选) | 6.37 |
-| 认证 | JWT (access 4h + refresh 7d) | - |
-| 定时任务 | node-cron (账单生成/催缴升级/合同到期/月度折旧/物业自动化/月度简报/门锁清理，共 7 个) | - |
+| 认证 | JWT (access 4h + refresh 7d，**时长可用 .env 覆盖**) | - |
+| 定时任务 | node-cron (账单生成/催缴升级/合同到期/月度折旧/物业自动化/月度简报/门锁清理，共 7 个，**时刻可在系统运维页自定义**) | - |
 | 实时通信 | WebSocket (ws) — 路径 `/ws` | - |
 | 打包 | electron-builder (NSIS 安装包, x64, compression: normal) | - |
 
@@ -115,10 +115,10 @@ node scripts/generate-proposal-pdf.js
 │       ├── index.ts           # 入口：连接DB→迁移→同步表→种子数据→启动HTTP+WS
 │       ├── app.ts             # Express 应用（helmet/cors/morgan/json/路由/错误处理）
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
-│       ├── models/            # Sequelize 模型（70 个 + index/BaseModel）
+│       ├── models/            # Sequelize 模型（71 个 + index/BaseModel）
 │       ├── routes/            # Express 路由（67 个模块 + index，统一挂载 /api 前缀）
 │       ├── middleware/        # auth / rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
-│       ├── services/          # 业务服务层（41 个）
+│       ├── services/          # 业务服务层（46 个）
 │       ├── jobs/scheduler.ts  # 7 个 cron 定时任务（任务注册表）
 │       └── websocket/         # WebSocket 广播
 ├── electron/                  # Electron 主进程 + preload
@@ -351,7 +351,7 @@ Access Token payload 包含用户身份信息，前后端均可直接解析使�
   role: string;          // 12 种角色之一（见 middleware/rbac.ts）
   permissions: object;   // 保留字段
   iat: number;
-  exp: number;           // 4h 过期
+  exp: number;           // 默认 4h 过期（JWT_ACCESS_EXPIRES_SECONDS 可覆盖）
 }
 ```
 
@@ -415,12 +415,14 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 | 维度 | 状态 |
 |------|------|
 | 后端路由模块 | 全部实现（67 个路由模块） |
-| 后端服务 | 全部完整（41 个业务服务） |
+| 后端服务 | 全部完整（46 个业务服务） |
 | 前端页面 | 全部功能完整（87 个页面） |
 | 前端 TypeScript | 0 错误 |
 | 后端 TypeScript | 0 错误 |
 
-**已完成的完整新模块**：消防综合管理（4 模型 + 22 端点 + 6 页面）、条款批量导入（3 格式）、合同消防约定、合同起草附件上传。
+**已完成的完整新模块**：消防综合管理（4 模型 + 22 端点 + 6 页面）、条款批量导入（3 格式）、合同消防约定、合同起草附件上传（含附件清单与自定义标题）。
+
+**v1.0.5 新增的可配置能力（默认值＝旧版写死值）**：税务 6 项费率（税务管理页「税率参数」）、催缴策略（智能催缴页「催缴策略配置」，渠道真实外发）、7 个定时任务执行时刻（系统运维页「改时刻」）、工单 SLA `wo_sla_days`、信用评分规则 `credit_rule`、登录态时长（`.env`）、合同附件清单（签名之后，除消防外不自动添加，标题可自定义）。以上均带审计，敏感项保存需密码二次确认。
 
 **物业租赁/物业管理增强模块（新增）**：租客征信风控（credit-scorer）、押金全生命周期台账（Deposit）、退租-交接-押金流程（Checkout）、固定资产折旧管理（FixedAsset）、报修工单（WorkOrder）、设施设备维保（Facility + FacilityMaintenance）、抄表计费（Meter + MeterReading）、停车管理（ParkingSpace + ParkingRecord）、投诉建议（Complaint）、住户/业主档案（Resident）、公告发布（Announcement）、公共收益（CommonRevenue）、外包供应商（Vendor）、仓库物料（Material + InventoryRecord）、物业管理运营看板（PropertyOpsDashboard）。
 
