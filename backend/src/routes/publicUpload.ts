@@ -112,7 +112,8 @@ router.post('/upload/:token', publicUpload.array('files', 10), async (req, res) 
     const contract: any = await Contract.findByPk((session as any).contractId);
     if (!contract) return res.status(404).send(page('合同不存在', '<h1>合同不存在</h1>', false));
 
-    const existing = [...((((contract as any).billingConfig || {}).attachments as any[]) || [])];
+    const cfg = ((contract as any).billingConfig || {}) as any;
+    const mode = String((session as any).mode || 'direct');
     const added = files.map((f) => ({
       name: decodeFilename(f.originalname),   // 中文名需从 Latin-1 还原（否则附件名乱码）
       path: f.path,
@@ -120,21 +121,33 @@ router.post('/upload/:token', publicUpload.array('files', 10), async (req, res) 
       uploadedAt: new Date().toISOString(),
       title: '',
       group: '',
-      source: '手机上传',
+      source: mode === 'review' ? '租户上传' : '手机上传',
+      ...(mode === 'review' ? { status: '待审核' } : {}),
     }));
-    contract.billingConfig = { ...(((contract as any).billingConfig as any) || {}), attachments: [...existing, ...added] };
+
+    if (mode === 'review') {
+      // 租户自助上传（第 ⑬ 项）：先进待审核箱，管理员通过后才成为正式附件
+      const inbox = [...((cfg.attachmentInbox as any[]) || []), ...added];
+      contract.billingConfig = { ...cfg, attachmentInbox: inbox };
+    } else {
+      const existing = [...((cfg.attachments as any[]) || [])];
+      contract.billingConfig = { ...cfg, attachments: [...existing, ...added] };
+    }
     (contract as any).changed('billingConfig', true);
     await contract.save();
 
-    (session as any).status = '已上传';
+    (session as any).status = mode === 'review' ? '待审核' : '已上传';
     (session as any).uploadedCount = ((session as any).uploadedCount || 0) + added.length;
     (session as any).files = [...((((session as any).files as any[]) || [])), ...added.map((a) => ({ name: a.name, path: a.path, size: a.size, uploadedAt: a.uploadedAt }))];
     (session as any).changed('files', true);
     await session.save();
 
-    res.send(page('上传成功', '<h1 class="ok">上传成功</h1>' +
-      '<p class="muted">已上传 ' + added.length + ' 个文件到合同 ' + (contract.contractNo || '') + '。</p>' +
-      '<p class="tip">可以关闭本页；回到电脑端合同详情页点「刷新附件」即可看到。</p>'));
+    const review = String((session as any).mode || 'direct') === 'review';
+    res.send(page(review ? '已提交' : '上传成功',
+      '<h1 class="ok">' + (review ? '已提交，等待审核' : '上传成功') + '</h1>' +
+      '<p class="muted">' + (review ? '已提交 ' : '已上传 ') + added.length + ' 个文件到合同 ' + (contract.contractNo || '') + '。</p>' +
+      '<p class="tip">' + (review ? '管理员在电脑端「待审核附件」里通过后才会正式成为合同附件。' : '可以关闭本页；回到电脑端合同详情页点「刷新附件」即可看到。') + '</p>'));
+    return;
   } catch (err: any) {
     res.status(500).send(page('上传失败', '<h1>上传失败</h1><p class="muted">' + String(err?.message || err) + '</p>', false));
   }

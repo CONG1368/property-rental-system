@@ -12,6 +12,13 @@ interface ColumnMigration {
 
 const MIGRATION_DEFINITIONS: ColumnMigration[] = [
   {
+    // 手机/租户上传会话（用户 2026-10-16 第 ⑧⑬ 项）：老库已有该表时补齐 mode 列
+    tableName: 'attachment_upload_sessions',
+    columns: [
+      { name: 'mode', sqliteType: 'TEXT', defaultValue: "'direct'" },
+    ],
+  },
+  {
     tableName: 'bills',
     columns: [
       { name: 'periodMonths', sqliteType: 'INTEGER', defaultValue: '1' },

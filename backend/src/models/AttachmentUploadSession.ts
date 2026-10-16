@@ -13,7 +13,8 @@ interface AttachmentUploadSessionAttributes {
   contractId: number;
   createdBy: number | null;
   expiresAt: Date;
-  status: string;      // 待上传 / 已上传 / 已过期
+  status: string;      // 待上传 / 已上传 / 待审核 / 已过期
+  mode: string;        // direct＝上传即挂到附件（现场业务员用）；review＝进待审核箱（租户自助上传，需审核）
   uploadedCount: number;
   files: any;          // [{ name, path, size, uploadedAt }]
   createdAt?: Date; updatedAt?: Date;
@@ -27,6 +28,7 @@ AttachmentUploadSession.init({
   createdBy: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
   expiresAt: { type: DataTypes.DATE, allowNull: false },
   status: { type: DataTypes.STRING(10), defaultValue: '待上传' },
+  mode: { type: DataTypes.STRING(10), defaultValue: 'direct' },
   uploadedCount: { type: DataTypes.INTEGER, defaultValue: 0 },
   files: { type: DataTypes.JSON, defaultValue: [] },
 }, { sequelize, tableName: 'attachment_upload_sessions', indexes: [{ fields: ['token'] }, { fields: ['contractId'] }] })

@@ -4,7 +4,8 @@
       <span>合同附件</span>
       <el-button size="small" type="primary" style="margin-left:12px" :loading="uploading" @click="pickFiles()">上传文件</el-button>
       <el-button size="small" @click="openCamera">拍照上传</el-button>
-      <el-button size="small" @click="openPhoneUpload">手机上传</el-button>
+      <el-button size="small" @click="openPhoneUpload('direct')">手机上传</el-button>
+      <el-button size="small" @click="openPhoneUpload('review')">租户上传（需审核）</el-button>
       <el-button size="small" @click="openGen">生成单据</el-button>
       <el-button size="small" @click="openGroups">常用附件组</el-button>
       <el-button size="small" :disabled="!tenantId" @click="inheritFromTenant">继承该租客上一份合同</el-button>
@@ -58,6 +59,22 @@
       还没有材料清单。点「常用附件组」选一套（如公寓标准附件包）即可一键列出该合同通常要附的材料。
     </div>
 
+    <!-- 待审核附件（⑬ 租户自助上传后的审核箱；有内容时才出现） -->
+    <div v-if="inbox.length > 0" style="margin-top:14px">
+      <div class="row-head">
+        <span><b>待审核附件</b>（{{ inbox.length }} 个，租户/手机上传后需通过才成为正式附件）</span>
+        <el-button link type="primary" size="small" @click="approveAllInbox">全部通过</el-button>
+      </div>
+      <DataTable :data="inbox" :columns="INBOX_COLUMNS" row-key="path" style="margin-top:6px">
+        <template #c2="{ row }">{{ row.source || '租户上传' }}</template>
+        <template #c3="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+        <template #c4="{ row }">
+          <el-button link type="primary" size="small" @click="approveInbox(row)">通过</el-button>
+          <el-button link type="danger" size="small" @click="rejectInbox(row)">驳回</el-button>
+        </template>
+      </DataTable>
+    </div>
+
     <!-- 附件列表 -->
     <DataTable :data="attachments" :columns="COLUMNS" row-key="path" style="margin-top:12px"
       empty-title="暂无附件" empty-description="拖拽、粘贴或点「上传文件」添加；附件会按你设置的标题打印在合同的附件清单里">
@@ -100,7 +117,10 @@
         <el-input :model-value="phoneUrl" readonly>
           <template #append><el-button @click="copyPhoneUrl">复制</el-button></template>
         </el-input>
-        <p style="font-size:12px;color:var(--n-600);margin-top:8px">链接 {{ phoneMinutes }} 分钟内有效，仅对本合同生效；手机上传完成后点右下角按钮刷新附件列表。若手机打不开，请确认同一 WiFi 且防火墙允许 3001 端口。</p>
+        <p style="font-size:12px;color:var(--n-600);margin-top:8px">
+          链接 {{ phoneMinutes }} 分钟内有效，仅对本合同生效。{{ phoneMode === 'review' ? '此链接为「租户上传」，上传后进入「待审核附件」，你通过后才成为正式附件。' : '上传后直接成为正式附件。' }}
+          手机上传完成后点右下角按钮刷新；若手机打不开，请确认同一 WiFi 且防火墙允许 3001 端口。
+        </p>
       </div>
       <template #footer>
         <el-button @click="phoneVisible = false">关闭</el-button>
@@ -272,6 +292,12 @@ const COLUMNS: TableColumn[] = [
   { prop: 'uploadedAt', label: '上传时间', width: 150, slot: 'c5' },
   { label: '操作', width: 210, slot: 'c6' },
 ];
+const INBOX_COLUMNS: TableColumn[] = [
+  { prop: 'name', label: '文件名', minWidth: 200, tooltip: true },
+  { prop: 'source', label: '来源', width: 110, slot: 'c2' },
+  { prop: 'uploadedAt', label: '上传时间', width: 170, slot: 'c3' },
+  { label: '操作', width: 130, slot: 'c4' },
+];
 const CHECK_COLUMNS: TableColumn[] = [
   { prop: 'title', label: '材料', minWidth: 180, tooltip: true },
   { label: '状态', width: 110, slot: 'c2' },
@@ -296,18 +322,61 @@ function formatFileSize(bytes: number) {
   return (bytes / 1048576).toFixed(1) + ' MB';
 }
 
+const inbox = ref<any[]>([]);
+
 async function loadAll() {
   if (!props.contractId) return;
   try {
-    const [f, c] = await Promise.all([
+    const [f, c, i] = await Promise.all([
       request.get('/contracts/' + props.contractId + '/files'),
       request.get('/attachment-groups/checklist/' + props.contractId),
+      request.get('/contracts/' + props.contractId + '/attachment-inbox'),
     ]);
     attachments.value = (f as any).data?.list || [];
     checklist.value = (c as any).data?.checklist || [];
     missing.value = (c as any).data?.missing || 0;
     missingRequired.value = (c as any).data?.missingRequired || 0;
+    inbox.value = (i as any).data?.list || [];
   } catch { /* 拦截器已提示 */ }
+}
+
+// ===== 待审核附件：租户自助上传后由管理员通过/驳回（第 ⑬ 项）=====
+async function approveInbox(row: any) {
+  try {
+    const res: any = await request.post('/contracts/' + props.contractId + '/attachment-inbox/approve', { path: row.path });
+    ElMessage.success(res.message || '已通过');
+    await loadAll();
+    emit('changed');
+  } catch (err: any) {
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+async function approveAllInbox() {
+  try {
+    await ElMessageBox.confirm('通过全部 ' + inbox.value.length + ' 个待审核附件？通过后即成为正式合同附件。', '确认', { type: 'warning' });
+  } catch { return; }
+  try {
+    const res: any = await request.post('/contracts/' + props.contractId + '/attachment-inbox/approve', { paths: inbox.value.map((i) => i.path) });
+    ElMessage.success(res.message || '已全部通过');
+    await loadAll();
+    emit('changed');
+  } catch (err: any) {
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+async function rejectInbox(row: any) {
+  try {
+    await ElMessageBox.confirm('驳回「' + (row.title || row.name) + '」？该文件会被删除。', '确认驳回', { type: 'warning' });
+  } catch { return; }
+  try {
+    const res: any = await request.post('/contracts/' + props.contractId + '/attachment-inbox/reject', { path: row.path });
+    ElMessage.success(res.message || '已驳回');
+    await loadAll();
+  } catch (err: any) {
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
 }
 
 // ===== 上传（批量 / 拖拽 / 粘贴 / 针对某条待补材料）=====
@@ -562,12 +631,14 @@ const phoneVisible = ref(false);
 const phoneUrl = ref('');
 const phoneMinutes = ref(30);
 const phoneLoading = ref(false);
+const phoneMode = ref<'direct' | 'review'>('direct');
 
-async function openPhoneUpload() {
+async function openPhoneUpload(mode: 'direct' | 'review' = 'direct') {
   phoneVisible.value = true;
   phoneLoading.value = true;
+  phoneMode.value = mode;
   try {
-    const r: any = await request.post('/contracts/' + props.contractId + '/upload-session', { minutes: 30 });
+    const r: any = await request.post('/contracts/' + props.contractId + '/upload-session', { minutes: 30, mode });
     phoneUrl.value = r.data?.url || '';
     phoneMinutes.value = Number(r.data?.minutes || 30);
   } catch { phoneVisible.value = false; } finally { phoneLoading.value = false; }

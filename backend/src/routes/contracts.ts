@@ -239,21 +239,99 @@ router.post('/:id/upload-session', requirePermission('contract', 'update'), audi
     const contract = await Contract.findByPk(req.params.id);
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
     const minutes = Math.min(Math.max(Number(req.body?.minutes || 30), 5), 120);
+    // mode=review：租户自助上传，先进待审核箱（第 ⑬ 项）；默认 direct：上传即挂到附件（现场业务员用）
+    const mode = req.body?.mode === 'review' ? 'review' : 'direct';
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
     await AttachmentUploadSession.create({
       token, contractId: (contract as any).id, createdBy: (req as any).user?.id ?? null,
-      expiresAt, status: '待上传', uploadedCount: 0, files: [],
+      expiresAt, status: '待上传', mode, uploadedCount: 0, files: [],
     } as any);
     const ip = getLanIp();
     const port = Number(process.env.PORT || 3001);
     const url = 'http://' + ip + ':' + port + '/api/public/upload/' + token;
     res.json({
       code: 200,
-      data: { token, url, lanIp: ip, port, minutes, expiresAt: expiresAt.toISOString() },
+      data: { token, url, lanIp: ip, port, minutes, mode, expiresAt: expiresAt.toISOString() },
       message: '手机上传链接已生成（' + minutes + ' 分钟内有效，仅对本合同生效）',
     });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '生成手机上传链接失败' }); }
+});
+
+// ===== 待审核附件（用户 2026-10-16 第 ⑬ 项：租户自助上传 + 审核）=====
+
+// GET /contracts/:id/attachment-inbox — 待审核附件列表
+router.get('/:id/attachment-inbox', async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const list = (((contract as any).billingConfig || {}).attachmentInbox as any[]) || [];
+    res.json({ code: 200, data: { list, pending: list.length } });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '读取待审核附件失败' }); }
+});
+
+// POST /contracts/:id/attachment-inbox/approve — 通过（移入正式附件，可批量传 paths）
+router.post('/:id/attachment-inbox/approve', requirePermission('contract', 'update'), auditLog('合同', '通过待审核附件'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const want: string[] = Array.isArray(req.body?.paths) ? req.body.paths.map((p: any) => String(p))
+      : (req.body?.path ? [String(req.body.path)] : []);
+    if (want.length === 0) return res.status(400).json({ code: 400, message: '请选择要通过的附件' });
+
+    const cfg = { ...(((contract as any).billingConfig as any) || {}) };
+    const inbox: any[] = Array.isArray(cfg.attachmentInbox) ? cfg.attachmentInbox : [];
+    const keep: any[] = [];
+    const moved: any[] = [];
+    for (const it of inbox) {
+      if (want.includes(String(it?.path || ''))) {
+        const { status, ...rest } = it;
+        moved.push({ ...rest, reviewedAt: new Date().toISOString(), reviewedBy: (req as any).user?.id ?? null });
+      } else keep.push(it);
+    }
+    if (moved.length === 0) return res.status(404).json({ code: 404, message: '待审核附件里没有匹配项（可能已被处理）' });
+
+    cfg.attachmentInbox = keep;
+    cfg.attachments = [...(Array.isArray(cfg.attachments) ? cfg.attachments : []), ...moved];
+    (contract as any).billingConfig = cfg;
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+    res.json({ code: 200, data: { list: cfg.attachments, inbox: keep }, message: '已通过 ' + moved.length + ' 个附件，已进入合同附件' });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '通过待审核附件失败' }); }
+});
+
+// POST /contracts/:id/attachment-inbox/reject — 驳回（删除条目与磁盘文件）
+router.post('/:id/attachment-inbox/reject', requirePermission('contract', 'update'), auditLog('合同', '驳回待审核附件'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const want: string[] = Array.isArray(req.body?.paths) ? req.body.paths.map((p: any) => String(p))
+      : (req.body?.path ? [String(req.body.path)] : []);
+    if (want.length === 0) return res.status(400).json({ code: 400, message: '请选择要驳回的附件' });
+
+    const cfg = { ...(((contract as any).billingConfig as any) || {}) };
+    const inbox: any[] = Array.isArray(cfg.attachmentInbox) ? cfg.attachmentInbox : [];
+    const keep: any[] = [];
+    const rejected: any[] = [];
+    for (const it of inbox) {
+      if (want.includes(String(it?.path || ''))) rejected.push(it);
+      else keep.push(it);
+    }
+    if (rejected.length === 0) return res.status(404).json({ code: 404, message: '待审核附件里没有匹配项（可能已被处理）' });
+
+    cfg.attachmentInbox = keep;
+    (contract as any).billingConfig = cfg;
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+    // 驳回后清理临时文件（附件从未正式入册，不留残件）
+    let removed = 0;
+    for (const it of rejected) {
+      const p = String(it?.path || '');
+      if (!p) continue;
+      try { fs.unlinkSync(p); removed += 1; } catch { /* 文件可能已不存在 */ }
+    }
+    res.json({ code: 200, data: { inbox: keep, removed }, message: '已驳回 ' + rejected.length + ' 个附件' + (removed ? '，文件已清理' : '') });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '驳回待审核附件失败' }); }
 });
 
 router.get('/', async (req: AuthRequest, res) => {
