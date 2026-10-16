@@ -6,6 +6,7 @@
       <el-button size="small" @click="openCamera">拍照上传</el-button>
       <el-button size="small" @click="openPhoneUpload('direct')">手机上传</el-button>
       <el-button size="small" @click="openPhoneUpload('review')">租户上传（需审核）</el-button>
+      <el-button size="small" @click="openRefs">引用已有资料</el-button>
       <el-button size="small" @click="openGen">生成单据</el-button>
       <el-button size="small" @click="openGroups">常用附件组</el-button>
       <el-button size="small" :disabled="!tenantId" @click="inheritFromTenant">继承该租客上一份合同</el-button>
@@ -59,6 +60,24 @@
       还没有材料清单。点「常用附件组」选一套（如公寓标准附件包）即可一键列出该合同通常要附的材料。
     </div>
 
+    <!-- 引用已有资料（④ • 引用型附件：只记引用不复制文件） -->
+    <el-dialog v-model="refVisible" title="引用已有资料作为附件" width="720px">
+      <div style="font-size:12px;color:var(--n-600);margin-bottom:8px">
+        引用租客档案里已上传的资料作为本合同附件：<b>不复制文件</b>，打印时按其标题列在附件目录里（实际文件仍以租客档案中的原件为准）。
+      </div>
+      <div v-if="refs.length === 0" style="font-size:13px;color:var(--n-600)">该租客档案里还没有可引用的资料（可在「租客档案」里上传身份证照片或附件后再来引用）。</div>
+      <DataTable v-else :data="refs" :columns="REF_COLUMNS" row-key="kind">
+        <template #c2="{ row }">
+          <img v-if="row.kind === 'tenant-id-photo' && row.preview" :src="row.preview" style="height:38px;border-radius:4px" />
+          <span v-else style="font-size:12px;color:var(--n-600)">—</span>
+        </template>
+        <template #c3="{ row }">
+          <el-button link type="primary" size="small" @click="attachRef(row)">引用</el-button>
+        </template>
+      </DataTable>
+      <template #footer><el-button @click="refVisible = false">关闭</el-button></template>
+    </el-dialog>
+
     <!-- 待审核附件（⑬ 租户自助上传后的审核箱；有内容时才出现） -->
     <div v-if="inbox.length > 0" style="margin-top:14px">
       <div class="row-head">
@@ -81,6 +100,7 @@
       <template #c2="{ row }">
         <span v-if="row.title">{{ row.title }}</span>
         <span v-else style="color:var(--n-600);font-size:12px">未设置（打印用文件名）</span>
+        <el-tag v-if="row.source === '引用'" size="small" type="warning" effect="plain" style="margin-left:4px">引用</el-tag>
       </template>
       <template #c3="{ row }">
         <el-select :model-value="row.group || ''" size="small" placeholder="未分组" clearable style="width:112px" @change="(v: string) => setGroup(row, v)">
@@ -292,6 +312,11 @@ const COLUMNS: TableColumn[] = [
   { prop: 'uploadedAt', label: '上传时间', width: 150, slot: 'c5' },
   { label: '操作', width: 210, slot: 'c6' },
 ];
+const REF_COLUMNS: TableColumn[] = [
+  { prop: 'title', label: '资料', minWidth: 220, tooltip: true },
+  { label: '预览', width: 90, slot: 'c2' },
+  { label: '操作', width: 90, slot: 'c3' },
+];
 const INBOX_COLUMNS: TableColumn[] = [
   { prop: 'name', label: '文件名', minWidth: 200, tooltip: true },
   { prop: 'source', label: '来源', width: 110, slot: 'c2' },
@@ -473,6 +498,30 @@ async function editTitle(row: any) {
     emit('changed');
   } catch (err: any) {
     if (err === 'cancel' || err === 'close') return;
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+// ===== 引用已有资料（④ 引用型附件）=====
+const refVisible = ref(false);
+const refs = ref<any[]>([]);
+
+async function openRefs() {
+  refVisible.value = true;
+  try {
+    const r: any = await request.get('/contracts/' + props.contractId + '/ref-candidates');
+    refs.value = r.data?.list || [];
+  } catch { refs.value = []; }
+}
+
+async function attachRef(row: any) {
+  try {
+    const res: any = await request.post('/contracts/' + props.contractId + '/files/attach-ref', { kind: row.kind, refId: row.refId, title: row.title });
+    ElMessage.success(res.message || '已引用');
+    refVisible.value = false;
+    await loadAll();
+    emit('changed');
+  } catch (err: any) {
     if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
   }
 }

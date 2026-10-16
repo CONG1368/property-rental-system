@@ -910,4 +910,71 @@ router.post('/:id/clause-revisions/:revId/ignore', requirePermission('contract',
   }
 });
 
+// ===== 引用型附件（用户 2026-10-16 第 ④ 项：引用已有资料，不复制文件）=====
+
+/** 把租客档案里的可引用资料整理成候选（idPhoto + attachments，兼容数组/对象两种存法） */
+function buildRefCandidates(tenant: any): any[] {
+  const out: any[] = [];
+  if (!tenant) return out;
+  if (String(tenant.idPhoto || '').trim()) {
+    out.push({ kind: 'tenant-id-photo', refId: tenant.id, title: '身份证照片（引用租客档案）', preview: String(tenant.idPhoto).slice(0, 200000) });
+  }
+  const att = tenant.attachments;
+  if (Array.isArray(att)) {
+    att.forEach((x: any, i: number) => {
+      const name = String(x?.name || x?.title || ('租客档案附件' + (i + 1)));
+      if (x?.path || x?.url) out.push({ kind: 'tenant-attachment', refId: i, title: name, path: String(x.path || x.url) });
+    });
+  } else if (att && typeof att === 'object') {
+    Object.keys(att).forEach((k) => {
+      const v = (att as any)[k];
+      const val = typeof v === 'string' ? v : String(v?.path || v?.url || '');
+      if (val) out.push({ kind: 'tenant-attachment', refId: k, title: String(v?.name || k), path: val });
+    });
+  }
+  return out;
+}
+
+// GET /contracts/:id/ref-candidates — 本合同的「可引用资料」清单
+router.get('/:id/ref-candidates', async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const tenant = await Tenant.findByPk((contract as any).tenantId);
+    res.json({ code: 200, data: { list: buildRefCandidates(tenant), tenantName: (tenant as any)?.name || '' } });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '读取可引用资料失败' }); }
+});
+
+// POST /contracts/:id/files/attach-ref — 把已有资料引用为附件（不复制文件，打印时按其标题列在附件目录里）
+router.post('/:id/files/attach-ref', requirePermission('contract', 'update'), auditLog('合同', '引用已有资料作为附件'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const kind = String(req.body?.kind || '').trim();
+    if (!kind) return res.status(400).json({ code: 400, message: '请选择要引用的资料' });
+    const tenant = await Tenant.findByPk((contract as any).tenantId);
+    const candidates = buildRefCandidates(tenant);
+    const hit = candidates.find((c) => c.kind === kind && String(c.refId) === String(req.body?.refId ?? c.refId));
+    if (!hit) return res.status(404).json({ code: 404, message: '该资料已不存在（可能被删除或未上传）' });
+
+    const cfg = { ...(((contract as any).billingConfig as any) || {}) };
+    const files: any[] = Array.isArray(cfg.attachments) ? [...cfg.attachments] : [];
+    const title = String(req.body?.title || hit.title || '').trim();
+    const dup = files.find((f: any) => f?.refKind === hit.kind && String(f?.refId) === String(hit.refId));
+    if (dup) return res.status(409).json({ code: 409, message: '该资料已经引用过了，无需重复添加' });
+
+    files.push({
+      name: title, path: hit.path || '', size: 0,
+      title, group: String(req.body?.group || '').trim(),
+      uploadedAt: new Date().toISOString(),
+      refKind: hit.kind, refId: hit.refId, source: '引用',
+    });
+    cfg.attachments = files;
+    (contract as any).billingConfig = cfg;
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+    res.json({ code: 200, data: { list: files }, message: '已引用「' + title + '」（不复制文件，打印时列在附件目录里）' });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '引用失败' }); }
+});
+
 export default router;
