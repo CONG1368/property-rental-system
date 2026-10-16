@@ -7,6 +7,7 @@
       <el-button size="small" @click="scanNow">扫描仪扫描</el-button>
       <el-button size="small" @click="openPhoneUpload('direct')">手机上传</el-button>
       <el-button size="small" @click="openPhoneUpload('review')">租户上传（需审核）</el-button>
+      <el-button size="small" @click="pullESign">回传电子签文件</el-button>
       <el-button size="small" @click="openRefs">引用已有资料</el-button>
       <el-button size="small" @click="openGen">生成单据</el-button>
       <el-button size="small" @click="openGroups">常用附件组</el-button>
@@ -500,6 +501,18 @@ async function editTitle(row: any) {
   } catch (err: any) {
     if (err === 'cancel' || err === 'close') return;
     if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+// ===== 电子签回传归档（⑫）：签署完成的 PDF 拉回来作为附件；未启用电子签时明确提示 =====
+async function pullESign() {
+  try {
+    const res: any = await request.post('/contracts/' + props.contractId + '/esign/pull-signed', {});
+    ElMessage.success(res.message || '已回传签署文件');
+    await loadAll();
+    emit('changed');
+  } catch (err: any) {
+    ElMessage.warning(err?.response?.data?.message || '回传失败');
   }
 }
 

@@ -27,6 +27,7 @@ import { splitClausesFromText, diffClauseLists } from '../services/clause-diff.j
 import { auditLog } from '../middleware/audit-log.js';
 import AttachmentUploadSession from '../models/AttachmentUploadSession.js';
 import { getLanIp } from './publicUpload.js';
+import { isESignConfigured, querySignStatus } from '../services/e-signature.js';
 
 function decodeFilename(name: string): string {
   const buf = Buffer.from(name, 'latin1');
@@ -1061,6 +1062,51 @@ router.post('/:id/scan', requirePermission('contract', 'update'), auditLog('合�
     await contract.save();
     res.json({ code: 200, data: { list: files, added: entry, devices: r.devices }, message: '已扫描并加入合同附件（' + entry.name + '）' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '扫描失败' }); }
+});
+
+// ===== 电子签回传归档（用户 2026-10-16 第 ⑫ 项：签署完成的 PDF 自动作为合同附件）=====
+
+// POST /contracts/:id/esign/pull-signed — 拉取电子签已签署文件并归档为附件
+// 未配置 e签宝 密钥时明确报「未启用」，不做假动作（Mock 模式下没有真实签署文件可归档）
+router.post('/:id/esign/pull-signed', requirePermission('contract', 'update'), auditLog('合同', '回传电子签签署文件'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    if (!isESignConfigured()) {
+      return res.status(400).json({ code: 400, message: '未启用电子签：请在 .env 配置 E签宝 的 AppId/AppSecret 后重试（当前为 Mock 模式，没有真实签署文件可回传）' });
+    }
+    const cfg = ((contract as any).billingConfig || {}) as any;
+    const flowId = String(req.body?.flowId || cfg.eSignFlowId || (contract as any).eSignFlowId || '').trim();
+    if (!flowId) return res.status(400).json({ code: 400, message: '本合同还没有发起电子签流程，请先在合同详情页发起电子签' });
+
+    const status: any = await querySignStatus(flowId);
+    const fileUrl = String(status?.fileUrl || status?.signedFileUrl || status?.file || '').trim();
+    const done = ['已完成', '已签署', '签署完成', 'finish', 'finished', 'completed'].includes(String(status?.status || ''));
+    if (!done || !fileUrl) {
+      return res.status(400).json({ code: 400, message: '签署尚未完成（当前状态：' + (status?.status || '未知') + '），完成后再回传' });
+    }
+
+    // 下载签署完成的 PDF 并落盘，再作为附件入册
+    const resp = await fetch(fileUrl);
+    if (!resp.ok) return res.status(400).json({ code: 400, message: '下载签署文件失败（HTTP ' + resp.status + '），请稍后重试' });
+    const buf = Buffer.from(await resp.arrayBuffer());
+    if (buf.length === 0) return res.status(400).json({ code: 400, message: '签署文件为空，未归档' });
+    const outPath = path.join(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'), 'esign-' + Date.now() + '.pdf');
+    fs.writeFileSync(outPath, buf);
+
+    const files: any[] = Array.isArray(cfg.attachments) ? [...cfg.attachments] : [];
+    const entry = {
+      name: '电子签_已签署_' + ((contract as any).contractNo || '') + '.pdf',
+      path: outPath, size: buf.length,
+      title: '电子签已签署合同', group: String(req.body?.group || '').trim(),
+      uploadedAt: new Date().toISOString(), source: '电子签', eSignFlowId: flowId,
+    };
+    files.push(entry);
+    (contract as any).billingConfig = { ...cfg, attachments: files, eSignFlowId: flowId };
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+    res.json({ code: 200, data: { list: files, added: entry }, message: '已回传电子签签署文件并归档为附件（' + entry.name + '）' });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '回传电子签文件失败' }); }
 });
 
 export default router;
