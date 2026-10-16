@@ -102,11 +102,9 @@
         </el-descriptions-item>
         <el-descriptions-item label="押金">
           ¥{{ Number(contract.depositAmount || 0).toFixed(2) }}
-          <span v-if="monthsOfRent(contract.depositAmount)" style="font-size:12px;color:var(--n-600)">　相当于 {{ monthsOfRent(contract.depositAmount) }} 个月租金</span>
         </el-descriptions-item>
         <el-descriptions-item label="履约违约金">
           ¥{{ Number(contract.performancePenalty || 0).toFixed(2) }}
-          <span v-if="monthsOfRent(contract.performancePenalty)" style="font-size:12px;color:var(--n-600)">　相当于 {{ monthsOfRent(contract.performancePenalty) }} 个月租金</span>
         </el-descriptions-item>
         <template v-if="feeItemList.length > 0">
           <el-descriptions-item v-for="fi in feeItemList" :key="fi.name" :label="fi.name">
@@ -308,7 +306,7 @@ const periodMonths = computed(() => {
 // 老合同没存过该键时沿用原有输出，避免已签合同打印内容突变
 const showTenantContact = computed(() => (contract.value?.billingConfig || {}).partyBContact !== false);
 
-// 金额相当于几个月租金（月租金为 0 或金额为 0 时返回空串）：让承租人看清押金/履约违约金各是几个月、各多少钱
+// 首期应交租金相当于几个月租金（月租金为 0 或金额为 0 时返回空串）。押金/履约违约金不再显示这一提示（用户 2026-10-16：常按整数收取）
 function monthsOfRent(amount: number | string | null | undefined) {
   const rent = Number(contract.value?.rentAmount || 0);
   const value = Number(amount || 0);

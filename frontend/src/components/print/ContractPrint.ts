@@ -154,7 +154,9 @@ function buildFireSafetyHTML(data: ContractPrintData): string {
   return html;
 }
 
-// 金额相当于几个月租金：让承租人一眼看清押金 / 履约违约金各是「几个月」、各是多少钱（用户 2026-10-10 要求）
+// 首期应交租金相当于几个月租金：说明这一次一共收了几个月的租金（付款周期为年/季时才提示）。
+// 押金与履约违约金**不再注明**「相当于几个月租金」——这两笔常按整数收取（如押金取整），
+// 注明月数会与实际不符且容易引起歧义（用户 2026-10-16 要求：金额由用户自定义填写即可）。
 function rentMonthsNote(amount: number, rentAmount: number): string {
   const rent = Number(rentAmount || 0);
   const value = Number(amount || 0);
@@ -376,8 +378,8 @@ export function buildContractHTML(data: ContractPrintData): string {
       ${td('月租金', `¥${data.rentAmount.toFixed(2)}　（${toChineseAmount(data.rentAmount)}）` + (data.taxType === '不含税' ? ' <span style="color:#e74c3c;font-size:11px">[不含税]</span>' : ' <span style="color:#27ae60;font-size:11px">[含税]</span>'))}
       ${td('付款周期', paymentCycleText)}
       ${td(customPeriodRent > 0 ? '首期应交租金' : cycleTerm + '应交租金', `¥${periodRent.toFixed(2)}　（${toChineseAmount(periodRent)}）${rentMonthsNote(periodRent, data.rentAmount)}`, { highlight: true })}
-      ${td('押金', `¥${data.depositAmount.toFixed(2)}　（${toChineseAmount(data.depositAmount)}）${rentMonthsNote(data.depositAmount, data.rentAmount)}`)}
-      ${(data.performancePenalty ?? 0) > 0 ? td('履约违约金', `¥${Number(data.performancePenalty).toFixed(2)}　（${toChineseAmount(Number(data.performancePenalty))}）${rentMonthsNote(Number(data.performancePenalty), data.rentAmount)}`) : ''}
+      ${td('押金', `¥${data.depositAmount.toFixed(2)}　（${toChineseAmount(data.depositAmount)}）`)}
+      ${(data.performancePenalty ?? 0) > 0 ? td('履约违约金', `¥${Number(data.performancePenalty).toFixed(2)}　（${toChineseAmount(Number(data.performancePenalty))}）`) : ''}
       ${taxRow}
       ${feeRows}
       ${feeItems.length > 0 ? td(cycleTerm + '费用合计', `¥${periodTotal.toFixed(2)}　（${toChineseAmount(periodTotal)}）`, { highlight: true }) : ''}

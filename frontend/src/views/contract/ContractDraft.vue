@@ -36,7 +36,6 @@
                 <span class="quick-label">个月租金</span>
                 <el-button size="small" text type="primary" @click="fillAmountByRent('deposit')">填入</el-button>
               </div>
-              <div v-if="rentMonthsHint(form.depositAmount)" class="amount-months">相当于 {{ rentMonthsHint(form.depositAmount) }} 个月租金（¥{{ Number(form.rentAmount || 0).toFixed(2) }}/月）</div>
             </el-form-item>
           </el-col>
           <el-col :span="6">
@@ -50,7 +49,6 @@
                 <span class="quick-label">个月租金</span>
                 <el-button size="small" text type="primary" @click="fillAmountByRent('penalty')">填入</el-button>
               </div>
-              <div v-if="rentMonthsHint(form.performancePenalty)" class="amount-months">相当于 {{ rentMonthsHint(form.performancePenalty) }} 个月租金（¥{{ Number(form.rentAmount || 0).toFixed(2) }}/月）</div>
             </el-form-item>
           </el-col>
           <el-col :span="6">
@@ -547,13 +545,6 @@ function fillAmountByRent(target: 'deposit' | 'penalty' | 'period') {
   else form.firstPeriodRent = amount;
 }
 
-// 金额相当于几个月租金（月租金为 0 或金额为 0 时返回空串）：告诉承租人这两笔各是多少
-function rentMonthsHint(amount: number | null | undefined) {
-  const rent = Number(form.rentAmount || 0);
-  const value = Number(amount || 0);
-  if (!rent || !value) return '';
-  return Number((value / rent).toFixed(2));
-}
 
 const selectedProperty = computed(() => properties.value.find(p => p.id === form.propertyId));
 
@@ -859,5 +850,4 @@ onMounted(async () => {
 .amount-row { display: flex; align-items: center; gap: 6px; width: 100%; }
 .quick-row { display: flex; align-items: center; gap: 4px; margin-top: 2px; line-height: 1; }
 .quick-label { font-size: 12px; color: $n-600; }
-.amount-months { font-size: 12px; color: $n-600; line-height: 1.6; margin-top: 2px; }
 </style>

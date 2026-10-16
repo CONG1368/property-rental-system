@@ -147,7 +147,7 @@ DB_NAME=property_rental
 | Feature | Description |
 |------|------|
 | Contract List | Full lifecycle: draft / approval / signing / execution / expiry |
-| Contract Drafting | Form-based creation, fee items (incl. editable billing area for per-sqm/month), customizable deposit / performance penalty / first-period rent with "= N months rent" quick fill, tenant-ID write switch, property-tenant association |
+| Contract Drafting | Form-based creation, fee items (incl. editable billing area for per-sqm/month), customizable deposit / performance penalty / first-period rent (the deposit and penalty print as plain amounts — no "equals N months rent" note — since they are often rounded; the first-period rent still supports "= N months rent" quick fill), tenant-ID write switch, property-tenant association |
 | Contract Approval | Submit / reject / sign-off workflow, approval record audit trail |
 | Contract Details | Full info display, fee config cards, file upload & download |
 | Contract Kanban | 8-column kanban by status |

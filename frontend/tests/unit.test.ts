@@ -155,17 +155,24 @@ describe('履约违约金与押金的月份折算（用户 2026-10-10 要求）'
     paymentCycle: '月', status: '起草中', notes: '', companyName: '回归测试物业公司',
   };
 
-  it('押金与履约违约金各注明金额与相当于几个月租金', () => {
+  it('押金与履约违约金只写金额，不再注明「相当于几个月租金」（用户 2026-10-16：押金常取整收，注明月数会与实际不符）', () => {
     const html = buildContractHTML(base);
+    expect(html).toContain('押金');
     expect(html).toContain('履约违约金');
-    expect(html).toContain('相当于 1 个月租金');
-    expect(html).toContain('月租金 ¥3000.00');
+    expect(html).toContain('3000.00');
+    // 全篇只剩「首期应交租金」那一行带月数说明
+    expect((html.match(/相当于/g) || []).length).toBe(1);
+    const depositRow = html.slice(html.indexOf('押金'), html.indexOf('履约违约金'));
+    expect(depositRow).not.toContain('相当于');
+    expect(depositRow).not.toContain('个月租金');
   });
 
-  it('自定义倍数如实折算（押金 1.5 个月、履约违约金 0.5 个月）', () => {
+  it('押金/履约违约金按自定义金额原样打印，不再折算成几个月', () => {
     const html = buildContractHTML({ ...base, rentAmount: 2000, depositAmount: 3000, performancePenalty: 1000 });
-    expect(html).toContain('相当于 1.5 个月租金');
-    expect(html).toContain('相当于 0.5 个月租金');
+    expect(html).toContain('3000.00');
+    expect(html).toContain('1000.00');
+    expect(html).not.toContain('1.5 个月租金');
+    expect(html).not.toContain('0.5 个月租金');
   });
 
   it('新合同不再打印违约金比例，老合同（存有 lateFeeRate）保持原样', () => {
