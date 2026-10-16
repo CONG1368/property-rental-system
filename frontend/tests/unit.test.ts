@@ -216,6 +216,61 @@ describe('首期应交租金可自定义（用户 2026-10-10 要求）', () => {
   });
 });
 
+describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前、除消防外不自动添加）', () => {
+  const base: any = {
+    contractNo: 'HT-ATT-001', propertyName: 'A栋101', propertyAddress: '示例路1号', propertyArea: 88,
+    tenantName: '张三', startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 3000, depositAmount: 3000,
+    paymentCycle: '月', status: '已签订', notes: '', companyName: '回归测试物业公司',
+    clauses: [{ title: '房屋用途', content: '仅用于居住。', sortOrder: 0 }],
+  };
+
+  it('甲乙双方签名排在附件清单之前', () => {
+    const html = buildContractHTML({ ...base, attachments: [{ name: '身份证复印件.pdf' }] });
+    const sign = html.indexOf('class="sign-area"');
+    const att = html.indexOf('附件清单');
+    expect(sign).toBeGreaterThan(-1);
+    expect(att).toBeGreaterThan(-1);
+    expect(sign).toBeLessThan(att);
+  });
+
+  it('除消防外不自动添加：只有消防配置时附件清单里仅一条（消防安全约定）', () => {
+    const html = buildContractHTML({ ...base, fireSafety: { clauses: [{ title: '消防责任', content: '乙方为承租区域消防安全第一责任人。' }] } });
+    expect(html).toContain('附件清单');
+    expect(html).toContain('消防安全约定');
+    expect(html).toContain('附件1');
+    expect(html).not.toContain('附件2');
+  });
+
+  it('既没有消防配置也没有上传附件时，完全不出现附件清单', () => {
+    const html = buildContractHTML(base);
+    expect(html).not.toContain('附件清单');
+    expect(html).not.toContain('具体文件另附');
+  });
+
+  it('用户上传的附件按顺序列出、去掉扩展名、编号连续（消防排第一）', () => {
+    const html = buildContractHTML({
+      ...base,
+      fireSafety: { clauses: [{ title: '消防责任', content: '乙方为消防安全第一责任人。' }] },
+      attachments: [{ name: '房屋交接单.docx' }, { name: '营业执照.jpg' }],
+    });
+    expect(html).toContain('附件1');
+    expect(html).toContain('消防安全约定');
+    expect(html).toContain('附件2');
+    expect(html).toContain('房屋交接单');
+    expect(html).toContain('附件3');
+    expect(html).toContain('营业执照');
+    expect(html).not.toContain('.docx');
+    expect(html).not.toContain('.jpg');
+  });
+
+  it('没有消防但有上传附件时，附件从 1 开始编号', () => {
+    const html = buildContractHTML({ ...base, attachments: [{ name: '押金收据.png' }] });
+    expect(html).toContain('附件1');
+    expect(html).toContain('押金收据');
+    expect(html).not.toContain('消防安全约定');
+  });
+});
+
 describe('合同 Word 导出（用户 2026-10-11 要求：字体清晰、绝不能模糊或乱字符）', () => {
   const base: any = {
     contractNo: 'HT-DOCX-001', propertyName: '翡翠湾A座101', propertyAddress: '示例路1号', propertyArea: 88.5,

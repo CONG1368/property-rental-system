@@ -742,6 +742,7 @@ off('room:status-changed', callback);
 
 **打印设置**：`PrintSettings.vue`（`/system/print-settings`）— 配置公司全称/Logo/电子签章/证件类型/证件号码/联系电话 + **公司地址/公司邮编/签约代表人**（共 9 个 system_configs key，后三项用于合同底部**甲方**签约信息栏），右侧实时预览合同抬头与签章区字段表。Base64 存储图片。
 
+**合同附件清单（用户 2026-10-16 要求）**：打印件结构改为「主合同正文 → 甲乙双方签名（签章区）→ **附件清单**」——签名必须在所有附件之前。附件清单只为**用户自己上传的附件**逐个列一行（`ContractPrintData.attachments`，来自 `GET /contracts/:id/files`，`ContractDetail.buildPrintData()` 透传），文件名去掉扩展名并用 `escAttr()` 转义；**除「消防安全约定」由系统自动列为附件1 外，不做任何自动添加**（用户原话：每个租户情况不同，不能一概而论）；两者都没有时整个「附件清单」章节不输出。消防是否出现沿用正文区块的存在条件——`buildFireSafetyHTML(data)` 已提到 `return` 之前存进 `fireSafetyHtml` 变量，正文与附件清单共用同一判断，改的时候别把它挪回内联（否则会和附件判断不一致）。已由 `frontend/tests/unit.test.ts` 的「合同附件清单」5 条用例锁定（签名在附件之前、只有消防时仅 1 条、都没有时不出现、上传项去扩展名且编号连续、无消防时从附件1 起）。
 **合同底部签约信息栏（用户 2026-10-10 要求）**：`ContractPrint` 的 `signField()` 渲染甲乙两列字段表。**甲方**取打印设置的公司全称/电话/地址/邮编/签约代表人（后三项选填，未配置则留空划线）与合同收款信息里的开户银行/帐户名/帐号；**乙方**取租客档案里**用户自行填写**的 5 个字段（`legalPerson` 签约代表人 / `signAddress` 签约地址 / `postcode` 邮编 / `bankName` 开户银行 / `bankAccount` 银行账号，均为 `tenants` 新列，迁移清单自动补列）——**不做任何"用联系人顶法定代表人、用证件地址顶签约地址"的映射**（用户明确要求让用户自定义填写）。乙方栏的名称/身份证号码/电话仍受合同起草页「乙方证件信息」开关控制（关闭时同名栏位留空），字段标签始终打印、供手写。改这 3 处模板时别把 `frontend/tests/unit.test.ts` 的「合同底部签章区」3 条用例改红。
 
 **后端 API**：`/api/system-configs`（admin 权限）— `GET /keys?keys=k1,k2` 批量查询配置、`PUT /:key` 保存单个配置（upsert 模式）。

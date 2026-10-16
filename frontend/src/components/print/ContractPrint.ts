@@ -33,6 +33,12 @@ interface ContractPrintData {
   // status 仍由调用方传入，但**不再打印在合同上**（用户 2026-10-10 要求）
   status: string;
   notes: string;
+  /**
+   * 合同附件（用户 2026-10-16 要求）：打印件里只列「附件清单」，不自动添加任何附件——
+   * 除「消防安全约定」由系统自动列为附件 1 外，其余附件完全按用户上传的来，没上传就不出现。
+   * 打印顺序同时调整为：主合同正文 → 甲乙双方签名（签章区）→ 附件清单。
+   */
+  attachments?: { name: string; uploadedAt?: string }[];
   feeItems?: FeeItem[];
   companyName: string;
   companyLogo?: string;
@@ -266,6 +272,28 @@ export function buildContractHTML(data: ContractPrintData): string {
 
   // 抬头不再打印合同状态（用户 2026-10-10 要求：给租户正式签署的合同上不能出现「起草中」这类状态提示）
 
+  // 消防约定区块（正文内）：同时决定附件清单里是否自动列出「消防安全约定」
+  const fireSafetyHtml = buildFireSafetyHTML(data);
+
+  // 附件清单（用户 2026-10-16 要求）：排在甲乙双方签名之后；除消防自动外不做任何自动添加
+  const escAttr = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const attachmentItems: string[] = [];
+  if (fireSafetyHtml) attachmentItems.push('消防安全约定');
+  (data.attachments || []).forEach((it) => {
+    const raw = String(it?.name || '').trim();
+    if (!raw) return;
+    attachmentItems.push(escAttr(raw.replace(/\.[A-Za-z0-9]{1,6}$/, '')));
+  });
+  const attachmentHtml = attachmentItems.length > 0 ? `
+  <!-- ====== 附件清单（签名之后）====== -->
+  <div class="section" style="margin-top:48px">
+    <h3>附件清单</h3>
+    <p style="font-size:12px;color:#666;margin:4px 0 8px">以下附件与本合同具有同等法律效力，具体文件另附。</p>
+    <table>
+      ${attachmentItems.map((n, i) => td('附件' + (i + 1), n)).join('')}
+    </table>
+  </div>` : '';
+
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -386,7 +414,7 @@ export function buildContractHTML(data: ContractPrintData): string {
     </div>`).join('')}
   </div>` : ''}
 
-  ${buildFireSafetyHTML(data)}
+  ${fireSafetyHtml}
 
   <!-- ====== 签章区（甲乙双方签约信息，用户 2026-10-10 要求）====== -->
   <div class="sign-area">
@@ -418,6 +446,7 @@ export function buildContractHTML(data: ContractPrintData): string {
       <p style="margin:16px 0 0;font-size:13px">日期：＿＿＿＿年＿＿月＿＿日</p>
     </div>
   </div>
+${attachmentHtml}
 
   <!-- ====== 页脚 ====== -->
   <div style="text-align:center;margin-top:50px;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:10px">
