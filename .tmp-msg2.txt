@@ -1,8 +1,0 @@
-feat(attachment): 批次B——单据模板库一键生成 ① + 系统记录导出 ③（并修 Vue 模板导致 Vite 500 的坑）
-
-- 后端：新表 attachment_templates + 路由 /api/attachment-templates（内置 8 张：房屋交接单/消防安全责任书/押金收据/钥匙交接单/水电燃气表底数确认单 + 消防器材台账/合同账单明细/合同条款全文；内置可改不可删、自建可增改删；GET /placeholders 返回 18 个占位符白名单）
-- 前端：utils/attachment-docs.ts 纯渲染引擎（占位符替换两种写法、合同/租客/房源/甲方上下文、三类系统记录映射、生成可转 Word 的 HTML、文件名）；AttachmentPanel 新增「生成单据」按钮与弹窗（模板分组、实时预览、生成 .docx 后走现有上传接口并以模板名作标题）
-- 修真实缺陷：弹窗提示用 mustache 拼接占位符示例，触发 Vue 编译器 Unterminated string constant → Vite 500、ContractDetail.vue 动态 import 失败白屏、dev exit 1（vue-tsc 检查不出来）；改为单引号常量由插值输出
-- 门禁：附件单据渲染器属打印模板性质，颜色必须写实（Word/打印不认 CSS 变量），相关 5 行按门禁机制标注 ci-allow:R2 并在文件头说明原因
-- 验证：后端接口 8 张模板（标准 5 + 系统记录 3）、占位符 18、内置删除 400、自建增改删 200；前端单测 51→56 条；UI 冒烟预览含标题/合同编号/字段表/条款/签署区，点击生成后回读附件 = 房屋交接单_HT-1791625795298.docx（4568 字节，标题=房屋交接单），测试后合同 billingConfig 与磁盘文件全部复原
-- CLAUDE.md 补「合同附件便捷化」章节（批次 A/B 实现、验证手法、Vite 模板坑与 Playwright 两个坑）
