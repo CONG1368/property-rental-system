@@ -34,9 +34,9 @@ interface ContractPrintData {
   status: string;
   notes: string;
   /**
-   * 合同附件（用户 2026-10-16 要求）：打印件里只列「附件清单」，不自动添加任何附件——
-   * 除「消防安全约定」由系统自动列为附件 1 外，其余附件完全按用户上传的来，没上传就不出现。
-   * 打印顺序同时调整为：主合同正文 → 甲乙双方签名（签章区）→ 附件清单。
+   * 合同附件（用户 2026-10-16 要求，当日再次修订）：打印件里的「附件清单」**只列用户自己上传的附件**，
+   * 不做任何自动添加——消防也一样：消防条款本身印在合同正文，需要作为「附件」时由用户自己上传。
+   * 打印顺序：主合同正文 → 甲乙双方签名（签章区）→ 附件清单（没有上传附件就整段不出现）。
    */
   attachments?: { name: string; title?: string; uploadedAt?: string }[];
   feeItems?: FeeItem[];
@@ -272,13 +272,13 @@ export function buildContractHTML(data: ContractPrintData): string {
 
   // 抬头不再打印合同状态（用户 2026-10-10 要求：给租户正式签署的合同上不能出现「起草中」这类状态提示）
 
-  // 消防约定区块（正文内）：同时决定附件清单里是否自动列出「消防安全约定」
+  // 消防约定区块（合同正文内，与附件无关）
   const fireSafetyHtml = buildFireSafetyHTML(data);
 
-  // 附件清单（用户 2026-10-16 要求）：排在甲乙双方签名之后；除消防自动外不做任何自动添加
+  // 附件清单（用户 2026-10-16 要求，当日再次修订）：排在甲乙双方签名之后，**只列用户上传的附件**，
+  // 不做任何自动添加——消防不再自动占位（消防条款已印在正文，需要消防附件时由用户自己上传）
   const escAttr = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const attachmentItems: string[] = [];
-  if (fireSafetyHtml) attachmentItems.push('消防安全约定');
   (data.attachments || []).forEach((it) => {
     // 优先用用户自定义的标题/备注（用户 2026-10-16 要求），没设置才回退到去掉扩展名的文件名
     const title = String(it?.title || '').trim();

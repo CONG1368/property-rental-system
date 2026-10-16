@@ -192,7 +192,7 @@ All of the following are configuration-driven. **Defaults equal the previously h
 - **Cron schedules** (each of the 7 jobs): System → System Ops → "Change time" (5-field cron, effective immediately)
 - **Work-order SLA / credit-scoring rule**: System Parameter Center (`wo_sla_days` / `credit_rule`)
 - **Token lifetimes**: `.env` → `JWT_ACCESS_EXPIRES_SECONDS` / `JWT_REFRESH_EXPIRES_SECONDS`
-- **Contract attachment list**: printed/exported **after the signatures**; nothing is attached automatically except the fire-safety agreement (always Annex 1); each attachment can have a custom title, which is preferred in the list
+- **Contract attachment list**: printed/exported **after the signatures**; it lists **only the attachments you upload yourself — nothing is added automatically, including the fire-safety one** (the fire-safety clauses stay in the contract body; upload them yourself if you want them as an annex); each attachment can have a custom title, which is preferred in the list
 
 ## Scheduled Tasks
 

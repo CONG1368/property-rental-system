@@ -216,7 +216,7 @@ describe('首期应交租金可自定义（用户 2026-10-10 要求）', () => {
   });
 });
 
-describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前、除消防外不自动添加）', () => {
+describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前、只列用户上传的附件）', () => {
   const base: any = {
     contractNo: 'HT-ATT-001', propertyName: 'A栋101', propertyAddress: '示例路1号', propertyArea: 88,
     tenantName: '张三', startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 3000, depositAmount: 3000,
@@ -233,34 +233,38 @@ describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前�
     expect(sign).toBeLessThan(att);
   });
 
-  it('除消防外不自动添加：只有消防配置时附件清单里仅一条（消防安全约定）', () => {
+  it('消防不再自动作为附件：只配置了消防、没有上传附件时，附件清单不出现（消防条款仍印在正文）', () => {
     const html = buildContractHTML({ ...base, fireSafety: { clauses: [{ title: '消防责任', content: '乙方为承租区域消防安全第一责任人。' }] } });
-    expect(html).toContain('附件清单');
+    expect(html).not.toContain('附件清单');
+    expect(html).not.toContain('具体文件另附');
+    // 正文里的消防安全约定区块不受影响（只是不再自动进附件清单）
     expect(html).toContain('消防安全约定');
-    expect(html).toContain('附件1');
-    expect(html).not.toContain('附件2');
+    expect(html).toContain('乙方为承租区域消防安全第一责任人');
   });
 
-  it('既没有消防配置也没有上传附件时，完全不出现附件清单', () => {
+  it('既没有上传附件也没有消防配置时，同样不出现附件清单', () => {
     const html = buildContractHTML(base);
     expect(html).not.toContain('附件清单');
     expect(html).not.toContain('具体文件另附');
   });
 
-  it('用户上传的附件按顺序列出、去掉扩展名、编号连续（消防排第一）', () => {
+  it('用户上传的附件按顺序列出、去掉扩展名、编号从附件1 起（消防不占位）', () => {
     const html = buildContractHTML({
       ...base,
       fireSafety: { clauses: [{ title: '消防责任', content: '乙方为消防安全第一责任人。' }] },
       attachments: [{ name: '房屋交接单.docx' }, { name: '营业执照.jpg' }],
     });
     expect(html).toContain('附件1');
-    expect(html).toContain('消防安全约定');
     expect(html).toContain('附件2');
     expect(html).toContain('房屋交接单');
-    expect(html).toContain('附件3');
     expect(html).toContain('营业执照');
+    expect(html).not.toContain('附件3');
     expect(html).not.toContain('.docx');
     expect(html).not.toContain('.jpg');
+    // 附件清单区块内不应出现消防
+    const start = html.indexOf('附件清单');
+    const listHtml = html.slice(start, html.indexOf('</div>', start));
+    expect(listHtml).not.toContain('消防安全约定');
   });
 
   it('没有消防但有上传附件时，附件从 1 开始编号', () => {
