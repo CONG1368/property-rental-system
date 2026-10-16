@@ -4,6 +4,7 @@ import { buildBillHTML } from '@/components/print/BillPrint';
 import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 import { buildContractHTML } from '@/components/print/ContractPrint';
 import { isAllowedAttachment, splitAllowed, attachmentLabel, checklistSummary, extOf, ATTACHMENT_ACCEPT } from '@/utils/attachment-upload';
+import { renderPlaceholders, buildDocContext, buildRows, buildDocHTML, docxFileName } from '@/utils/attachment-docs';
 import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 import JSZip from 'jszip';
 import { readSheetAsObjects, buildWorkbookBlob } from '@/utils/excel';
@@ -552,5 +553,77 @@ describe('附件上传与待补清单工具（用户 2026-10-16：附件便捷�
     expect(checklistSummary({ missing: 4, missingRequired: 3 })).toBe('还缺 4 项（其中必选 3 项）');
     expect(checklistSummary({ missing: 2, missingRequired: 0 })).toBe('还缺 2 项');
     expect(checklistSummary(null)).toBe('材料已齐');
+  });
+});
+
+describe('附件单据渲染引擎（用户 2026-10-16：附件便捷化 ①②③）', () => {
+  const ctx = buildDocContext({
+    contract: { contractNo: 'HT-1', rentAmount: 3000, depositAmount: 3500, performancePenalty: 0, firstPeriodRent: 0, paymentCycle: '月', startDate: '2026-01-01', endDate: '2026-12-31' },
+    tenant: { name: '张三', legalPerson: '张三', idNumber: '320102199001011234', phone: '13800138000' },
+    property: { name: 'A栋101', address: '示例路1号', area: 88.5 },
+    companyName: '测试物业公司', companySigner: '李四', today: '2026-10-16',
+  });
+
+  it('占位符替换支持 ${} 与 {{}}，未知键替换为空（合同上不会残留 ${xxx}）', () => {
+    expect(renderPlaceholders('承租人：${tenantName}', ctx)).toBe('承租人：张三');
+    expect(renderPlaceholders('房源：{{propertyName}}', ctx)).toBe('房源：A栋101');
+    expect(renderPlaceholders('缺失：${notExist}!', ctx)).toBe('缺失：!');
+  });
+
+  it('上下文带齐合同/租客/房源字段，金额统一两位小数', () => {
+    expect(ctx.contractNo).toBe('HT-1');
+    expect(ctx.rentAmount).toBe('3000.00');
+    expect(ctx.depositAmount).toBe('3500.00');
+    expect(ctx.performancePenalty).toBe('0.00');
+    expect(ctx.today).toBe('2026-10-16');
+    expect(ctx.companySigner).toBe('李四');
+    expect(ctx.propertyArea).toBe('88.5');
+  });
+
+  it('系统记录映射：消防器材台账 / 账单 / 合同条款（含消防约定）', () => {
+    const eq = buildRows('fire-equipment', [{ name: '灭火器', type: '干粉', location: '1F', quantity: 4, status: '正常', expireDate: '2027-01-01' }]);
+    expect(eq[0].name).toBe('灭火器');
+    expect(eq[0].quantity).toBe(4);
+    const bills = buildRows('bills', [{ billNo: 'BL-1', period: '2026-01', totalAmount: 3000, paidAmount: 0, dueDate: '2026-01-05', status: '未缴' }]);
+    expect(bills[0].totalAmount).toBe('3000.00');
+    expect(bills[0].status).toBe('未缴');
+    const clauses = buildRows('contract-clauses', {
+      clauses: [{ title: '房屋用途', content: '仅用于居住。' }],
+      billingConfig: { fireSafety: { clauses: [{ title: '消防责任', content: '乙方为第一责任人。' }], restrictions: ['禁止堵塞通道'], equipment: ['灭火器'], violationPenalty: '罚款 200 元' } },
+    });
+    expect(clauses.length).toBe(5);
+    expect(clauses[0].title).toBe('房屋用途');
+    expect(clauses.map((r) => r.title)).toContain('违规处罚');
+    expect(buildRows('unknown-source', [{}])).toEqual([]);
+  });
+
+  it('渲染 HTML：标题/合同编号抬头/字段表/条款编号/签署区/系统记录表格', () => {
+    const tpl = {
+      name: '房屋交接单', docTitle: '房屋交接单', intro: '甲方 ${companyName} 与乙方 ${tenantName} 交接 ${propertyName}：',
+      fields: [{ label: '合同编号', value: '${contractNo}' }, { label: '交接日期', value: '${today}' }],
+      clauses: ['现状已查验无异议。', '底数作为结算依据。'],
+      signatures: [{ label: '甲方', name: '${companySigner}' }, { label: '乙方', name: '${tenantName}' }],
+    };
+    const html = buildDocHTML(tpl, ctx, []);
+    expect(html).toContain('房屋交接单');
+    expect(html).toContain('HT-1');
+    expect(html).toContain('甲方 测试物业公司 与乙方 张三 交接 A栋101');
+    expect(html).toContain('1、现状已查验无异议。');
+    expect(html).toContain('2、底数作为结算依据。');
+    expect(html).toContain('class="sign-area"');
+    expect(html).toContain('乙方：张三');
+    // 系统记录：给了行就用模板列
+    const withRows = buildDocHTML({ name: '消防器材台账（系统记录）', tableColumns: [{ key: 'name', label: '器材名称' }, { key: 'quantity', label: '数量' }] }, ctx, [{ name: '灭火器', quantity: 4 }]);
+    expect(withRows).toContain('器材名称');
+    expect(withRows).toContain('灭火器');
+    // 无列定义但有数据时，用行键兜底成列
+    const fallback = buildDocHTML({ name: '条款全文', tableColumns: [] }, ctx, [{ no: '1', title: '房屋用途' }]);
+    expect(fallback).toContain('房屋用途');
+  });
+
+  it('文件名：模板名+合同编号，过滤 Windows 非法字符，无编号时只用模板名', () => {
+    expect(docxFileName('房屋交接单', 'HT-1')).toBe('房屋交接单_HT-1.docx');
+    expect(docxFileName('交接单/消防:责任', 'HT:2')).toBe('交接单消防责任_HT2.docx');
+    expect(docxFileName('押金收据', '')).toBe('押金收据.docx');
   });
 });

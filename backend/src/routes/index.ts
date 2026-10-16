@@ -16,6 +16,7 @@ import fixedAssetRoutes from './fixedAssets.js';
 import reportRoutes from './reports.js';
 import contractRoutes from './contracts.js';
 import attachmentGroupRoutes from './attachmentGroups.js';
+import attachmentTemplateRoutes from './attachmentTemplates.js';
 import contractTemplateRoutes from './contractTemplates.js';
 import approvalRoutes from './approvals.js';
 import complianceRoutes from './compliance.js';
@@ -154,6 +155,8 @@ router.use('/reports', authMiddleware, requireRole('管理员', '总经理', '�
 router.use('/contracts', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), contractRoutes);
 // 合同附件便捷化（常用附件组 / 待补清单 / 从其他合同继承）
 router.use('/attachment-groups', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), attachmentGroupRoutes);
+// 附件单据模板库（① 一键生成单据 / ③ 系统记录导出 / ② 自定义占位符模板）
+router.use('/attachment-templates', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), attachmentTemplateRoutes);
 router.use('/contract-templates', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), contractTemplateRoutes);
 router.use('/approvals', authMiddleware, requireRole('管理员', '合同主管', '法务', '总经理'), approvalRoutes);
 router.use('/compliance', authMiddleware, requireRole('管理员', '法务', '总经理'), complianceRoutes);

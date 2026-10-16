@@ -3,6 +3,7 @@
     <template #header>
       <span>合同附件</span>
       <el-button size="small" type="primary" style="margin-left:12px" :loading="uploading" @click="pickFiles()">上传文件</el-button>
+      <el-button size="small" @click="openGen">生成单据</el-button>
       <el-button size="small" @click="openGroups">常用附件组</el-button>
       <el-button size="small" :disabled="!tenantId" @click="inheritFromTenant">继承该租客上一份合同</el-button>
       <span style="font-size:12px;color:var(--n-600);margin-left:8px">
@@ -72,6 +73,25 @@
     <!-- 隐藏文件选择器：批量选择 / 针对某条待补材料上传 -->
     <input ref="fileInput" type="file" multiple hidden :accept="ATTACHMENT_ACCEPT" @change="onPicked" />
 
+    <!-- 生成单据（① 模板库一键生成 / ③ 系统记录导出；用户 2026-10-16） -->
+    <el-dialog v-model="genVisible" title="生成单据作为附件" width="900px">
+      <div style="font-size:12px;color:var(--n-600);margin-bottom:8px">
+        选一张模板 → 系统用本合同的租客/房源/金额自动填好 → 生成 Word 文件并直接作为附件（生成后可再改标题）。
+        {{ genHint }}
+      </div>
+      <el-select v-model="genTemplateId" style="width:100%" placeholder="选择单据模板" @change="refreshGen">
+        <el-option-group v-for="g in genGroups" :key="g.label" :label="g.label">
+          <el-option v-for="t in g.items" :key="t.id" :label="t.name" :value="t.id" />
+        </el-option-group>
+      </el-select>
+      <div v-if="genHTML" style="margin-top:10px;border:1px solid var(--el-border-color);border-radius:4px;padding:12px;max-height:340px;overflow:auto;font-size:13px" v-html="genHTML" />
+      <div v-else style="margin-top:10px;font-size:12px;color:var(--n-600)">选中模板后这里会显示将要生成的单据预览。</div>
+      <template #footer>
+        <el-button @click="genVisible = false">取消</el-button>
+        <el-button type="primary" :loading="genLoading" :disabled="!genTemplateId" @click="generateDoc">生成并作为附件</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 常用附件组 -->
     <el-dialog v-model="groupVisible" title="常用附件组" width="860px">
       <div style="margin-bottom:8px;font-size:12px;color:var(--n-600)">
@@ -121,6 +141,8 @@ import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 import request, { apiBaseURL } from '@/api/request';
 import { ATTACHMENT_ACCEPT, splitAllowed, checklistSummary } from '@/utils/attachment-upload';
+import { buildDocContext, buildDocHTML, buildRows, docxFileName } from '@/utils/attachment-docs';
+import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 
 /**
  * 合同附件面板（用户 2026-10-16 附件便捷化：⑥拖拽/批量/粘贴上传、⑨常用附件组、⑤待补清单+缺失提醒、⑩继承）。
@@ -346,6 +368,99 @@ async function inheritFromTenant() {
   } catch (err: any) {
     if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
   }
+}
+
+// ===== 生成单据（① 模板库一键生成 / ③ 系统记录导出）=====
+const genVisible = ref(false);
+const genTemplates = ref<any[]>([]);
+const genTemplateId = ref<number | null>(null);
+const genHTML = ref('');
+const genLoading = ref(false);
+const contractData = ref<any>(null);
+const companyInfo = ref<{ name: string; signer: string }>({ name: '', signer: '' });
+// 提示文案放在常量里：模板插值 {{ }} 里不能直接写 ${...}（Vue 编译器会把它当成表达式，导致 Vite 500）
+const genHint = '选一张模板，系统用本合同的租客/房源/金额自动填好，生成 Word 并直接作为附件（可再改标题）。模板里的占位符（${tenantName}、${contractNo} 等）会自动替换为合同数据。';
+
+const genGroups = computed(() => {
+  const order = ['标准单据', '系统记录', '自定义'];
+  const map: Record<string, any[]> = {};
+  for (const t of genTemplates.value) (map[t.category || '自定义'] = map[t.category || '自定义'] || []).push(t);
+  return order.filter((k) => map[k]?.length).map((k) => ({ label: k, items: map[k] }));
+});
+
+async function openGen() {
+  genVisible.value = true;
+  if (!contractData.value) {
+    try {
+      const r: any = await request.get('/contracts/' + props.contractId);
+      contractData.value = r.data || {};
+    } catch { contractData.value = {}; }
+  }
+  if (!companyInfo.value.name) {
+    try {
+      const r: any = await request.get('/system-configs/keys', { params: { keys: 'company_name_for_print,company_signer' } });
+      const map: Record<string, string> = {};
+      (r.data || []).forEach((c: any) => { map[c.configKey] = c.configValue; });
+      companyInfo.value = { name: map['company_name_for_print'] || '', signer: map['company_signer'] || '' };
+    } catch { /* 未配置则留空 */ }
+  }
+  const r: any = await request.get('/attachment-templates');
+  genTemplates.value = r.data?.list || [];
+  if (!genTemplateId.value && genTemplates.value.length) genTemplateId.value = genTemplates.value[0].id;
+  await refreshGen();
+}
+
+function genContext() {
+  const c = contractData.value || {};
+  return buildDocContext({
+    contract: c, tenant: c.tenant, property: c.property,
+    companyName: companyInfo.value.name, companySigner: companyInfo.value.signer,
+  });
+}
+
+/** 取系统记录数据（③）：消防器材台账 / 本合同账单 / 合同条款全文 */
+async function genRows(tpl: any): Promise<any[]> {
+  const src = tpl?.dataSource || '';
+  if (!src) return [];
+  try {
+    if (src === 'fire-equipment') {
+      const r: any = await request.get('/fire-safety/equipment', { params: { page: 1, pageSize: 200 } });
+      return buildRows(src, r.data?.rows || r.data?.list || []);
+    }
+    if (src === 'bills') {
+      const r: any = await request.get('/bills', { params: { contractId: props.contractId, page: 1, pageSize: 200 } });
+      return buildRows(src, r.data?.list || r.data?.rows || []);
+    }
+    if (src === 'contract-clauses') {
+      const c = contractData.value || (await request.get('/contracts/' + props.contractId) as any).data || {};
+      return buildRows(src, c);
+    }
+  } catch { /* 取数失败时先出空表，不阻断生成 */ }
+  return [];
+}
+
+async function refreshGen() {
+  const tpl = genTemplates.value.find((t) => t.id === genTemplateId.value);
+  if (!tpl) { genHTML.value = ''; return; }
+  const rows = await genRows(tpl);
+  genHTML.value = buildDocHTML(tpl, genContext(), rows);
+}
+
+async function generateDoc() {
+  const tpl = genTemplates.value.find((t) => t.id === genTemplateId.value);
+  if (!tpl) return;
+  genLoading.value = true;
+  try {
+    const rows = await genRows(tpl);
+    const html = buildDocHTML(tpl, genContext(), rows);
+    const blob = await buildDocxBlob(html, { title: tpl.docTitle || tpl.name, subject: '合同附件' } as any);
+    const name = docxFileName(tpl.name, genContext().contractNo);
+    const file = new File([blob], name, { type: DOCX_MIME });
+    await uploadFiles([file], tpl.name);
+    genVisible.value = false;
+  } catch (err: any) {
+    ElMessage.error(err?.message || '生成单据失败');
+  } finally { genLoading.value = false; }
 }
 
 onMounted(() => { void loadAll(); window.addEventListener('paste', onPaste); });
