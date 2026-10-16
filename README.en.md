@@ -89,8 +89,8 @@ DB_NAME=property_rental
 │           └── system/        # System settings (11) + login page
 ├── backend/                   # Express Backend (ESM)
 │   └── src/
-│       ├── models/            # Sequelize models (70)
-│       ├── routes/            # API routes (67 modules)
+│       ├── models/            # Sequelize models (74)
+│       ├── routes/            # API routes (70 modules)
 │       ├── services/          # Business service layer (41 services)
 │       ├── middleware/        # Middleware (auth / audit / validation / rate-limit)
 │       ├── jobs/              # Cron job scheduler
@@ -192,7 +192,7 @@ All of the following are configuration-driven. **Defaults equal the previously h
 - **Cron schedules** (each of the 7 jobs): System → System Ops → "Change time" (5-field cron, effective immediately)
 - **Work-order SLA / credit-scoring rule**: System Parameter Center (`wo_sla_days` / `credit_rule`)
 - **Token lifetimes**: `.env` → `JWT_ACCESS_EXPIRES_SECONDS` / `JWT_REFRESH_EXPIRES_SECONDS`
-- **Contract attachment list**: printed/exported **after the signatures**; it lists **only the attachments you upload yourself — nothing is added automatically, including the fire-safety one** (the fire-safety clauses stay in the contract body; upload them yourself if you want them as an annex); each attachment can have a custom title, which is preferred in the list
+- **Contract attachment list**: printed/exported **after the signatures**; it lists **only the attachments you upload yourself — nothing is added automatically, including the fire-safety one** (the fire-safety clauses stay in the contract body; upload them yourself if you want them as an annex); each attachment can have a custom title, which is preferred in the list; **contract attachments support 13 ways to add**: upload / drag a folder / Ctrl+V paste / camera capture / scanner (Windows WIA) / mobile-link upload (no app install needed, camera supported) / tenant self-service upload with review / one-click document generation (8 built-in templates, 18 placeholders, custom templates supported) / system-record export (fire-safety ledger, bill details, full clause text) / reference tenant profile documents / inherit from another contract / frequently used attachment groups (to-be-completed checklist) / e-signature return archival; attachments can be grouped and reordered, and when printing the **attachment directory gets its own page**, numbered continuously by group
 
 ## Scheduled Tasks
 

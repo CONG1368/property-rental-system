@@ -115,8 +115,8 @@ node scripts/generate-proposal-pdf.js
 │       ├── index.ts           # 入口：连接DB→迁移→同步表→种子数据→启动HTTP+WS
 │       ├── app.ts             # Express 应用（helmet/cors/morgan/json/路由/错误处理）
 │       ├── config/            # 配置（数据库/JWT/Redis/上传）
-│       ├── models/            # Sequelize 模型（71 个 + index/BaseModel）
-│       ├── routes/            # Express 路由（67 个模块 + index，统一挂载 /api 前缀）
+│       ├── models/            # Sequelize 模型（74 个 + index/BaseModel）
+│       ├── routes/            # Express 路由（70 个模块 + index，统一挂载 /api 前缀）
 │       ├── middleware/        # auth / rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
 │       ├── services/          # 业务服务层（46 个）
 │       ├── jobs/scheduler.ts  # 7 个 cron 定时任务（任务注册表）
@@ -414,13 +414,17 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 
 | 维度 | 状态 |
 |------|------|
-| 后端路由模块 | 全部实现（67 个路由模块） |
+| 后端模型 | 74 个 Sequelize 模型（+ index/BaseModel） |
+| 后端路由模块 | 全部实现（70 个路由模块） |
 | 后端服务 | 全部完整（46 个业务服务） |
 | 前端页面 | 全部功能完整（87 个页面） |
 | 前端 TypeScript | 0 错误 |
 | 后端 TypeScript | 0 错误 |
+| 后端单元测试 | 46 条通过（vitest，纯函数） |
+| 前端单元测试 | 61 条通过（vitest，含打印模板/附件工具/单据渲染） |
+| 无服务门禁 | `npm run test:static` 6/6 铁律 + 对比度 + 双端类型检查 + ESM 产物校验 |
 
-**已完成的完整新模块**：消防综合管理（4 模型 + 22 端点 + 6 页面）、条款批量导入（3 格式）、合同消防约定、合同起草附件上传（含附件清单与自定义标题）。
+**已完成的完整新模块**：消防综合管理（4 模型 + 22 端点 + 6 页面）、条款批量导入（3 格式）、合同消防约定、**合同附件便捷化（3 模型 + 3 路由模块；13 项能力：模板库一键生成单据、自定义占位符模板、系统记录导出、引用型附件、待补清单、拖拽/粘贴上传、拍照与扫描仪直传、手机上传、常用附件组、跨合同继承、分组排序+打印附件目录、电子签回传归档、租户自助上传+审核）**。
 
 **v1.0.5 新增的可配置能力（默认值＝旧版写死值）**：税务 6 项费率（税务管理页「税率参数」）、催缴策略（智能催缴页「催缴策略配置」，渠道真实外发）、7 个定时任务执行时刻（系统运维页「改时刻」）、工单 SLA `wo_sla_days`、信用评分规则 `credit_rule`、登录态时长（`.env`）、合同附件清单（签名之后，只列用户上传的附件、系统不自动添加含消防，标题可自定义）。以上均带审计，敏感项保存需密码二次确认。
 

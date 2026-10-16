@@ -89,8 +89,8 @@ DB_NAME=property_rental
 │           └── system/        # 系统设置（11）+ 登录页
 ├── backend/                   # Express 后端（ESM）
 │   └── src/
-│       ├── models/            # Sequelize 模型（70 个）
-│       ├── routes/            # API 路由（67 个模块）
+│       ├── models/            # Sequelize 模型（74 个）
+│       ├── routes/            # API 路由（70 个模块）
 │       ├── services/          # 业务服务层（41 个）
 │       ├── middleware/        # 中间件（认证/审计/校验/限流）
 │       ├── jobs/              # 定时任务调度
