@@ -4,7 +4,7 @@ import { buildBillHTML } from '@/components/print/BillPrint';
 import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 import { buildContractHTML } from '@/components/print/ContractPrint';
 import { isAllowedAttachment, splitAllowed, attachmentLabel, checklistSummary, extOf, ATTACHMENT_ACCEPT, ATTACHMENT_GROUPS, groupAttachments } from '@/utils/attachment-upload';
-import { renderPlaceholders, buildDocContext, buildRows, buildDocHTML, docxFileName } from '@/utils/attachment-docs';
+import { renderPlaceholders, buildDocContext, buildRows, buildDocHTML, docxFileName, cloneTemplate, duplicateName } from '@/utils/attachment-docs';
 import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 import JSZip from 'jszip';
 import { readSheetAsObjects, buildWorkbookBlob } from '@/utils/excel';
@@ -625,6 +625,30 @@ describe('附件单据渲染引擎（用户 2026-10-16：附件便捷化 ①②�
     expect(docxFileName('房屋交接单', 'HT-1')).toBe('房屋交接单_HT-1.docx');
     expect(docxFileName('交接单/消防:责任', 'HT:2')).toBe('交接单消防责任_HT2.docx');
     expect(docxFileName('押金收据', '')).toBe('押金收据.docx');
+  });
+
+  it('cloneTemplate：深拷贝成可编辑草稿并补齐空数组（编辑界面不会因空字段报错）', () => {
+    const src = { id: 5, name: '房屋交接单', isBuiltIn: 1, fields: [{ label: '合同编号', value: 'x' }], clauses: ['a'] };
+    const draft = cloneTemplate(src);
+    expect(draft.id).toBe(5);
+    expect(draft.isBuiltIn).toBe(1);
+    expect(draft.name).toBe('房屋交接单');
+    expect(draft.category).toBe('自定义');
+    expect(draft.fields.length).toBe(1);
+    expect(draft.clauses.length).toBe(1);
+    draft.fields[0].label = '改过';
+    expect(src.fields[0].label).toBe('合同编号'); // 深拷贝，不污染原模板
+    const blank = cloneTemplate({ name: 'X' });
+    expect(blank.fields.length).toBe(1);
+    expect(blank.clauses.length).toBe(1);
+    expect(blank.id).toBe(0);
+  });
+
+  it('duplicateName：副本命名不重复（X 副本 / X 副本 2 …）', () => {
+    expect(duplicateName('房屋交接单')).toBe('房屋交接单 副本');
+    expect(duplicateName('房屋交接单', ['房屋交接单 副本'])).toBe('房屋交接单 副本 2');
+    expect(duplicateName('房屋交接单', ['房屋交接单 副本', '房屋交接单 副本 2'])).toBe('房屋交接单 副本 3');
+    expect(duplicateName('')).toBe('模板 副本');
   });
 });
 

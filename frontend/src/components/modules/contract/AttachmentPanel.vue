@@ -93,6 +93,75 @@
       </el-select>
       <div v-if="genHTML" style="margin-top:10px;border:1px solid var(--el-border-color);border-radius:4px;padding:12px;max-height:340px;overflow:auto;font-size:13px" v-html="genHTML" />
       <div v-else style="margin-top:10px;font-size:12px;color:var(--n-600)">选中模板后这里会显示将要生成的单据预览。</div>
+      <el-divider>模板管理（可自定义单据）</el-divider>
+      <div class="row-head">
+        <span style="font-size:12px;color:var(--n-600)">占位符点一下即复制，粘到标题/说明/字段值/条款里，生成时自动替换为合同数据</span>
+        <span>
+          <el-button size="small" @click="newTemplate">新建模板</el-button>
+          <el-button size="small" :disabled="!editing" @click="duplicateTemplate">复制为新模板</el-button>
+          <el-button size="small" type="primary" :loading="tplSaving" :disabled="!editing" @click="saveTemplate">保存模板</el-button>
+          <el-button v-if="editing && !editing.isBuiltIn" size="small" type="danger" @click="removeTemplate">删除模板</el-button>
+        </span>
+      </div>
+      <div style="margin:6px 0">
+        <el-tag v-for="p in placeholders" :key="p.key" size="small" effect="plain" style="margin:2px 4px 2px 0;cursor:pointer" @click="copyPlaceholder(p.key)">{{ p.label }}</el-tag>
+      </div>
+      <div v-if="!editing" style="font-size:12px;color:var(--n-600)">在上方下拉里选一张模板即可编辑（内置模板也能改内容），或点「新建模板」从空白开始。</div>
+      <el-form v-else :model="editing" label-width="96px" size="small" style="margin-top:4px">
+        <el-form-item label="模板名称">
+          <el-input v-model="editing.name" style="max-width:320px" />
+          <el-tag v-if="editing.isBuiltIn" size="small" type="info" style="margin-left:8px">内置（可改不可删）</el-tag>
+        </el-form-item>
+        <el-form-item label="分类 / 业态">
+          <el-select v-model="editing.category" style="width:132px">
+            <el-option v-for="c in ['标准单据', '系统记录', '自定义']" :key="c" :label="c" :value="c" />
+          </el-select>
+          <el-select v-model="editing.scope" style="width:112px;margin-left:8px">
+            <el-option v-for="s in SCOPES" :key="s" :label="s" :value="s" />
+          </el-select>
+          <el-input-number v-model="editing.sortOrder" :min="0" :max="9999" :controls="false" style="width:80px;margin-left:8px" />
+        </el-form-item>
+        <el-form-item label="文档标题"><el-input v-model="editing.docTitle" placeholder="如：房屋交接单" style="max-width:420px" /></el-form-item>
+        <el-form-item label="开头说明"><el-input v-model="editing.intro" type="textarea" :rows="2" placeholder="可含占位符，如：甲方 ${companyName} 与乙方 ${tenantName} 确认如下：" /></el-form-item>
+        <el-form-item label="字段表">
+          <div v-for="(f, i) in editing.fields" :key="'f' + i" class="item-row">
+            <el-input v-model="f.label" placeholder="字段名，如 合同编号" style="width:180px" />
+            <el-input v-model="f.value" placeholder="值，可含占位符，如 ${contractNo}" style="width:300px" />
+            <el-button link type="danger" size="small" @click="editing.fields.splice(i, 1)">删除</el-button>
+          </div>
+          <el-button size="small" @click="editing.fields.push({ label: '', value: '' })">加字段</el-button>
+        </el-form-item>
+        <el-form-item label="条款段落">
+          <div v-for="(c, i) in editing.clauses" :key="'c' + i" class="item-row">
+            <el-input v-model="editing.clauses[i]" placeholder="一条一段，可含占位符" style="width:480px" />
+            <el-button link type="danger" size="small" @click="editing.clauses.splice(i, 1)">删除</el-button>
+          </div>
+          <el-button size="small" @click="editing.clauses.push('')">加条款</el-button>
+        </el-form-item>
+        <el-form-item label="签署栏">
+          <div v-for="(s, i) in editing.signatures" :key="'s' + i" class="item-row">
+            <el-input v-model="s.label" placeholder="如 甲方（签字）" style="width:180px" />
+            <el-input v-model="s.name" placeholder="姓名，可含占位符" style="width:240px" />
+            <el-button link type="danger" size="small" @click="editing.signatures.splice(i, 1)">删除</el-button>
+          </div>
+          <el-button size="small" @click="editing.signatures.push({ label: '甲方', name: '' })">加签署栏</el-button>
+        </el-form-item>
+        <el-form-item label="引用系统记录">
+          <el-select v-model="editing.dataSource" clearable placeholder="不引用（普通单据）" style="width:280px">
+            <el-option label="消防器材台账" value="fire-equipment" />
+            <el-option label="本合同账单明细" value="bills" />
+            <el-option label="本合同条款全文" value="contract-clauses" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="editing.dataSource" label="表格列">
+          <div v-for="(col, i) in editing.tableColumns" :key="'col' + i" class="item-row">
+            <el-input v-model="col.key" placeholder="字段键，如 name" style="width:180px" />
+            <el-input v-model="col.label" placeholder="列名，如 器材名称" style="width:200px" />
+            <el-button link type="danger" size="small" @click="editing.tableColumns.splice(i, 1)">删除</el-button>
+          </div>
+          <el-button size="small" @click="editing.tableColumns.push({ key: '', label: '' })">加列</el-button>
+        </el-form-item>
+      </el-form>
       <template #footer>
         <el-button @click="genVisible = false">取消</el-button>
         <el-button type="primary" :loading="genLoading" :disabled="!genTemplateId" @click="generateDoc">生成并作为附件</el-button>
@@ -142,13 +211,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 import request, { apiBaseURL } from '@/api/request';
 import { ATTACHMENT_ACCEPT, ATTACHMENT_GROUPS, splitAllowed, checklistSummary } from '@/utils/attachment-upload';
-import { buildDocContext, buildDocHTML, buildRows, docxFileName } from '@/utils/attachment-docs';
+import { buildDocContext, buildDocHTML, buildRows, docxFileName, cloneTemplate, duplicateName } from '@/utils/attachment-docs';
 import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 
 /**
@@ -423,6 +492,77 @@ const genGroups = computed(() => {
   return order.filter((k) => map[k]?.length).map((k) => ({ label: k, items: map[k] }));
 });
 
+const placeholders = ref<{ key: string; label: string }[]>([]);
+const editing = ref<any>(null);
+const tplSaving = ref(false);
+
+function loadDraft() {
+  const tpl = genTemplates.value.find((t) => t.id === genTemplateId.value);
+  editing.value = tpl ? cloneTemplate(tpl) : null;
+  void refreshGen();
+}
+
+function newTemplate() {
+  const base = cloneTemplate({ name: '', docTitle: '', category: '自定义', scope: '全部' });
+  base.id = 0;
+  base.isBuiltIn = 0;
+  base.signatures = [{ label: '甲方', name: '$' + '{companySigner}' }, { label: '乙方', name: '$' + '{tenantName}' }];
+  editing.value = base;
+  void refreshGen();
+}
+
+function duplicateTemplate() {
+  if (!editing.value) return;
+  const copy = cloneTemplate(editing.value);
+  copy.id = 0;
+  copy.isBuiltIn = 0;
+  copy.category = '自定义';
+  copy.name = duplicateName(copy.name, genTemplates.value.map((t) => t.name));
+  editing.value = copy;
+}
+
+async function saveTemplate() {
+  if (!editing.value) return;
+  const payload = editing.value;
+  if (!String(payload.name || '').trim()) { ElMessage.warning('请填写模板名称'); return; }
+  tplSaving.value = true;
+  try {
+    const res: any = payload.id
+      ? await request.put('/attachment-templates/' + payload.id, payload)
+      : await request.post('/attachment-templates', payload);
+    ElMessage.success(res.message || '模板已保存');
+    const r: any = await request.get('/attachment-templates');
+    genTemplates.value = r.data?.list || [];
+    placeholders.value = r.data?.placeholders || placeholders.value;
+    genTemplateId.value = res.data?.id || payload.id || genTemplateId.value;
+    loadDraft();
+  } catch (err: any) {
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  } finally { tplSaving.value = false; }
+}
+
+async function removeTemplate() {
+  if (!editing.value?.id) return;
+  try {
+    await ElMessageBox.confirm('删除模板「' + editing.value.name + '」？已经生成过的附件不受影响。', '确认删除', { type: 'warning' });
+  } catch { return; }
+  try {
+    await request.delete('/attachment-templates/' + editing.value.id);
+    ElMessage.success('模板已删除');
+    const r: any = await request.get('/attachment-templates');
+    genTemplates.value = r.data?.list || [];
+    genTemplateId.value = genTemplates.value[0]?.id || null;
+    loadDraft();
+  } catch (err: any) {
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+function copyPlaceholder(key: string) {
+  const text = '$' + '{' + key + '}';
+  navigator.clipboard?.writeText(text).then(() => ElMessage.success('已复制 ' + text), () => ElMessage.info(text));
+}
+
 async function openGen() {
   genVisible.value = true;
   if (!contractData.value) {
@@ -441,8 +581,9 @@ async function openGen() {
   }
   const r: any = await request.get('/attachment-templates');
   genTemplates.value = r.data?.list || [];
+  placeholders.value = r.data?.placeholders || [];
   if (!genTemplateId.value && genTemplates.value.length) genTemplateId.value = genTemplates.value[0].id;
-  await refreshGen();
+  loadDraft();
 }
 
 function genContext() {
@@ -475,7 +616,8 @@ async function genRows(tpl: any): Promise<any[]> {
 }
 
 async function refreshGen() {
-  const tpl = genTemplates.value.find((t) => t.id === genTemplateId.value);
+  // 预览优先用「正在编辑的草稿」，改一处立刻能看到效果；「生成并作为附件」使用已保存的模板
+  const tpl = editing.value || genTemplates.value.find((t) => t.id === genTemplateId.value);
   if (!tpl) { genHTML.value = ''; return; }
   const rows = await genRows(tpl);
   genHTML.value = buildDocHTML(tpl, genContext(), rows);
@@ -497,6 +639,8 @@ async function generateDoc() {
     ElMessage.error(err?.message || '生成单据失败');
   } finally { genLoading.value = false; }
 }
+
+watch(genTemplateId, () => { if (genVisible.value) loadDraft(); });
 
 onMounted(() => { void loadAll(); window.addEventListener('paste', onPaste); });
 onUnmounted(() => window.removeEventListener('paste', onPaste));

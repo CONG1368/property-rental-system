@@ -148,6 +148,39 @@ export function buildDocHTML(tpl: DocTemplate, ctx: DocContext, rows: any[] = []
   return html;
 }
 
+/** 深拷贝模板为可编辑草稿（补齐缺失数组，避免编辑界面因字段为空报错）。 */
+export function cloneTemplate(tpl: any): any {
+  const src = tpl ? JSON.parse(JSON.stringify(tpl)) : {};
+  return {
+    id: Number(src.id || 0),
+    name: String(src.name || ''),
+    category: String(src.category || '自定义'),
+    scope: String(src.scope || '全部'),
+    description: String(src.description || ''),
+    docTitle: String(src.docTitle || ''),
+    intro: String(src.intro || ''),
+    fields: Array.isArray(src.fields) && src.fields.length ? src.fields : [{ label: '', value: '' }],
+    clauses: Array.isArray(src.clauses) && src.clauses.length ? src.clauses : [''],
+    signatures: Array.isArray(src.signatures) && src.signatures.length ? src.signatures : [],
+    dataSource: String(src.dataSource || ''),
+    tableColumns: Array.isArray(src.tableColumns) ? src.tableColumns : [],
+    sortOrder: Number(src.sortOrder || 200),
+    isBuiltIn: Number(src.isBuiltIn || 0),
+  };
+}
+
+/** 「复制为新模板」的默认名：X 副本 / X 副本 2 / X 副本 3 …（纯函数，便于单测）。 */
+export function duplicateName(name: string, existing: string[] = []): string {
+  const base = String(name || '模板').trim() || '模板';
+  const first = base + ' 副本';
+  if (!existing.includes(first)) return first;
+  for (let i = 2; i < 999; i += 1) {
+    const candidate = first + ' ' + i;
+    if (!existing.includes(candidate)) return candidate;
+  }
+  return first + ' 999';
+}
+
 /** 附件文件名（模板名 + 合同编号），便于在附件列表与打印清单里辨认。 */
 export function docxFileName(templateName: string, contractNo: string): string {
   const name = String(templateName || '单据').replace(/[\\/:*?"<>|]/g, '').trim() || '单据';
