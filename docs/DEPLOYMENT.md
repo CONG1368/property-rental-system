@@ -101,6 +101,7 @@
 | JWT_REFRESH_EXPIRES_SECONDS | 刷新令牌有效期（秒） | 604800（7 天） |
 | APP_NAME | 系统名（系统信息接口返回） | 物业租赁综合管理系统 |
 | UPLOAD_DIR | 上传目录 | backend/uploads |
+> **合同附件便捷化（v1.0.5）部署须知**：① 手机/租户上传走**公开路由** /api/public/upload/:token（不挂鉴权，靠一次性 token + 5~120 分钟有效期 + 仅对本合同生效约束）——需手机与电脑**同一局域网**且防火墙放行后端端口（默认 3001）；② 扫描仪走 Windows WIA（需已装驱动）；③ 电子签回传需先配置 e签宝密钥，未配置时接口明确提示未启用；④ 新增表 attachment_groups、attachment_templates、attachment_upload_sessions（含 mode 列的迁移条目），老库启动自动补列。
 | CRON_ENABLED | 定时任务开关 | true |
 
 > **v1.0.5 起 JWT 时长可配**（原先写死 4 小时 / 7 天）：改这两个变量后重启后端即生效，默认值与旧版一致。
