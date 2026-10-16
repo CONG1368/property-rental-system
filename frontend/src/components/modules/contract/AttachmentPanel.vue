@@ -63,10 +63,17 @@
         <span v-if="row.title">{{ row.title }}</span>
         <span v-else style="color:var(--n-600);font-size:12px">未设置（打印用文件名）</span>
       </template>
-      <template #c3="{ row }">{{ formatFileSize(row.size) }}</template>
-      <template #c4="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
-      <template #c5="{ row }">
+      <template #c3="{ row }">
+        <el-select :model-value="row.group || ''" size="small" placeholder="未分组" clearable style="width:112px" @change="(v: string) => setGroup(row, v)">
+          <el-option v-for="g in ATTACHMENT_GROUPS" :key="g" :label="g" :value="g" />
+        </el-select>
+      </template>
+      <template #c4="{ row }">{{ formatFileSize(row.size) }}</template>
+      <template #c5="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+      <template #c6="{ row }">
         <el-button link type="primary" size="small" @click="editTitle(row)">编辑标题</el-button>
+        <el-button link type="primary" size="small" :disabled="row.path === attachments[0]?.path" @click="moveAttachment(row, -1)">上移</el-button>
+        <el-button link type="primary" size="small" :disabled="row.path === attachments[attachments.length - 1]?.path" @click="moveAttachment(row, 1)">下移</el-button>
       </template>
     </DataTable>
 
@@ -140,7 +147,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
 import request, { apiBaseURL } from '@/api/request';
-import { ATTACHMENT_ACCEPT, splitAllowed, checklistSummary } from '@/utils/attachment-upload';
+import { ATTACHMENT_ACCEPT, ATTACHMENT_GROUPS, splitAllowed, checklistSummary } from '@/utils/attachment-upload';
 import { buildDocContext, buildDocHTML, buildRows, docxFileName } from '@/utils/attachment-docs';
 import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 
@@ -161,11 +168,12 @@ const fileInput = ref<HTMLInputElement | null>(null);
 let pendingTitle = '';
 
 const COLUMNS: TableColumn[] = [
-  { prop: 'name', label: '文件名', minWidth: 200, tooltip: true },
-  { prop: 'title', label: '附件标题/备注', minWidth: 180, tooltip: true, slot: 'c2' },
-  { label: '大小', width: 100, slot: 'c3' },
-  { prop: 'uploadedAt', label: '上传时间', width: 170, slot: 'c4' },
-  { label: '操作', width: 110, slot: 'c5' },
+  { prop: 'name', label: '文件名', minWidth: 170, tooltip: true },
+  { prop: 'title', label: '附件标题/备注', minWidth: 150, tooltip: true, slot: 'c2' },
+  { prop: 'group', label: '分组', width: 130, slot: 'c3' },
+  { label: '大小', width: 90, slot: 'c4' },
+  { prop: 'uploadedAt', label: '上传时间', width: 150, slot: 'c5' },
+  { label: '操作', width: 210, slot: 'c6' },
 ];
 const CHECK_COLUMNS: TableColumn[] = [
   { prop: 'title', label: '材料', minWidth: 180, tooltip: true },
@@ -299,6 +307,33 @@ async function editTitle(row: any) {
     emit('changed');
   } catch (err: any) {
     if (err === 'cancel' || err === 'close') return;
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+// 附件分组与排序（用户 2026-10-16 第 ⑪ 项）：分组后打印的「附件目录」会按分组列出；顺序即打印时的附件1/2/3
+async function setGroup(row: any, group: string) {
+  try {
+    const res: any = await request.put('/contracts/' + props.contractId + '/files/group', { path: row.path, group: group || '' });
+    ElMessage.success(res.message || '附件分组已保存');
+    await loadAll();
+    emit('changed');
+  } catch (err: any) {
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+async function moveAttachment(row: any, delta: number) {
+  const list = [...attachments.value];
+  const i = list.findIndex((a) => a.path === row.path);
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  [list[i], list[j]] = [list[j], list[i]];
+  try {
+    await request.put('/contracts/' + props.contractId + '/files/order', { paths: list.map((a) => a.path) });
+    await loadAll();
+    emit('changed');
+  } catch (err: any) {
     if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
   }
 }

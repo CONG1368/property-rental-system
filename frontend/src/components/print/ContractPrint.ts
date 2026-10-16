@@ -1,4 +1,5 @@
 import { toChineseAmount, formatDate } from '@/utils/print-service';
+import { groupAttachments } from '../../utils/attachment-upload';
 
 interface FeeItem { name: string; amount: number; unit: string; }
 
@@ -38,7 +39,7 @@ interface ContractPrintData {
    * 不做任何自动添加——消防也一样：消防条款本身印在合同正文，需要作为「附件」时由用户自己上传。
    * 打印顺序：主合同正文 → 甲乙双方签名（签章区）→ 附件清单（没有上传附件就整段不出现）。
    */
-  attachments?: { name: string; title?: string; uploadedAt?: string }[];
+  attachments?: { name: string; title?: string; group?: string; uploadedAt?: string }[];
   feeItems?: FeeItem[];
   companyName: string;
   companyLogo?: string;
@@ -280,23 +281,35 @@ export function buildContractHTML(data: ContractPrintData): string {
   // 附件清单（用户 2026-10-16 要求，当日再次修订）：排在甲乙双方签名之后，**只列用户上传的附件**，
   // 不做任何自动添加——消防不再自动占位（消防条款已印在正文，需要消防附件时由用户自己上传）
   const escAttr = (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const attachmentItems: string[] = [];
+  const attachmentItems: { label: string; group: string }[] = [];
   (data.attachments || []).forEach((it) => {
     // 优先用用户自定义的标题/备注（用户 2026-10-16 要求），没设置才回退到去掉扩展名的文件名
     const title = String(it?.title || '').trim();
     const raw = String(it?.name || '').trim();
     const label = title || raw.replace(/\.[A-Za-z0-9]{1,6}$/, '');
     if (!label) return;
-    attachmentItems.push(escAttr(label));
+    attachmentItems.push({ label: escAttr(label), group: String((it as any)?.group || '').trim() });
   });
-  const attachmentHtml = attachmentItems.length > 0 ? `
-  <!-- ====== 附件清单（签名之后）====== -->
-  <div class="section" style="margin-top:48px">
-    <h3>附件清单</h3>
-    <p style="font-size:12px;color:#666;margin:4px 0 8px">以下附件与本合同具有同等法律效力，具体文件另附。</p>
+  // 附件目录（用户 2026-10-16 第 ⑪ 项）：按用户分组归类、按用户自定义顺序编号，独立成页便于装订
+  const attGroups = groupAttachments(attachmentItems);
+  const showAttGroup = attGroups.some((g) => g.group !== '未分组');
+  let attNo = 0;
+  let attRows = '';
+  attGroups.forEach((g) => {
+    if (showAttGroup) {
+      attRows += '<tr><td colspan="2" style="padding:5px 8px;border:1px solid #999;background:#f2f2f2;font-weight:bold;font-size:12px">' + escAttr(g.group) + '</td></tr>';
+    }
+    g.items.forEach(({ item }) => { attNo += 1; attRows += td('附件' + attNo, item.label); });
+  });
+  const attachmentHtml = attNo > 0 ? `
+  <!-- ====== 附件目录（签名之后，独立成页）====== -->
+  <div class="section" style="margin-top:48px;page-break-before:always">
+    <h3>附件目录</h3>
+    <p style="font-size:12px;color:#666;margin:4px 0 8px">以下附件与本合同具有同等法律效力，具体文件另附（编号顺序与装订顺序一致）。</p>
     <table>
-      ${attachmentItems.map((n, i) => td('附件' + (i + 1), n)).join('')}
+      ${attRows}
     </table>
+    <p style="font-size:12px;color:#666;margin:8px 0 0">附件共 ${attNo} 件。甲方（签章）：＿＿＿＿＿＿＿＿　乙方（签字）：＿＿＿＿＿＿＿＿</p>
   </div>` : '';
 
   return `<!DOCTYPE html>

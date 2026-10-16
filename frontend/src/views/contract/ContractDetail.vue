@@ -454,7 +454,7 @@ async function buildPrintData() {
       subletAllowed: bc.subletAllowed ?? false,
     fireSafety: fireSafety.value,
     // 附件清单（用户 2026-10-16 要求）：只列用户上传的附件；消防由模板自动列为附件 1
-    attachments: attachments.value.map((x: any) => ({ name: x?.name || '', title: x?.title || '', uploadedAt: x?.uploadedAt || '' })),
+    attachments: attachments.value.map((x: any) => ({ name: x?.name || '', title: x?.title || '', group: x?.group || '', uploadedAt: x?.uploadedAt || '' })),
     ...info,
   };
 }

@@ -3,7 +3,7 @@ import { toChineseAmount, formatDate } from '@/utils/print-service';
 import { buildBillHTML } from '@/components/print/BillPrint';
 import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 import { buildContractHTML } from '@/components/print/ContractPrint';
-import { isAllowedAttachment, splitAllowed, attachmentLabel, checklistSummary, extOf, ATTACHMENT_ACCEPT } from '@/utils/attachment-upload';
+import { isAllowedAttachment, splitAllowed, attachmentLabel, checklistSummary, extOf, ATTACHMENT_ACCEPT, ATTACHMENT_GROUPS, groupAttachments } from '@/utils/attachment-upload';
 import { renderPlaceholders, buildDocContext, buildRows, buildDocHTML, docxFileName } from '@/utils/attachment-docs';
 import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 import JSZip from 'jszip';
@@ -236,7 +236,7 @@ describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前�
   it('甲乙双方签名排在附件清单之前', () => {
     const html = buildContractHTML({ ...base, attachments: [{ name: '身份证复印件.pdf' }] });
     const sign = html.indexOf('class="sign-area"');
-    const att = html.indexOf('附件清单');
+    const att = html.indexOf('附件目录');
     expect(sign).toBeGreaterThan(-1);
     expect(att).toBeGreaterThan(-1);
     expect(sign).toBeLessThan(att);
@@ -244,7 +244,7 @@ describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前�
 
   it('消防不再自动作为附件：只配置了消防、没有上传附件时，附件清单不出现（消防条款仍印在正文）', () => {
     const html = buildContractHTML({ ...base, fireSafety: { clauses: [{ title: '消防责任', content: '乙方为承租区域消防安全第一责任人。' }] } });
-    expect(html).not.toContain('附件清单');
+    expect(html).not.toContain('附件目录');
     expect(html).not.toContain('具体文件另附');
     // 正文里的消防安全约定区块不受影响（只是不再自动进附件清单）
     expect(html).toContain('消防安全约定');
@@ -253,7 +253,7 @@ describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前�
 
   it('既没有上传附件也没有消防配置时，同样不出现附件清单', () => {
     const html = buildContractHTML(base);
-    expect(html).not.toContain('附件清单');
+    expect(html).not.toContain('附件目录');
     expect(html).not.toContain('具体文件另附');
   });
 
@@ -271,7 +271,7 @@ describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前�
     expect(html).not.toContain('.docx');
     expect(html).not.toContain('.jpg');
     // 附件清单区块内不应出现消防
-    const start = html.indexOf('附件清单');
+    const start = html.indexOf('附件目录');
     const listHtml = html.slice(start, html.indexOf('</div>', start));
     expect(listHtml).not.toContain('消防安全约定');
   });
@@ -625,5 +625,61 @@ describe('附件单据渲染引擎（用户 2026-10-16：附件便捷化 ①②�
     expect(docxFileName('房屋交接单', 'HT-1')).toBe('房屋交接单_HT-1.docx');
     expect(docxFileName('交接单/消防:责任', 'HT:2')).toBe('交接单消防责任_HT2.docx');
     expect(docxFileName('押金收据', '')).toBe('押金收据.docx');
+  });
+});
+
+describe('附件分组与打印附件目录（用户 2026-10-16：第 ⑪ 项）', () => {
+  it('groupAttachments：具名分组按预设顺序、自定义分组居中、未分组排最后，组内保持原顺序', () => {
+    const list = [
+      { name: 'c.pdf', group: '' },
+      { name: 'a.pdf', group: '财务类' },
+      { name: 'b.pdf', group: '证件类' },
+      { name: 'd.pdf', group: '自定义组' },
+      { name: 'e.pdf', group: '证件类' },
+    ];
+    const grouped = groupAttachments(list);
+    expect(grouped.map((g) => g.group)).toEqual(['证件类', '财务类', '自定义组', '未分组']);
+    expect(grouped[0].items.map((x) => x.item.name)).toEqual(['b.pdf', 'e.pdf']);
+    expect(grouped[3].items.map((x) => x.item.name)).toEqual(['c.pdf']);
+    // 索引仍指向原数组位置，便于排序时定位
+    expect(grouped[0].items[0].index).toBe(2);
+    expect(ATTACHMENT_GROUPS).toContain('证件类');
+    expect(groupAttachments([])).toEqual([]);
+  });
+
+  it('打印：附件目录按分组列出、编号跨组连续、独立成页、末尾标注件数与签字位', () => {
+    const base: any = {
+      contractNo: 'HT-ATT-002', propertyName: 'A栋101', propertyAddress: '示例路1号', propertyArea: 88,
+      tenantName: '张三', startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 3000, depositAmount: 3000,
+      paymentCycle: '月', status: '已签订', notes: '', companyName: '回归测试物业公司', clauses: [],
+      attachments: [
+        { name: 'id.pdf', title: '身份证复印件', group: '证件类' },
+        { name: 'handover.pdf', title: '房屋交接单', group: '交接类' },
+        { name: 'misc.pdf', title: '其他材料' },
+      ],
+    };
+    const html = buildContractHTML(base);
+    expect(html).toContain('附件目录');
+    expect(html).toContain('page-break-before:always');
+    expect(html).toContain('附件共 3 件');
+    for (const kw of ['证件类', '交接类', '未分组', '附件1', '附件2', '附件3']) expect(html).toContain(kw);
+    // 分组顺序：证件类 → 交接类 → 未分组
+    expect(html.indexOf('>证件类<')).toBeLessThan(html.indexOf('>交接类<'));
+    expect(html.indexOf('>交接类<')).toBeLessThan(html.indexOf('>未分组<'));
+    // 编号跨组连续：身份证复印件是附件1
+    expect(html).toMatch(/附件1[\s\S]*身份证复印件/);
+  });
+
+  it('打印：都没有分组时不出现分组小标题，只有连续编号', () => {
+    const html = buildContractHTML({
+      contractNo: 'HT-ATT-003', propertyName: 'A栋101', propertyAddress: '示例路1号', propertyArea: 88,
+      tenantName: '张三', startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 3000, depositAmount: 3000,
+      paymentCycle: '月', status: '已签订', notes: '', companyName: '回归测试物业公司', clauses: [],
+      attachments: [{ name: 'a.pdf' }, { name: 'b.pdf' }],
+    } as any);
+    expect(html).toContain('附件目录');
+    expect(html).toContain('附件1');
+    expect(html).toContain('附件2');
+    expect(html).not.toContain('未分组');
   });
 });

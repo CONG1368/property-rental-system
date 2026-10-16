@@ -180,6 +180,55 @@ router.put('/:id/files/title', auditLog('合同', '修改附件标题'), async (
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
+// PUT /contracts/:id/files/group — 设置附件分组（用户 2026-10-16 第 ⑪ 项：分组 + 排序 + 打印附件目录页）
+router.put('/:id/files/group', auditLog('合同', '修改附件分组'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const group = String(req.body?.group ?? '').trim();
+    if (group.length > 20) return res.status(400).json({ code: 400, message: '分组名称不能超过 20 个字' });
+
+    const files = [...(((contract as any).billingConfig?.attachments as any[]) || [])];
+    const targetPath = String(req.body?.path || '');
+    let idx = targetPath ? files.findIndex((f: any) => f?.path === targetPath) : Number(req.body?.index);
+    if (targetPath && idx < 0) return res.status(404).json({ code: 404, message: '附件不存在（可能已被删除）' });
+    if (!Number.isInteger(idx) || idx < 0 || idx >= files.length) return res.status(404).json({ code: 404, message: '附件不存在' });
+
+    files[idx] = { ...files[idx], group };
+    const billingConfig = { ...(((contract as any).billingConfig as any) || {}), attachments: files };
+    (contract as any).billingConfig = billingConfig;
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+    res.json({ code: 200, data: { list: files }, message: group ? '附件分组已保存' : '已清除该附件的分组' });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
+// PUT /contracts/:id/files/order — 按传入的 path 顺序重排附件（用户自定义排序）
+router.put('/:id/files/order', auditLog('合同', '调整附件顺序'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const want: string[] = Array.isArray(req.body?.paths) ? req.body.paths.map((p: any) => String(p)) : [];
+    if (want.length === 0) return res.status(400).json({ code: 400, message: '请提供附件顺序' });
+
+    const files = [...(((contract as any).billingConfig?.attachments as any[]) || [])];
+    const byPath = new Map(files.map((f: any) => [String(f?.path || ''), f]));
+    const ordered: any[] = [];
+    for (const p of want) {
+      const f = byPath.get(p);
+      if (f) { ordered.push(f); byPath.delete(p); }
+    }
+    // 未在传入顺序里出现的附件保持原相对顺序追加在末尾，绝不丢附件
+    for (const f of files) if (byPath.has(String(f?.path || ''))) { ordered.push(f); byPath.delete(String(f?.path || '')); }
+
+    const billingConfig = { ...(((contract as any).billingConfig as any) || {}), attachments: ordered };
+    (contract as any).billingConfig = billingConfig;
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+    res.json({ code: 200, data: { list: ordered }, message: '附件顺序已保存（打印时的附件1/2/3 即按此顺序）' });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
 router.get('/', async (req: AuthRequest, res) => {
   try {
     const { page = 1, pageSize = 20, status, propertyId, tenantId, endDateStart, endDateEnd } = req.query;
