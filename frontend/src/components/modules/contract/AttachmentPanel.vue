@@ -3,6 +3,8 @@
     <template #header>
       <span>合同附件</span>
       <el-button size="small" type="primary" style="margin-left:12px" :loading="uploading" @click="pickFiles()">上传文件</el-button>
+      <el-button size="small" @click="openCamera">拍照上传</el-button>
+      <el-button size="small" @click="openPhoneUpload">手机上传</el-button>
       <el-button size="small" @click="openGen">生成单据</el-button>
       <el-button size="small" @click="openGroups">常用附件组</el-button>
       <el-button size="small" :disabled="!tenantId" @click="inheritFromTenant">继承该租客上一份合同</el-button>
@@ -79,6 +81,32 @@
 
     <!-- 隐藏文件选择器：批量选择 / 针对某条待补材料上传 -->
     <input ref="fileInput" type="file" multiple hidden :accept="ATTACHMENT_ACCEPT" @change="onPicked" />
+
+    <!-- 拍照上传（⑦ 拍照/扫描仪直传：摄像头直拍 → 直接作为附件；用户 2026-10-16） -->
+    <el-dialog v-model="camVisible" title="拍照上传" width="720px" @close="closeCamera">
+      <video ref="camVideo" autoplay playsinline muted style="width:100%;max-height:60vh;border-radius:6px" />
+      <div style="margin-top:8px;font-size:12px;color:var(--n-600)">对准证件/单据拍摄，光线充足、四角完整；拍完直接上传为该合同附件（标题自动记为「现场照片」）。</div>
+      <template #footer>
+        <el-button @click="closeCamera">关闭</el-button>
+        <el-button type="primary" @click="shoot">拍照并上传</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 手机上传（⑧ 手机扫码/链接上传） -->
+    <el-dialog v-model="phoneVisible" title="手机上传附件" width="640px">
+      <div v-if="phoneLoading" style="font-size:13px;color:var(--n-600)">正在生成链接…</div>
+      <div v-else>
+        <p style="font-size:13px;margin:0 0 8px">用手机浏览器打开下面这个地址（与电脑在<b>同一 WiFi</b>），即可拍照或选文件直接上传到本合同附件里，<b>免装 App、免登录</b>：</p>
+        <el-input :model-value="phoneUrl" readonly>
+          <template #append><el-button @click="copyPhoneUrl">复制</el-button></template>
+        </el-input>
+        <p style="font-size:12px;color:var(--n-600);margin-top:8px">链接 {{ phoneMinutes }} 分钟内有效，仅对本合同生效；手机上传完成后点右下角按钮刷新附件列表。若手机打不开，请确认同一 WiFi 且防火墙允许 3001 端口。</p>
+      </div>
+      <template #footer>
+        <el-button @click="phoneVisible = false">关闭</el-button>
+        <el-button type="primary" @click="refreshAfterPhone">我已上传，刷新附件</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 生成单据（① 模板库一键生成 / ③ 系统记录导出；用户 2026-10-16） -->
     <el-dialog v-model="genVisible" title="生成单据作为附件" width="900px">
@@ -211,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import DataTable from '@/components/base/DataTable.vue';
 import type { TableColumn } from '@/components/base/types';
@@ -491,6 +519,68 @@ const genGroups = computed(() => {
   for (const t of genTemplates.value) (map[t.category || '自定义'] = map[t.category || '自定义'] || []).push(t);
   return order.filter((k) => map[k]?.length).map((k) => ({ label: k, items: map[k] }));
 });
+
+// ===== 拍照直传（⑦）=====
+const camVisible = ref(false);
+const camVideo = ref<HTMLVideoElement | null>(null);
+let camStream: MediaStream | null = null;
+
+async function openCamera() {
+  camVisible.value = true;
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    await nextTick();
+    if (camVideo.value) { camVideo.value.srcObject = camStream; await camVideo.value.play(); }
+  } catch (err: any) {
+    ElMessage.warning('无法打开摄像头（' + String(err?.name || '未知原因') + '）：可改用「上传文件」选择手机/相机拍好的照片');
+    closeCamera();
+  }
+}
+
+function closeCamera() {
+  camStream?.getTracks().forEach((t) => t.stop());
+  camStream = null;
+  camVisible.value = false;
+}
+
+async function shoot() {
+  const v = camVideo.value;
+  if (!v) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = v.videoWidth || 1280;
+  canvas.height = v.videoHeight || 720;
+  canvas.getContext('2d')?.drawImage(v, 0, 0, canvas.width, canvas.height);
+  const blob: Blob | null = await new Promise((resolve) => canvas.toBlob((bl) => resolve(bl), 'image/jpeg', 0.9));
+  if (!blob) { ElMessage.error('拍照失败，请重试'); return; }
+  const file = new File([blob], '现场照片_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+  closeCamera();
+  await uploadFiles([file], '现场照片');
+}
+
+// ===== 手机上传（⑧）=====
+const phoneVisible = ref(false);
+const phoneUrl = ref('');
+const phoneMinutes = ref(30);
+const phoneLoading = ref(false);
+
+async function openPhoneUpload() {
+  phoneVisible.value = true;
+  phoneLoading.value = true;
+  try {
+    const r: any = await request.post('/contracts/' + props.contractId + '/upload-session', { minutes: 30 });
+    phoneUrl.value = r.data?.url || '';
+    phoneMinutes.value = Number(r.data?.minutes || 30);
+  } catch { phoneVisible.value = false; } finally { phoneLoading.value = false; }
+}
+
+function copyPhoneUrl() {
+  navigator.clipboard?.writeText(phoneUrl.value).then(() => ElMessage.success('已复制链接'), () => ElMessage.info(phoneUrl.value));
+}
+
+async function refreshAfterPhone() {
+  await loadAll();
+  ElMessage.success('附件列表已刷新');
+}
 
 const placeholders = ref<{ key: string; label: string }[]>([]);
 const editing = ref<any>(null);

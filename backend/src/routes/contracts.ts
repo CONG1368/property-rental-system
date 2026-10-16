@@ -15,6 +15,7 @@ import { Op } from 'sequelize';
 import dayjs from 'dayjs';
 import multer from 'multer';
 import path from 'path';
+import crypto from 'crypto';
 import fs from 'fs';
 import { readSheetAsObjects } from '../utils/excel.js';
 import ContractTemplate from '../models/ContractTemplate.js';
@@ -23,6 +24,8 @@ import mammoth from 'mammoth';
 import ContractClauseRevision from '../models/ContractClauseRevision.js';
 import { splitClausesFromText, diffClauseLists } from '../services/clause-diff.js';
 import { auditLog } from '../middleware/audit-log.js';
+import AttachmentUploadSession from '../models/AttachmentUploadSession.js';
+import { getLanIp } from './publicUpload.js';
 
 function decodeFilename(name: string): string {
   const buf = Buffer.from(name, 'latin1');
@@ -227,6 +230,30 @@ router.put('/:id/files/order', auditLog('合同', '调整附件顺序'), async (
     await contract.save();
     res.json({ code: 200, data: { list: ordered }, message: '附件顺序已保存（打印时的附件1/2/3 即按此顺序）' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
+// POST /contracts/:id/upload-session — 生成「手机上传」链接（用户 2026-10-16 第 ⑧ 项）
+// 手机在浏览器打开该地址即可拍照/选文件上传，免装 App、免登录；一次性 token + 有效期约束
+router.post('/:id/upload-session', requirePermission('contract', 'update'), auditLog('合同', '生成手机上传链接'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const minutes = Math.min(Math.max(Number(req.body?.minutes || 30), 5), 120);
+    const token = crypto.randomBytes(24).toString('hex');
+    const expiresAt = new Date(Date.now() + minutes * 60 * 1000);
+    await AttachmentUploadSession.create({
+      token, contractId: (contract as any).id, createdBy: (req as any).user?.id ?? null,
+      expiresAt, status: '待上传', uploadedCount: 0, files: [],
+    } as any);
+    const ip = getLanIp();
+    const port = Number(process.env.PORT || 3001);
+    const url = 'http://' + ip + ':' + port + '/api/public/upload/' + token;
+    res.json({
+      code: 200,
+      data: { token, url, lanIp: ip, port, minutes, expiresAt: expiresAt.toISOString() },
+      message: '手机上传链接已生成（' + minutes + ' 分钟内有效，仅对本合同生效）',
+    });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '生成手机上传链接失败' }); }
 });
 
 router.get('/', async (req: AuthRequest, res) => {

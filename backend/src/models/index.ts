@@ -7,6 +7,7 @@ import BillItem from './BillItem.js';
 import ContractClauseRevision from './ContractClauseRevision.js';
 import AttachmentGroup from './AttachmentGroup.js';
 import AttachmentTemplate from './AttachmentTemplate.js';
+import AttachmentUploadSession from './AttachmentUploadSession.js';
 import PaymentRecord from './PaymentRecord.js';
 import Voucher from './Voucher.js';
 import VoucherEntry from './VoucherEntry.js';
@@ -316,7 +317,7 @@ Facility.hasMany(MaintenancePlan, { foreignKey: 'facilityId', as: 'maintenancePl
 MaintenancePlan.belongsTo(Facility, { foreignKey: 'facilityId', as: 'facility' });
 
 export {
-  User, Property, Tenant, Contract, Bill, BillItem, ContractClauseRevision, AttachmentGroup, AttachmentTemplate, PaymentRecord,
+  User, Property, Tenant, Contract, Bill, BillItem, ContractClauseRevision, AttachmentGroup, AttachmentTemplate, AttachmentUploadSession, PaymentRecord,
   Voucher, VoucherEntry, AccountBook, ChartOfAccount,
   Budget, Expense, FixedAsset, ContractTemplate, ContractClause,
   ContractChange, ContractLog, Approval, DunningTask,

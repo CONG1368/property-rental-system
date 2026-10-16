@@ -43,6 +43,7 @@ import propertyAnalyticsRoutes from './propertyAnalytics.js';
 import propertyAutomationRoutes from './propertyAutomation.js';
 import projectRoutes from './projects.js';
 import tenantAuthRoutes from './tenantAuth.js';
+import publicUploadRoutes from './publicUpload.js';
 import tenantPortalRoutes from './tenantPortal.js';
 import briefingReportRoutes from './briefingReports.js';
 import ocrRoutes from './ocr.js';
@@ -82,6 +83,8 @@ router.use('/callbacks', paymentCallbackRoutes);
 
 // 租户自助端登录（无需管理端登录）
 router.use('/tenant-auth', tenantAuthRoutes);
+// 手机上传（公开路由：一次性 token + 有效期约束，见 routes/publicUpload.ts）
+router.use('/public', publicUploadRoutes);
 router.use('/tenant-portal', requireTenant, tenantPortalRoutes);
 
 // 经营简报月度报告
