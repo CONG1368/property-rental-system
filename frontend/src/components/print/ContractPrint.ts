@@ -38,7 +38,7 @@ interface ContractPrintData {
    * 除「消防安全约定」由系统自动列为附件 1 外，其余附件完全按用户上传的来，没上传就不出现。
    * 打印顺序同时调整为：主合同正文 → 甲乙双方签名（签章区）→ 附件清单。
    */
-  attachments?: { name: string; uploadedAt?: string }[];
+  attachments?: { name: string; title?: string; uploadedAt?: string }[];
   feeItems?: FeeItem[];
   companyName: string;
   companyLogo?: string;
@@ -280,9 +280,12 @@ export function buildContractHTML(data: ContractPrintData): string {
   const attachmentItems: string[] = [];
   if (fireSafetyHtml) attachmentItems.push('消防安全约定');
   (data.attachments || []).forEach((it) => {
+    // 优先用用户自定义的标题/备注（用户 2026-10-16 要求），没设置才回退到去掉扩展名的文件名
+    const title = String(it?.title || '').trim();
     const raw = String(it?.name || '').trim();
-    if (!raw) return;
-    attachmentItems.push(escAttr(raw.replace(/\.[A-Za-z0-9]{1,6}$/, '')));
+    const label = title || raw.replace(/\.[A-Za-z0-9]{1,6}$/, '');
+    if (!label) return;
+    attachmentItems.push(escAttr(label));
   });
   const attachmentHtml = attachmentItems.length > 0 ? `
   <!-- ====== 附件清单（签名之后）====== -->

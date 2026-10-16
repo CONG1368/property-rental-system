@@ -133,6 +133,8 @@ router.post('/:id/upload', requirePermission('contract', 'update'), contractUplo
       path: f.path,
       size: f.size,
       uploadedAt: new Date().toISOString(),
+      // 附件标题/备注（用户 2026-10-16 要求）：先在界面上自定义，打印「附件清单」时优先显示它
+      title: '',
     }));
     const billingConfig = (contract as any).billingConfig || {};
     billingConfig.attachments = [...existingFiles, ...newFiles];
@@ -150,6 +152,31 @@ router.get('/:id/files', async (req: AuthRequest, res) => {
     if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
     const attachments = (contract as any).billingConfig?.attachments || [];
     res.json({ code: 200, data: { list: attachments } });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
+// PUT /contracts/:id/files/title — 设置某个附件的标题/备注（用户 2026-10-16 要求）
+// 标题用于打印合同的「附件清单」（如把 扫描件_2026.pdf 显示成「房屋交接单」）；留空则回退用文件名
+router.put('/:id/files/title', auditLog('合同', '修改附件标题'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const title = String(req.body?.title ?? '').trim();
+    if (title.length > 60) return res.status(400).json({ code: 400, message: '附件标题不能超过 60 个字' });
+
+    const files = [...(((contract as any).billingConfig?.attachments as any[]) || [])];
+    const targetPath = String(req.body?.path || '');
+    let idx = targetPath ? files.findIndex((f: any) => f?.path === targetPath) : Number(req.body?.index);
+    if (targetPath && idx < 0) return res.status(404).json({ code: 404, message: '附件不存在（可能已被删除）' });
+    if (!Number.isInteger(idx) || idx < 0 || idx >= files.length) return res.status(404).json({ code: 404, message: '附件不存在' });
+
+    files[idx] = { ...files[idx], title };
+    const billingConfig = { ...(((contract as any).billingConfig as any) || {}), attachments: files };
+    (contract as any).billingConfig = billingConfig;
+    // SQLite 上 JSON 字段必须显式标记变更，否则 update() 检测不到（见 CLAUDE.md 陷阱）
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+    res.json({ code: 200, data: { list: files }, message: title ? '附件标题已保存' : '已清除该附件的标题' });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 

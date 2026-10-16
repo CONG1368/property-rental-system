@@ -361,8 +361,15 @@
         <span style="font-size:12px;color:var(--n-600);margin-left:8px">PDF / Word / 图片 / Excel</span>
       </template>
       <DataTable :data="attachments" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
-        <template #c2="{ row }">{{ formatFileSize(row.size) }}</template>
-        <template #c3="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+        <template #c2="{ row }">
+          <span v-if="row.title">{{ row.title }}</span>
+          <span v-else style="color:var(--n-600);font-size:12px">未设置（打印用文件名）</span>
+        </template>
+        <template #c3="{ row }">{{ formatFileSize(row.size) }}</template>
+        <template #c4="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
+        <template #c5="{ row }">
+          <el-button link type="primary" size="small" @click="editAttachmentTitle(row)">编辑标题</el-button>
+        </template>
       </DataTable>
     </el-card>
 
@@ -377,13 +384,16 @@ import type { TableColumn } from '@/components/base/types';
 
 const COLUMNS: TableColumn[] = [
   { prop: 'name', label: '文件名', minWidth: 200, tooltip: true },
-  { label: '大小', width: 100, slot: 'c2' },
-  { prop: 'uploadedAt', label: '上传时间', width: 170, slot: 'c3' },
+  // 附件标题/备注（用户 2026-10-16 要求）：打印「附件清单」时优先显示标题
+  { prop: 'title', label: '附件标题/备注', minWidth: 180, tooltip: true, slot: 'c2' },
+  { label: '大小', width: 100, slot: 'c3' },
+  { prop: 'uploadedAt', label: '上传时间', width: 170, slot: 'c4' },
+  { label: '操作', width: 110, slot: 'c5' },
 ];
 
 import { ref, computed, reactive, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { Delete } from '@element-plus/icons-vue';
 import request, { apiBaseURL } from '@/api/request';
 
@@ -414,6 +424,23 @@ async function fetchAttachments() {
     const res = await request.get('/contracts/' + savedContractId.value + '/files');
     attachments.value = res.data?.list || [];
   } catch { /* ignore */ }
+}
+
+// 附件标题/备注（用户 2026-10-16 要求）：标题会显示在打印合同的「附件清单」里，留空则用文件名
+async function editAttachmentTitle(row: any) {
+  try {
+    const { value } = await ElMessageBox.prompt(
+      '标题/备注会打印在合同的「附件清单」里（例如把 scan_2026.pdf 显示成「房屋交接单」）。留空则回退用文件名。',
+      '设置附件标题',
+      { inputValue: row.title || '', inputPlaceholder: '如：房屋交接单', confirmButtonText: '保存', cancelButtonText: '取消' },
+    );
+    const res: any = await request.put('/contracts/' + savedContractId.value + '/files/title', { path: row.path, title: String(value || '').trim() });
+    ElMessage.success(res.message || '附件标题已保存');
+    await fetchAttachments();
+  } catch (err: any) {
+    if (err === 'cancel' || err === 'close') return;
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
 }
 
 function onUploadSuccess(res: any) {

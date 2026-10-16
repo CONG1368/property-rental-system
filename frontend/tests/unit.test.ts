@@ -269,6 +269,18 @@ describe('合同附件清单（用户 2026-10-16 要求：签名在附件之前�
     expect(html).toContain('押金收据');
     expect(html).not.toContain('消防安全约定');
   });
+
+  it('附件设有标题/备注时优先显示标题，未设置才回退文件名（用户 2026-10-16 追加）', () => {
+    const html = buildContractHTML({ ...base, attachments: [{ name: 'scan_20261016.pdf', title: '房屋交接单' }, { name: '营业执照.jpg' }] });
+    expect(html).toContain('房屋交接单');
+    expect(html).not.toContain('scan_20261016');
+    expect(html).toContain('营业执照');
+  });
+
+  it('标题里的 & < > 会被转义，不会破坏附件清单排版', () => {
+    const html = buildContractHTML({ ...base, attachments: [{ name: 'a.pdf', title: '附件&<测试>' }] });
+    expect(html).toContain('附件&amp;&lt;测试&gt;');
+  });
 });
 
 describe('合同 Word 导出（用户 2026-10-11 要求：字体清晰、绝不能模糊或乱字符）', () => {
