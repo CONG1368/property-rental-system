@@ -3,6 +3,7 @@ import { toChineseAmount, formatDate } from '@/utils/print-service';
 import { buildBillHTML } from '@/components/print/BillPrint';
 import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 import { buildContractHTML } from '@/components/print/ContractPrint';
+import { isAllowedAttachment, splitAllowed, attachmentLabel, checklistSummary, extOf, ATTACHMENT_ACCEPT } from '@/utils/attachment-upload';
 import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 import JSZip from 'jszip';
 import { readSheetAsObjects, buildWorkbookBlob } from '@/utils/excel';
@@ -513,5 +514,43 @@ describe('前端 Excel 工具（迁移 exceljs 后的读写契约）', () => {
   it('空数据也返回合法 xlsx（不抛异常）', async () => {
     const blob = await buildWorkbookBlob([{ name: '空', rows: [] }]);
     expect(blob.size).toBeGreaterThan(0);
+  });
+});
+
+describe('附件上传与待补清单工具（用户 2026-10-16：附件便捷化 ⑥⑨⑩）', () => {
+  it('允许的类型与后端 multer fileFilter 一致（PDF/Word/图片/Excel）', () => {
+    expect(isAllowedAttachment('房屋交接单.docx')).toBe(true);
+    expect(isAllowedAttachment('扫描件.PDF')).toBe(true);
+    expect(isAllowedAttachment('照片.jpeg')).toBe(true);
+    expect(isAllowedAttachment('底数.xlsx')).toBe(true);
+    expect(isAllowedAttachment('说明.txt')).toBe(false);
+    expect(isAllowedAttachment('压缩包.zip')).toBe(false);
+    expect(isAllowedAttachment('无扩展名')).toBe(false);
+    expect(ATTACHMENT_ACCEPT).toContain('.pdf');
+    expect(ATTACHMENT_ACCEPT).toContain('.docx');
+  });
+
+  it('extOf 取小写扩展名（无扩展名返回空串）', () => {
+    expect(extOf('A.DOCX')).toBe('docx');
+    expect(extOf('无后缀')).toBe('');
+  });
+
+  it('splitAllowed 拆分「可上传」与「被拒」两组，便于逐个提示', () => {
+    const r = splitAllowed([{ name: 'a.pdf' }, { name: 'b.txt' }, { name: 'c.png' }, { name: 'd' }]);
+    expect(r.allowed.map((f) => f.name)).toEqual(['a.pdf', 'c.png']);
+    expect(r.rejected).toEqual(['b.txt', 'd']);
+  });
+
+  it('attachmentLabel 优先自定义标题、其次去掉扩展名的文件名', () => {
+    expect(attachmentLabel({ name: 'scan_2026.pdf', title: '房屋交接单' })).toBe('房屋交接单');
+    expect(attachmentLabel({ name: 'scan_2026.pdf' })).toBe('scan_2026');
+    expect(attachmentLabel(null)).toBe('');
+  });
+
+  it('checklistSummary 输出「还缺 N 项（其中必选 M 项）」', () => {
+    expect(checklistSummary({ missing: 0, missingRequired: 0 })).toBe('材料已齐');
+    expect(checklistSummary({ missing: 4, missingRequired: 3 })).toBe('还缺 4 项（其中必选 3 项）');
+    expect(checklistSummary({ missing: 2, missingRequired: 0 })).toBe('还缺 2 项');
+    expect(checklistSummary(null)).toBe('材料已齐');
   });
 });

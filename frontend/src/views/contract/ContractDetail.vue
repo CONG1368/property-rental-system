@@ -186,37 +186,13 @@
       <el-empty v-if="!fireSafety.clauses?.length && !fireSafety.restrictions?.length && !fireSafety.equipment?.length" description="暂无消防约定" :image-size="40" />
     </el-card>
 
-    <!-- 合同附件 -->
-    <el-card style="margin-top:16px" v-if="contract">
-      <template #header>
-        <span>合同附件</span>
-        <el-upload
-          :action="apiBaseURL + '/contracts/' + contract.id + '/upload'"
-          :headers="uploadHeaders"
-          name="files"
-          multiple
-          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"
-          :show-file-list="false"
-          :on-success="onUploadSuccess"
-          :on-error="onUploadError"
-          style="display:inline-block;margin-left:16px"
-        >
-          <el-button size="small" type="primary">上传文件</el-button>
-        </el-upload>
-        <span style="font-size:12px;color:var(--n-600);margin-left:8px">支持 PDF/DOC/DOCX/图片/Excel</span>
-      </template>
-      <DataTable :data="attachments" :columns="COLUMNS" row-key="id" empty-title="暂无数据" empty-description="调整筛选条件或新增记录后，数据会显示在这里">
-        <template #c2="{ row }">
-          <span v-if="row.title">{{ row.title }}</span>
-          <span v-else style="color:var(--n-600);font-size:12px">未设置（打印用文件名）</span>
-        </template>
-        <template #c3="{ row }">{{ formatFileSize(row.size) }}</template>
-        <template #c4="{ row }">{{ row.uploadedAt?.slice(0, 16)?.replace('T', ' ') }}</template>
-        <template #c5="{ row }">
-          <el-button link type="primary" size="small" @click="editAttachmentTitle(row)">编辑标题</el-button>
-        </template>
-      </DataTable>
-    </el-card>
+    <!-- 合同附件（共享面板：拖拽/批量/粘贴上传、常用附件组、待补清单、继承；用户 2026-10-16） -->
+    <AttachmentPanel
+      v-if="contract"
+      :contract-id="contract.id"
+      :tenant-id="contract.tenantId"
+      @changed="fetchAttachments"
+    />
 
     <!-- 合同条款 -->
     <el-card style="margin-top:16px" v-if="contract">
@@ -258,20 +234,13 @@ import DataTable from '@/components/base/DataTable.vue';
 import ClauseRevisionPanel from '@/components/modules/contract/ClauseRevisionPanel.vue';
 import type { TableColumn } from '@/components/base/types';
 
-const COLUMNS: TableColumn[] = [
-  { prop: 'name', label: '文件名', minWidth: 200, tooltip: true },
-  // 附件标题/备注（用户 2026-10-16 要求）：打印「附件清单」时优先显示标题
-  { prop: 'title', label: '附件标题/备注', minWidth: 180, tooltip: true, slot: 'c2' },
-  { label: '大小', width: 100, slot: 'c3' },
-  { prop: 'uploadedAt', label: '上传时间', width: 170, slot: 'c4' },
-  { label: '操作', width: 110, slot: 'c5' },
-];
 
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Printer, ArrowDown, Document } from '@element-plus/icons-vue';
 import request, { apiBaseURL } from '@/api/request';
+import AttachmentPanel from '@/components/modules/contract/AttachmentPanel.vue';
 import { printDocument, isElectron, formatDate } from '@/utils/print-service';
 import { saveBlob } from '@/utils/download';
 import { buildDocxBlob } from '@/utils/docx';
@@ -395,24 +364,8 @@ const sortedClauses = computed(() => {
 const renewVisible = ref(false);
 const renewForm = ref({ newEndDate: '', newRent: 0, notes: '' });
 
-// 文件上传
-const uploadHeaders = computed(() => ({ Authorization: 'Bearer ' + localStorage.getItem('accessToken') }));
 const attachments = ref<any[]>([]);
 
-function formatFileSize(bytes: number) {
-  if (!bytes || bytes === 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + units[i];
-}
-
-function onUploadSuccess(res: any) {
-  if (res.code === 200) {
-    ElMessage.success(`上传成功 ${res.data.length} 个文件`);
-    fetchAttachments();
-  }
-}
-function onUploadError(err: any) { ElMessage.error(err?.message || '文件上传失败'); }
 
 async function fetchAttachments() {
   if (!contract.value?.id) return;
@@ -422,22 +375,6 @@ async function fetchAttachments() {
   } catch { /* 附件加载失败不影响主流程 */ }
 }
 
-// 附件标题/备注（用户 2026-10-16 要求）：标题会显示在打印合同的「附件清单」里，留空则用文件名
-async function editAttachmentTitle(row: any) {
-  try {
-    const { value } = await ElMessageBox.prompt(
-      '标题/备注会打印在合同的「附件清单」里（例如把 scan_2026.pdf 显示成「房屋交接单」）。留空则回退用文件名。',
-      '设置附件标题',
-      { inputValue: row.title || '', inputPlaceholder: '如：房屋交接单', confirmButtonText: '保存', cancelButtonText: '取消' },
-    );
-    const res: any = await request.put('/contracts/' + contract.value.id + '/files/title', { path: row.path, title: String(value || '').trim() });
-    ElMessage.success(res.message || '附件标题已保存');
-    await fetchAttachments();
-  } catch (err: any) {
-    if (err === 'cancel' || err === 'close') return;
-    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
-  }
-}
 
 function statusTagType(status: string) {
   const map: Record<string, string> = { '执行中': 'success', '审批中': 'warning', '已签订': 'primary', '已驳回': 'danger', '已到期': 'info', '已终止': 'info', '起草中': 'info' };

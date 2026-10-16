@@ -8,6 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppLayout: typeof import('./src/components/layout/AppLayout.vue')['default']
+    AttachmentPanel: typeof import('./src/components/modules/contract/AttachmentPanel.vue')['default']
     BatchStatusDialog: typeof import('./src/components/BatchStatusDialog.vue')['default']
     BillLifecycle: typeof import('./src/components/modules/rent/BillLifecycle.vue')['default']
     Breadcrumb: typeof import('./src/components/layout/Breadcrumb.vue')['default']
