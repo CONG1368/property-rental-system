@@ -27,6 +27,7 @@ import { splitClausesFromText, diffClauseLists } from '../services/clause-diff.j
 import { auditLog } from '../middleware/audit-log.js';
 import AttachmentUploadSession from '../models/AttachmentUploadSession.js';
 import { getLanIp } from './publicUpload.js';
+import { mergeBillingConfig } from '../services/billing-config-merge.js';
 import { isESignConfigured, querySignStatus } from '../services/e-signature.js';
 
 function decodeFilename(name: string): string {
@@ -419,7 +420,8 @@ router.put('/:id', requirePermission('contract', 'update'), async (req: AuthRequ
       (contract as any).changed('clauses', true);
     }
     if (req.body.billingConfig !== undefined) {
-      (contract as any).billingConfig = req.body.billingConfig;
+      // 与库里合并：请求没带 attachments / attachmentInbox / eSignFlowId 时保留库里的（否则起草页保存会把附件清空）
+      (contract as any).billingConfig = mergeBillingConfig((contract as any).billingConfig, req.body.billingConfig);
       (contract as any).changed('billingConfig', true);
     }
     // 处理标量字段

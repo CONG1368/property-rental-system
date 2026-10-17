@@ -326,8 +326,11 @@ export function buildContractHTML(data: ContractPrintData): string {
   table { width: 100%; border-collapse: collapse; }
   .section { margin: 0 0 4px; }
   .header-row { text-align: center; margin-bottom: 28px; }
-  .sign-area { display: flex; align-items: start; margin-top: 60px; }
-  .sign-col { flex: 1; }
+  /* 签章区（用户 2026-10-17 反馈：甲乙双方签名被截成两页）——改用 table 布局：
+     flex 容器在 Chromium 打印引擎里不支持 page-break-inside: avoid，会把签名区拦腰截断；
+     table/table-cell 支持，放不下时整体推到下一页，保证签名区始终在同一页。 */
+  .sign-area { display: table; width: 100%; table-layout: fixed; margin-top: 60px; page-break-inside: avoid; break-inside: avoid; }
+  .sign-col { display: table-cell; vertical-align: top; page-break-inside: avoid; break-inside: avoid; }
 
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
