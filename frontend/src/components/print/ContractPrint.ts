@@ -40,6 +40,8 @@ interface ContractPrintData {
    * 打印顺序：主合同正文 → 甲乙双方签名（签章区）→ 附件清单（没有上传附件就整段不出现）。
    */
   attachments?: { name: string; title?: string; group?: string; uploadedAt?: string }[];
+  /** 附件正文页 HTML（图片/PDF 逐页转图；用户 2026-10-17 要求附件内容也打印） */
+  attachmentContentHtml?: string;
   feeItems?: FeeItem[];
   companyName: string;
   companyLogo?: string;
@@ -470,6 +472,7 @@ export function buildContractHTML(data: ContractPrintData): string {
     </div>
   </div>
 ${attachmentHtml}
+${data.attachmentContentHtml || ''}
 
   <!-- ====== 页脚 ====== -->
   <div style="text-align:center;margin-top:50px;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:10px">

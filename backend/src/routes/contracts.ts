@@ -161,6 +161,36 @@ router.get('/:id/files', async (req: AuthRequest, res) => {
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
 });
 
+// GET /contracts/:id/files/:index/raw — 读取附件原文件（打印附件正文用；用户 2026-10-17 要求「附件内容要打印出来」）
+router.get('/:id/files/:index/raw', async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const files = (((contract as any).billingConfig?.attachments as any[]) || []);
+    const idx = Number(req.params.index);
+    const item = Number.isInteger(idx) ? files[idx] : undefined;
+    if (!item) return res.status(404).json({ code: 404, message: '附件不存在' });
+    const raw = String(item.path || '');
+    if (!raw) return res.status(404).json({ code: 404, message: '该附件是引用型条目，没有原文件' });
+    const candidates = [
+      path.isAbsolute(raw) ? raw : path.join(process.cwd(), raw),
+      path.join(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'), raw.replace(/^uploads[\\/]/, '')),
+    ];
+    const abs = candidates.find((p) => { try { return fs.existsSync(p) && fs.statSync(p).isFile(); } catch { return false; } });
+    if (!abs) return res.status(404).json({ code: 404, message: '原文件已不存在（可能被移动或删除）' });
+    // 附件存的是哈希文件名（无扩展名），res.sendFile 会按扩展名给出 octet-stream，导致图片无法渲染
+    const ext = path.extname(String(item.name || '')).toLowerCase();
+    const mimeMap: Record<string, string> = {
+      '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif', '.bmp': 'image/bmp', '.webp': 'image/webp',
+      '.doc': 'application/msword', '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xls': 'application/vnd.ms-excel', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
+    if (mimeMap[ext]) res.type(mimeMap[ext]);
+    res.sendFile(path.resolve(abs));
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '读取附件失败' }); }
+});
+
 // PUT /contracts/:id/files/title — 设置某个附件的标题/备注（用户 2026-10-16 要求）
 // 标题用于打印合同的「附件清单」（如把 扫描件_2026.pdf 显示成「房屋交接单」）；留空则回退用文件名
 router.put('/:id/files/title', auditLog('合同', '修改附件标题'), async (req: AuthRequest, res) => {

@@ -11,6 +11,8 @@ const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), '
 
 export default defineConfig({
   base: './',
+  // 打印附件正文时才按需加载 pdf.js：pre-bundle 避免首次打印时 Vite 发现新依赖触发整页重载
+  optimizeDeps: { include: ['pdfjs-dist'] },
   define: {
     __APP_VERSION__: JSON.stringify(rootPkg.version),
   },

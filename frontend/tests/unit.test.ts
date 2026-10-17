@@ -6,6 +6,7 @@ import { buildContractHTML } from '@/components/print/ContractPrint';
 import { isAllowedAttachment, splitAllowed, attachmentLabel, checklistSummary, extOf, ATTACHMENT_ACCEPT, ATTACHMENT_GROUPS, groupAttachments } from '@/utils/attachment-upload';
 import { renderPlaceholders, buildDocContext, buildRows, buildDocHTML, docxFileName, cloneTemplate, duplicateName } from '@/utils/attachment-docs';
 import { mergeClauses } from '@/utils/clause-merge';
+import { extOfName, buildAttachmentContentHTML } from '@/utils/attachment-print';
 import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 import JSZip from 'jszip';
 import { readSheetAsObjects, buildWorkbookBlob } from '@/utils/excel';
@@ -650,6 +651,38 @@ describe('附件单据渲染引擎（用户 2026-10-16：附件便捷化 ①②�
     expect(duplicateName('房屋交接单', ['房屋交接单 副本'])).toBe('房屋交接单 副本 2');
     expect(duplicateName('房屋交接单', ['房屋交接单 副本', '房屋交接单 副本 2'])).toBe('房屋交接单 副本 3');
     expect(duplicateName('')).toBe('模板 副本');
+  });
+});
+
+describe('附件正文打印（用户 2026-10-17 要求：附件内容也要打印在合同后面）', () => {
+  it('extOfName：扩展名识别（大小写、无扩展名、多点文件名）', () => {
+    expect(extOfName('附件一消防.PDF')).toBe('pdf');
+    expect(extOfName('照片.jpeg')).toBe('jpeg');
+    expect(extOfName('无扩展名')).toBe('');
+    expect(extOfName('a.b.c.png')).toBe('png');
+    expect(extOfName('')).toBe('');
+  });
+
+  it('buildAttachmentContentHTML：Word/Excel 附件标注「请查阅原件」，每份附件另起一页', async () => {
+    const html = await buildAttachmentContentHTML(
+      [{ name: '合同附件.docx', title: '补充协议', index: 0 }, { name: '清单.xlsx', index: 1 }],
+      async () => null,
+    );
+    expect(html).toContain('page-break-before:always');
+    expect(html).toContain('附件1：补充协议');
+    expect(html).toContain('附件2：清单');
+    expect(html).toContain('请查阅原件');
+    expect(html.match(/page-break-before:always/g)!.length).toBe(2);
+  });
+
+  it('buildAttachmentContentHTML：图片附件转 dataURL，原件缺失时给出提示', async () => {
+    const pngBytes = new Uint8Array([137, 80, 78, 71]);
+    const html = await buildAttachmentContentHTML(
+      [{ name: '照片.png', index: 0 }, { name: '丢失的图片.jpg', index: 1 }],
+      async (i) => (i === 0 ? new Blob([pngBytes], { type: 'application/octet-stream' }) : null),
+    );
+    expect(html).toContain('data:image/png;base64');
+    expect(html).toContain('附件原件缺失');
   });
 });
 

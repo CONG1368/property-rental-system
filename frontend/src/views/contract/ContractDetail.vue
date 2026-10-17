@@ -240,6 +240,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Printer, ArrowDown, Document } from '@element-plus/icons-vue';
 import request, { apiBaseURL } from '@/api/request';
+import { buildAttachmentContentHTML } from '@/utils/attachment-print';
 import AttachmentPanel from '@/components/modules/contract/AttachmentPanel.vue';
 import { printDocument, isElectron, formatDate } from '@/utils/print-service';
 import { saveBlob } from '@/utils/download';
@@ -408,10 +409,32 @@ async function getCompanyInfo() {
 }
 
 /** 组装合同打印数据：直接打印 / 导出PDF / 导出Word 共用同一份数据，三种输出内容完全一致 */
+/** 取附件原文件（带鉴权） */
+async function fetchAttachmentBlob(index: number): Promise<Blob | null> {
+  if (!contract.value?.id) return null;
+  try {
+    const token = localStorage.getItem('accessToken');
+    const resp = await fetch(apiBaseURL + '/contracts/' + contract.value.id + '/files/' + index + '/raw', {
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+    });
+    return resp.ok ? await resp.blob() : null;
+  } catch { return null; }
+}
+
 async function buildPrintData() {
   const info = await getCompanyInfo();
   // 打印/导出前强制从服务端重取附件，避免面板刚上传、本地列表还没刷新时打出空目录（用户 2026-10-17 反馈）
   await fetchAttachments();
+  // 附件正文（用户 2026-10-17 要求）：图片直接嵌入、PDF 逐页转图后排在附件目录之后
+  let attachmentContentHtml = '';
+  if (attachments.value.length > 0) {
+    try {
+      attachmentContentHtml = await buildAttachmentContentHTML(
+        attachments.value.map((x: any, i: number) => ({ name: x?.name || '', title: x?.title || '', index: i })),
+        fetchAttachmentBlob,
+      );
+    } catch { attachmentContentHtml = ''; }
+  }
   const bc: any = contract.value?.billingConfig || {};
   return {
       contractNo: contract.value.contractNo,
@@ -457,6 +480,7 @@ async function buildPrintData() {
     fireSafety: fireSafety.value,
     // 附件清单（用户 2026-10-16 要求）：只列用户上传的附件；消防由模板自动列为附件 1
     attachments: attachments.value.map((x: any) => ({ name: x?.name || '', title: x?.title || '', group: x?.group || '', uploadedAt: x?.uploadedAt || '' })),
+    attachmentContentHtml,
     ...info,
   };
 }
