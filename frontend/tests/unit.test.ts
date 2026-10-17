@@ -5,6 +5,7 @@ import { buildReceiptHTML } from '@/components/print/ReceiptPrint';
 import { buildContractHTML } from '@/components/print/ContractPrint';
 import { isAllowedAttachment, splitAllowed, attachmentLabel, checklistSummary, extOf, ATTACHMENT_ACCEPT, ATTACHMENT_GROUPS, groupAttachments } from '@/utils/attachment-upload';
 import { renderPlaceholders, buildDocContext, buildRows, buildDocHTML, docxFileName, cloneTemplate, duplicateName } from '@/utils/attachment-docs';
+import { mergeClauses } from '@/utils/clause-merge';
 import { buildDocxBlob, DOCX_MIME } from '@/utils/docx';
 import JSZip from 'jszip';
 import { readSheetAsObjects, buildWorkbookBlob } from '@/utils/excel';
@@ -652,6 +653,41 @@ describe('附件单据渲染引擎（用户 2026-10-16：附件便捷化 ①②�
   });
 });
 
+describe('条款模板多选合并（用户 2026-10-17 要求）', () => {
+  it('mergeClauses：追加不覆盖、重复跳过、空条款忽略', () => {
+    const existing = [{ title: '第一条 用途', content: '仅用于居住。' }];
+    const incoming = [
+      { title: '第一条 用途', content: '仅用于居住。' },        // 重复 → 跳过
+      { title: '第二条 租金', content: '月租金 3000 元。' },
+      { title: '', content: '' },                                // 空 → 忽略
+      { title: '第三条 押金', content: '押金 3000 元。' },
+    ];
+    const r = mergeClauses(existing, incoming as any);
+    expect(r.added).toBe(2);
+    expect(r.list.length).toBe(3);
+    expect(r.list[0].title).toBe('第一条 用途');
+    expect(r.list.map((c) => c.title)).toEqual(['第一条 用途', '第二条 租金', '第三条 押金']);
+    expect(r.list.map((c) => c.sortOrder)).toEqual([0, 1, 2]);
+  });
+
+  it('mergeClauses：同一模板勾选两次不会重复并入；标题相同内容不同视为不同条款', () => {
+    const tpl = [{ title: '第一条 用途', content: '仅用于居住。' }, { title: '第二条 租金', content: '月租金 3000 元。' }];
+    const once = mergeClauses([], tpl as any);
+    const twice = mergeClauses(once.list, [...tpl, ...tpl] as any);
+    expect(once.added).toBe(2);
+    expect(twice.added).toBe(0);
+    expect(twice.list.length).toBe(2);
+    const other = mergeClauses(once.list, [{ title: '第一条 用途', content: '可用于仓储。' }] as any);
+    expect(other.added).toBe(1);
+    expect(other.list.length).toBe(3);
+  });
+
+  it('mergeClauses：空入参安全返回空列表', () => {
+    expect(mergeClauses([], []).list).toEqual([]);
+    expect(mergeClauses([], []).added).toBe(0);
+  });
+});
+
 describe('附件分组与打印附件目录（用户 2026-10-16：第 ⑪ 项）', () => {
   it('groupAttachments：具名分组按预设顺序、自定义分组居中、未分组排最后，组内保持原顺序', () => {
     const list = [
@@ -692,6 +728,19 @@ describe('附件分组与打印附件目录（用户 2026-10-16：第 ⑪ 项）
     expect(html.indexOf('>交接类<')).toBeLessThan(html.indexOf('>未分组<'));
     // 编号跨组连续：身份证复印件是附件1
     expect(html).toMatch(/附件1[\s\S]*身份证复印件/);
+  });
+
+  it('打印：附件只有 path 没有 name 时用文件名兜底，绝不出现空行（用户 2026-10-17 反馈）', () => {
+    const html = buildContractHTML({
+      contractNo: 'HT-ATT-004', propertyName: 'A栋101', propertyAddress: '示例路1号', propertyArea: 88,
+      tenantName: '张三', startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 3000, depositAmount: 3000,
+      paymentCycle: '月', status: '已签订', notes: '', companyName: '回归测试物业公司', clauses: [],
+      attachments: [{ path: 'uploads/contracts/abc123' } as any, { name: '', title: '', path: '' } as any],
+    } as any);
+    expect(html).toContain('附件目录');
+    expect(html).toContain('abc123'.slice(0, 3));   // path 的文件名兜底
+    expect(html).toContain('未命名附件');             // 连 path 都没有时兜底文案
+    expect(html).toContain('附件共 2 件');
   });
 
   it('打印：都没有分组时不出现分组小标题，只有连续编号', () => {

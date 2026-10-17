@@ -410,6 +410,8 @@ async function getCompanyInfo() {
 /** 组装合同打印数据：直接打印 / 导出PDF / 导出Word 共用同一份数据，三种输出内容完全一致 */
 async function buildPrintData() {
   const info = await getCompanyInfo();
+  // 打印/导出前强制从服务端重取附件，避免面板刚上传、本地列表还没刷新时打出空目录（用户 2026-10-17 反馈）
+  await fetchAttachments();
   const bc: any = contract.value?.billingConfig || {};
   return {
       contractNo: contract.value.contractNo,

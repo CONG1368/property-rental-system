@@ -285,8 +285,10 @@ export function buildContractHTML(data: ContractPrintData): string {
   (data.attachments || []).forEach((it) => {
     // 优先用用户自定义的标题/备注（用户 2026-10-16 要求），没设置才回退到去掉扩展名的文件名
     const title = String(it?.title || '').trim();
-    const raw = String(it?.name || '').trim();
-    const label = title || raw.replace(/\.[A-Za-z0-9]{1,6}$/, '');
+    // 名称兜底（用户 2026-10-17 反馈「上传成功但附件目录不显示」）：name 为空时取 path 的文件名，
+    // 再兜不住的给「未命名附件」，保证每一件附件在目录里都有可读名称，绝不出现空行
+    const raw = String(it?.name || '').trim() || String((it as any)?.path || '').split(/[\\/]/).pop() || '';
+    const label = title || raw.replace(/\.[A-Za-z0-9]{1,6}$/, '') || '未命名附件';
     if (!label) return;
     attachmentItems.push({ label: escAttr(label), group: String((it as any)?.group || '').trim() });
   });

@@ -315,9 +315,13 @@
     <el-card style="margin-bottom:16px">
       <template #header><span>合同条款模板</span></template>
       <el-form-item label="选择模板">
-        <el-select v-model="form.templateId" placeholder="选择合同模板（可选）" clearable @change="onTemplateChange" style="width:100%">
+        <el-select v-model="form.templateIds" multiple collapse-tags collapse-tags-tooltip placeholder="可多选合同条款模板（也可直接手动加条款）" @change="onTemplatesChange" style="width:100%">
           <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
         </el-select>
+        <div style="font-size:12px;color:var(--n-600);margin-top:4px">
+          <template v-if="form.templateIds.length > 1">已选 {{ form.templateIds.length }} 个模板，条款会合并去重后追加（不会覆盖你已编辑的内容）。</template>
+          <template v-else>可多选：勾选多个模板时条款自动合并、重复的自动跳过；取消勾选不会删除已并入的条款（可手动删改）。</template>
+        </div>
       </el-form-item>
     </el-card>
 
@@ -353,6 +357,7 @@
 
 <script setup lang="ts">
 import DataTable from '@/components/base/DataTable.vue';
+import { mergeClauses } from '@/utils/clause-merge';
 import AttachmentPanel from '@/components/modules/contract/AttachmentPanel.vue';
 import type { TableColumn } from '@/components/base/types';
 
@@ -390,6 +395,7 @@ const form = reactive({
   propertyId: null as number | null,
   tenantId: null as number | null,
   templateId: null as number | null,
+  templateIds: [] as number[],
   rentAmount: 0, depositAmount: 0,
   // 履约违约金：与押金一样完全自定义，不写死（用户 2026-10-10 要求）
   performancePenalty: 0,
@@ -501,9 +507,9 @@ function onPropertyChange(propId: number | null) {
         if (Number(p.propertyFeeRate || 0) > 0) feeItems.value.push({ name: '物业费', amount: Number(p.propertyFeeRate || 0), unit: '元/㎡/月', area: Number(p.area || 0) });
       }
       // 自动匹配模板类型
-      if (!form.templateId && p.type) {
+      if (form.templateIds.length === 0 && p.type) {
         const propType = p.type; const targetName = `常用条款模板-`; const match = templates.value.find((t: any) => (t as any).isDefault && t.type === propType) || templates.value.find((t: any) => t.name === targetName) || templates.value.find((t: any) => t.type === propType);
-        if (match) { form.templateId = match.id; onTemplateChange(match.id); }
+        if (match) { form.templateIds = [match.id]; form.templateId = match.id; void onTemplatesChange([match.id]); }
       }
     }
   }
@@ -534,6 +540,29 @@ async function loadPendingClausesForCurrentTenant() {
       ElMessage.success(`已自动加载 ${newClauses.length} 条待处理条款（来自批量导入）`);
     }
   } catch { /* ignore */ }
+}
+
+// 条款模板多选（用户 2026-10-17 要求）：可勾选多个模板，条款合并去重后追加，不覆盖已编辑内容
+async function onTemplatesChange(ids: number[] | null) {
+  const picked = Array.isArray(ids) ? ids.filter((x) => Number(x) > 0) : [];
+  form.templateId = picked.length ? picked[0] : null;   // 兼容：主模板取第一个（随合同保存）
+  if (picked.length === 0) return;                       // 取消勾选不清空已并入条款，避免误删手工编辑
+  const incoming: any[] = [];
+  for (const id of picked) {
+    try {
+      const res: any = await request.get('/contract-templates/' + id);
+      const template = res.data;
+      const list = (template?.clauses || []).map((cc: any) => ({ title: cc.title || '', content: cc.content || '', sortOrder: cc.sortOrder || 0 }));
+      incoming.push(...list);
+      if (id === picked[0] && template?.content?.feeItems && Array.isArray(template.content.feeItems) && feeItems.value.length === 0) {
+        feeItems.value = template.content.feeItems.map((fi: any) => ({ name: fi.name || '', amount: Number(fi.amount || 0), unit: fi.unit || '元/月' }));
+      }
+    } catch { /* 单个模板读取失败不影响其它模板 */ }
+  }
+  const merged = mergeClauses(clauses.value, incoming);
+  clauses.value = merged.list;
+  if (merged.added > 0) ElMessage.success('已并入 ' + merged.added + ' 条模板条款（重复的自动跳过）');
+  else ElMessage.info('所选模板的条款都已在列表里，无需重复添加');
 }
 
 async function onTemplateChange(templateId: number | null) {
@@ -703,6 +732,7 @@ onMounted(async () => {
         propertyId: d.propertyId,
         tenantId: d.tenantId,
         templateId: d.templateId || null,
+        templateIds: d.templateId ? [d.templateId] : [],
         rentAmount: d.rentAmount,
         depositAmount: d.depositAmount,
         performancePenalty: Number(d.performancePenalty ?? 0),
