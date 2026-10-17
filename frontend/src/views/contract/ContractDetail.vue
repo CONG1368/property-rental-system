@@ -421,6 +421,20 @@ async function fetchAttachmentBlob(index: number): Promise<Blob | null> {
   } catch { return null; }
 }
 
+/** 让后端把 Word/Excel 附件转成可打印 HTML */
+async function fetchAttachmentRender(index: number): Promise<{ html: string; note?: string } | null> {
+  if (!contract.value?.id) return null;
+  try {
+    const token = localStorage.getItem('accessToken');
+    const resp = await fetch(apiBaseURL + '/contracts/' + contract.value.id + '/files/' + index + '/render', {
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+    });
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    return { html: String(json?.data?.html || ''), note: json?.message };
+  } catch { return null; }
+}
+
 async function buildPrintData() {
   const info = await getCompanyInfo();
   // 打印/导出前强制从服务端重取附件，避免面板刚上传、本地列表还没刷新时打出空目录（用户 2026-10-17 反馈）
@@ -432,6 +446,7 @@ async function buildPrintData() {
       attachmentContentHtml = await buildAttachmentContentHTML(
         attachments.value.map((x: any, i: number) => ({ name: x?.name || '', title: x?.title || '', index: i })),
         fetchAttachmentBlob,
+        fetchAttachmentRender,
       );
     } catch { attachmentContentHtml = ''; }
   }

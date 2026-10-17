@@ -663,16 +663,24 @@ describe('附件正文打印（用户 2026-10-17 要求：附件内容也要打�
     expect(extOfName('')).toBe('');
   });
 
-  it('buildAttachmentContentHTML：Word/Excel 附件标注「请查阅原件」，每份附件另起一页', async () => {
+  it('buildAttachmentContentHTML：Word/Excel 由后端转 HTML 后整页嵌入（用户 2026-10-17）', async () => {
     const html = await buildAttachmentContentHTML(
       [{ name: '合同附件.docx', title: '补充协议', index: 0 }, { name: '清单.xlsx', index: 1 }],
       async () => null,
+      async (i) => (i === 0 ? { html: '<p>补充协议正文</p>' } : { html: '<table><tr><th>项目</th></tr></table>' }),
     );
     expect(html).toContain('page-break-before:always');
     expect(html).toContain('附件1：补充协议');
     expect(html).toContain('附件2：清单');
-    expect(html).toContain('请查阅原件');
+    expect(html).toContain('<p>补充协议正文</p>');
+    expect(html).toContain('<table>');
+    expect(html).not.toContain('请查阅原件');
     expect(html.match(/page-break-before:always/g)!.length).toBe(2);
+  });
+
+  it('buildAttachmentContentHTML：转换失败时给出「转换失败，请查阅原件」提示', async () => {
+    const html = await buildAttachmentContentHTML([{ name: '坏的文档.docx', index: 0 }], async () => null, async () => null);
+    expect(html).toContain('正文转换失败');
   });
 
   it('buildAttachmentContentHTML：图片附件转 dataURL，原件缺失时给出提示', async () => {

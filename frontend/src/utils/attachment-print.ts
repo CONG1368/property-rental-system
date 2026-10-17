@@ -9,6 +9,8 @@ export interface PrintAttachment { name?: string; title?: string; index: number 
 
 const IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
 const PDF_EXT = ['pdf'];
+/** Word / Excel：由后端用 mammoth / word-extractor / exceljs 转成可打印 HTML（用户 2026-10-17 要求） */
+const DOC_EXT = ['doc', 'docx', 'xls', 'xlsx'];
 
 export function extOfName(name: string): string {
   const m = String(name || '').toLowerCase().match(/\.([a-z0-9]{1,6})$/);
@@ -63,6 +65,7 @@ export async function renderPdfPages(pdfBlob: Blob, maxPages = 40): Promise<stri
 export async function buildAttachmentContentHTML(
   attachments: PrintAttachment[],
   fetchOne: (index: number) => Promise<Blob | null>,
+  fetchRender?: (index: number) => Promise<{ html: string; note?: string } | null>,
 ): Promise<string> {
   const pages: string[] = [];
   for (let n = 0; n < attachments.length; n += 1) {
@@ -70,10 +73,24 @@ export async function buildAttachmentContentHTML(
     const label = String(item?.title || '').trim() || String(item?.name || '').replace(/\.[A-Za-z0-9]{1,6}$/, '') || ('附件' + (n + 1));
     const ext = extOfName(String(item?.name || ''));
     const heading = '附件' + (n + 1) + '：' + label;
+    if (DOC_EXT.includes(ext)) {
+      // Word / Excel：后端转成 HTML 后整页嵌入（保留段落、表格、文档里的图片）
+      const rendered = fetchRender ? await fetchRender(item.index) : null;
+      if (rendered && rendered.html) {
+        pages.push('<div class="section" style="page-break-before:always;margin-top:18px">' +
+          '<h3>' + heading + '</h3>' +
+          '<div style="font-size:12.5px;line-height:1.7">' + rendered.html + '</div></div>');
+      } else {
+        pages.push('<div class="section" style="page-break-before:always;margin-top:24px">' +
+          '<h3>' + heading + '</h3>' +
+          '<p style="font-size:13px">该附件正文转换失败，请查阅原件（已在附件目录中列出）。</p></div>');
+      }
+      continue;
+    }
     if (!IMG_EXT.includes(ext) && !PDF_EXT.includes(ext)) {
       pages.push('<div class="section" style="page-break-before:always;margin-top:24px">' +
         '<h3>' + heading + '</h3>' +
-        '<p style="font-size:13px">该附件为 Word/Excel 等文档，无法随合同打印正文，请查阅原件（已在附件目录中列出）。</p></div>');
+        '<p style="font-size:13px">该附件格式暂不支持打印正文，请查阅原件（已在附件目录中列出）。</p></div>');
       continue;
     }
     const blob = await fetchOne(item.index);

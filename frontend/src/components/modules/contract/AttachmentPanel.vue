@@ -118,6 +118,7 @@
         <el-button link type="primary" size="small" @click="editTitle(row)">编辑标题</el-button>
         <el-button link type="primary" size="small" :disabled="row.path === attachments[0]?.path" @click="moveAttachment(row, -1)">上移</el-button>
         <el-button link type="primary" size="small" :disabled="row.path === attachments[attachments.length - 1]?.path" @click="moveAttachment(row, 1)">下移</el-button>
+        <el-button link type="danger" size="small" @click="deleteAttachment(row)">删除</el-button>
       </template>
     </DataTable>
 
@@ -568,6 +569,24 @@ async function setGroup(row: any, group: string) {
   try {
     const res: any = await request.put('/contracts/' + props.contractId + '/files/group', { path: row.path, group: group || '' });
     ElMessage.success(res.message || '附件分组已保存');
+    await loadAll();
+    emit('changed');
+  } catch (err: any) {
+    if (err?.response?.data?.message) ElMessage.error(err.response.data.message);
+  }
+}
+
+// 删除附件（用户 2026-10-17 要求：上传后要能删）——记录与磁盘文件一起删，需二次确认
+async function deleteAttachment(row: any) {
+  const label = row?.title || row?.name || '该附件';
+  try {
+    await ElMessageBox.confirm('删除附件「' + label + '」？文件会一并删除，无法恢复。', '确认删除', { type: 'warning' });
+  } catch { return; }
+  try {
+    // 有 path 的按 path 删；引用型条目（path 为空）按在列表里的位置删
+    const idx = attachments.value.findIndex((x: any) => (row?.path ? x?.path === row?.path : (x?.name === row?.name && (x?.title || '') === (row?.title || ''))));
+    const res: any = await request.delete('/contracts/' + props.contractId + '/files', { data: row?.path ? { path: row.path } : { index: idx } });
+    ElMessage.success(res.message || '已删除附件');
     await loadAll();
     emit('changed');
   } catch (err: any) {

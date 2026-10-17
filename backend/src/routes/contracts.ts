@@ -28,6 +28,8 @@ import { auditLog } from '../middleware/audit-log.js';
 import AttachmentUploadSession from '../models/AttachmentUploadSession.js';
 import { getLanIp } from './publicUpload.js';
 import { mergeBillingConfig } from '../services/billing-config-merge.js';
+import { renderAttachmentHtml } from '../services/attachment-render.js';
+import { removeAttachment } from '../services/attachment-list.js';
 import { isESignConfigured, querySignStatus } from '../services/e-signature.js';
 
 function decodeFilename(name: string): string {
@@ -159,6 +161,71 @@ router.get('/:id/files', async (req: AuthRequest, res) => {
     const attachments = (contract as any).billingConfig?.attachments || [];
     res.json({ code: 200, data: { list: attachments } });
   } catch (err: any) { res.status(500).json({ code: 500, message: err.message }); }
+});
+
+// GET /contracts/:id/files/:index/render — 把 Word/Excel 附件转成可打印 HTML（用户 2026-10-17 要求）
+router.get('/:id/files/:index/render', async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const files = (((contract as any).billingConfig?.attachments as any[]) || []);
+    const idx = Number(req.params.index);
+    const item = Number.isInteger(idx) ? files[idx] : undefined;
+    if (!item) return res.status(404).json({ code: 404, message: '附件不存在' });
+    const raw = String(item.path || '');
+    const ext = path.extname(String(item.name || '')).toLowerCase();
+    if (!raw) return res.status(400).json({ code: 400, message: '该附件没有原文件（引用型条目）' });
+    const candidates = [
+      path.isAbsolute(raw) ? raw : path.join(process.cwd(), raw),
+      path.join(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'), raw.replace(/^uploads[\\/]/, '')),
+    ];
+    const abs = candidates.find((p) => { try { return fs.existsSync(p) && fs.statSync(p).isFile(); } catch { return false; } });
+    if (!abs) return res.status(404).json({ code: 404, message: '原文件已不存在（可能被移动或删除）' });
+    const rendered = await renderAttachmentHtml(abs, ext, String(item.name || ''));
+    if (!rendered.html) {
+      return res.status(400).json({ code: 400, message: '该附件格式无法转换成打印内容（' + (rendered.note || 'unsupported') + '）' });
+    }
+    res.json({ code: 200, data: { html: rendered.html, kind: rendered.kind, name: item.name || '' } });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '附件转换失败' }); }
+});
+
+// DELETE /contracts/:id/files — 删除某个附件（用户 2026-10-17 要求：上传后的附件要能删）
+router.delete('/:id/files', requirePermission('contract', 'update'), auditLog('合同', '删除附件'), async (req: AuthRequest, res) => {
+  try {
+    const contract = await Contract.findByPk(req.params.id);
+    if (!contract) return res.status(404).json({ code: 404, message: '合同不存在' });
+    const cfg = { ...(((contract as any).billingConfig as any) || {}) };
+    const files: any[] = Array.isArray(cfg.attachments) ? cfg.attachments : [];
+    if (files.length === 0) return res.status(404).json({ code: 404, message: '本合同还没有附件' });
+
+    const targetPath = String(req.body?.path ?? '');
+    const targetIndex = req.body?.index !== undefined ? Number(req.body.index) : undefined;
+    const { list, removed } = removeAttachment(files, { path: targetPath || undefined, index: targetIndex });
+    if (!removed) return res.status(404).json({ code: 404, message: '附件不存在（可能已被删除）' });
+
+    cfg.attachments = list;
+    (contract as any).billingConfig = cfg;
+    (contract as any).changed('billingConfig', true);
+    await contract.save();
+
+    // 删磁盘文件（引用型条目没有原文件；删不掉不影响记录已删除）
+    let fileRemoved = false;
+    const raw = String(removed.path || '');
+    if (raw) {
+      const candidates = [
+        path.isAbsolute(raw) ? raw : path.join(process.cwd(), raw),
+        path.join(process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads'), raw.replace(/^uploads[\\/]/, '')),
+      ];
+      for (const p of candidates) {
+        try { if (fs.existsSync(p) && fs.statSync(p).isFile()) { fs.unlinkSync(p); fileRemoved = true; break; } } catch { /* ignore */ }
+      }
+    }
+    res.json({
+      code: 200,
+      data: { list, removed, fileRemoved },
+      message: '已删除附件「' + (removed.title || removed.name || '') + '」' + (fileRemoved ? '（文件已一并删除）' : ''),
+    });
+  } catch (err: any) { res.status(500).json({ code: 500, message: err.message || '删除附件失败' }); }
 });
 
 // GET /contracts/:id/files/:index/raw — 读取附件原文件（打印附件正文用；用户 2026-10-17 要求「附件内容要打印出来」）
