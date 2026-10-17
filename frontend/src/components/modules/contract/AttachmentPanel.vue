@@ -97,6 +97,9 @@
     </div>
 
     <!-- 附件列表 -->
+    <div v-if="attachments.length > 0" style="font-size:12px;color:var(--n-600);margin:10px 0 2px">
+      共 {{ attachments.length }} 件：打印/导出时会在甲乙双方签名之后另起一页列出「附件目录」，编号与顺序即下方列表的顺序（可拖动排序按钮调整）。
+    </div>
     <DataTable :data="attachments" :columns="COLUMNS" row-key="path" style="margin-top:12px"
       empty-title="暂无附件" empty-description="拖拽、粘贴或点「上传文件」添加；附件会按你设置的标题打印在合同的附件清单里">
       <template #c2="{ row }">
