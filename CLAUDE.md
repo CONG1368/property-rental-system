@@ -118,7 +118,7 @@ node scripts/generate-proposal-pdf.js
 │       ├── models/            # Sequelize 模型（74 个 + index/BaseModel）
 │       ├── routes/            # Express 路由（70 个模块 + index，统一挂载 /api 前缀）
 │       ├── middleware/        # auth / rbac / requireRole / requirePermission / requireConfirmPassword / audit-log / validate / rate-limiter / error-handler
-│       ├── services/          # 业务服务层（46 个）
+│       ├── services/          # 业务服务层（49 个）
 │       ├── jobs/scheduler.ts  # 7 个 cron 定时任务（任务注册表）
 │       └── websocket/         # WebSocket 广播
 ├── electron/                  # Electron 主进程 + preload
@@ -416,12 +416,12 @@ Sequelize `sync()` 只创建新表，不修改已有表的列。**当添加/修�
 |------|------|
 | 后端模型 | 74 个 Sequelize 模型（+ index/BaseModel） |
 | 后端路由模块 | 全部实现（70 个路由模块） |
-| 后端服务 | 全部完整（46 个业务服务） |
+| 后端服务 | 全部完整（49 个业务服务） |
 | 前端页面 | 全部功能完整（87 个页面） |
 | 前端 TypeScript | 0 错误 |
 | 后端 TypeScript | 0 错误 |
-| 后端单元测试 | 46 条通过（vitest，纯函数） |
-| 前端单元测试 | 61 条通过（vitest，含打印模板/附件工具/单据渲染） |
+| 后端单元测试 | 56 条通过（vitest，纯函数） |
+| 前端单元测试 | 69 条通过（vitest，含打印模板/附件工具/单据渲染/附件正文/条款合并） |
 | 无服务门禁 | `npm run test:static` 6/6 铁律 + 对比度 + 双端类型检查 + ESM 产物校验 |
 
 **已完成的完整新模块**：消防综合管理（4 模型 + 22 端点 + 6 页面）、条款批量导入（3 格式）、合同消防约定、**合同附件便捷化（3 模型 + 3 路由模块；13 项能力：模板库一键生成单据、自定义占位符模板、系统记录导出、引用型附件、待补清单、拖拽/粘贴上传、拍照与扫描仪直传、手机上传、常用附件组、跨合同继承、分组排序+打印附件目录、电子签回传归档、租户自助上传+审核）**。
@@ -766,6 +766,19 @@ off('room:status-changed', callback);
 - 未在真机验证的两条成功路径（必须如实告知用户）：⑦ 扫描仪出图入册（本机无扫描仪，只验了调用链与失败路径）；⑫ 下载归档（无 e签宝账号与已签合同，只验了未配置路径）。
 - 本轮踩过的坑汇总：① ESM 后端里写 require(...) 类型检查能过、运行时必崩（已改 import { execFile } from node:child_process）；② Vue 模板里用 mustache 拼接占位符示例会让 Vite 500 且 vue-tsc 查不出，文案要放进单引号常量；③ 给已有表加列必须写迁移条目；④ 公开上传路由不能挂鉴权，靠一次性 token 与有效期；⑤ R2 颜色字面量门禁对「独立 HTML / 打印模板」性质的文件需按行加 ci-allow:R2 并说明原因。
 - 收尾验证：test:static 每批均通过（6/6 铁律 + 双端类型检查 + 双端单测 61 条 + ESM）；vite build 作为模板编译检查固定执行（比只看 vue-tsc 可靠）。
+
+### 合同附件打印与维护（用户 2026-10-17 追加，务必读）
+
+- **打印顺序**：合同正文 → 甲乙双方签约信息 → 另起一页「附件目录」（按分组、连续编号、标「附件共 N 件」+ 签章位）→ **每份附件正文**（每份另起一页）。
+- **附件正文渲染**（frontend/src/utils/attachment-print.ts）：图片（jpg/png/gif/bmp/webp）转 dataURL 直接嵌入；PDF 用 **pdf.js（pdfjs-dist）逐页渲染成 JPEG** 嵌入（每页带「附件N：标题（第 x 页 / 共 y 页）」）；Word/Excel 走后端 GET /contracts/:id/files/:index/render 转 HTML（.docx→mammoth 保留段落/表格/文档内图片；.doc→word-extractor 纯文本；.xlsx→exceljs 逐表转表格）；转换失败/原件缺失给提示页，不静默丢页。**不引入 PDF 合并库、不装 LibreOffice**。
+- **附件原文件读取**：GET /contracts/:id/files/:index/raw（带鉴权）。**附件在磁盘上是哈希文件名、没有扩展名**，res.sendFile 默认给 application/octet-stream → 图片 dataURL 无法渲染；必须按附件名扩展名显式 res.type(...)（实测踩过）。
+- **附件删除**：DELETE /contracts/:id/files（requirePermission + 审计）；纯函数 services/attachment-list.ts 的 removeAttachment 定位条目；记录与磁盘文件一起删，引用型条目按 index 删。前端附件行操作为 编辑标题 / 上移 / 下移 / 删除（二次确认）。
+- **保存不得清空附件（重要根因）**：合同 PUT 曾把请求里的 billingConfig 整段覆盖；起草页保存/提交审批时前端只回表单字段，于是「上传附件 → 保存」把附件列表清空，表现为「上传成功但打印里没有附件目录」。修复：services/billing-config-merge.ts 的 mergeBillingConfig —— 服务端托管键（attachments / attachmentInbox / eSignFlowId）请求未携带时保留库里的值。**以后任何「只由专用端点维护」的 billingConfig 键，都要加进 SERVER_MANAGED_BILLING_KEYS**。
+- **打印分页坑**：`.sign-area` 曾是 flex，Chromium 打印引擎**不支持对 flex 容器应用 page-break-inside: avoid**，会把甲乙双方签名拦腰截断到两页（用户实机截图）；已改为 table / table-cell + page-break-inside: avoid，放不下时整块推到下一页。
+- **pdf.js 首次加载坑**：Vite dev 下首次动态 import pdfjs-dist 会触发依赖预构建并整页重载（调用上下文被销毁）；已在 vite.config 的 optimizeDeps.include 预构建。
+- **条款模板多选**：起草页可多选模板，条款合并去重后追加、不覆盖已编辑内容（utils/clause-merge.ts 的 mergeClauses，纯函数 + 单测）。
+- **边界**：Word 导出（docx.ts）按设计只输出文字不嵌图片，故 Word 版只有附件目录与正文转出的文字；.doc 老格式只提纯文本；Excel 只印数据表格（不含图表/批注）。
+- **验证**：后端单测 56 条、前端单测 69 条；真接口 E2E：真实图片/PDF/docx/xlsx 上传后打印 HTML 分别含 data:image/png、data:image/jpeg、docx 文本、xlsx 表格，合同 PDF 由 3 页增至 7 页；删除实测「附件 2→1 且磁盘文件已删」；新包本体（CDP 驱动真实 exe）同样验证通过。
 
 **附件标题/备注（用户 2026-10-16 追加）**：附件条目新增可选 `title` 字段——上传时默认空串，界面上点「编辑标题」（`ElMessageBox.prompt`）可改成合同化的名字。后端 `PUT /api/contracts/:id/files/title`（body `{ path, title }`，按 `path` 定位更稳、找不到回退 `index`）写回 `billingConfig.attachments`，**必须走 `.changed('billingConfig', true)` 再 save**（SQLite JSON 陷阱），标题上限 60 字（超长 400、附件不存在 404），并挂 `auditLog('合同','修改附件标题')`；起草页与详情页的附件表都新增「附件标题/备注」列（未设置显示灰字「未设置（打印用文件名）」）与「编辑标题」动作。打印时 `ContractPrint` **优先用 `title`**，为空才回退去掉扩展名的文件名，标题经 `escAttr()` 转义（`& < >` 不会破坏排版）。已由 `frontend/tests/unit.test.ts` 的 2 条用例锁定（标题优先于文件名、标题转义）。
 **合同底部签约信息栏（用户 2026-10-10 要求）**：`ContractPrint` 的 `signField()` 渲染甲乙两列字段表。**甲方**取打印设置的公司全称/电话/地址/邮编/签约代表人（后三项选填，未配置则留空划线）与合同收款信息里的开户银行/帐户名/帐号；**乙方**取租客档案里**用户自行填写**的 5 个字段（`legalPerson` 签约代表人 / `signAddress` 签约地址 / `postcode` 邮编 / `bankName` 开户银行 / `bankAccount` 银行账号，均为 `tenants` 新列，迁移清单自动补列）——**不做任何"用联系人顶法定代表人、用证件地址顶签约地址"的映射**（用户明确要求让用户自定义填写）。乙方栏的名称/身份证号码/电话仍受合同起草页「乙方证件信息」开关控制（关闭时同名栏位留空），字段标签始终打印、供手写。改这 3 处模板时别把 `frontend/tests/unit.test.ts` 的「合同底部签章区」3 条用例改红。
